@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Map</title>
+  <style>
+    body { margin: 0; display: flex; height: 100vh; }
+    .container { display: flex; width: 100%; }
+    .sidebar { width: 220px; background: #d53b2c; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
+    .logo { width: 60px; margin-bottom: 10px; }
+    .main { flex: 1; }
+    #map { width: 100%; height: 100%; }
+  </style>
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY"></script>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="logo-section">
+        <img src="images/Logo.png" class="logo" />
+        <h2>LipaAlertHub</h2>
+      </div>
+    </aside>
+    <main class="main">
+      <div id="map"></div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+      authDomain: "lipaalerthub.firebaseapp.com",
+      projectId: "lipaalerthub",
+      storageBucket: "lipaalerthub.firebasestorage.app",
+      messagingSenderId: "991310233066",
+      appId: "1:991310233066:web:7e836a60e5c4a302de0693"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let map;
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 13.941, lng: 121.163 }, // Lipa City
+        zoom: 13,
+      });
+
+      onSnapshot(collection(db, "incident_reports"), (snapshot) => {
+        snapshot.forEach((doc) => {
+          const d = doc.data();
+          if (d.location) {
+            new google.maps.Marker({
+              position: { lat: d.location.latitude, lng: d.location.longitude },
+              map,
+              title: d.emergencyType
+            });
+          }
+        });
+      });
+    }
+
+    window.onload = initMap;
+  </script>
+</body>
+</html>

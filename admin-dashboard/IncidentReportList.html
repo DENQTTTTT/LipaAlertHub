@@ -1,0 +1,817 @@
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>LipaAlertHub - Incident Report List</title>
+
+    <!-- External libs used in Dashboard -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+      /* Copied & adapted styling from Dashboard for consistent look */
+      :root { --brand-1: #d53b2c; --brand-2:#b92e20; --muted:#666; --bg:#f8f9fa; }
+      *{box-sizing:border-box}
+      body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background:var(--bg); margin:0; }
+      .sidebar {
+        position: fixed; left:0; top:0; width:250px; height:100vh;
+        background: linear-gradient(180deg,var(--brand-1),var(--brand-2)); color:white; z-index:1000; overflow-y:auto;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.08);
+      }
+      .sidebar-header { text-align:center; padding:20px; border-bottom:1px solid rgba(255,255,255,0.08); }
+      .logo { width:60px; height:60px; border-radius:50%; border:3px solid white; display:block; margin:0 auto 10px; object-fit:cover;}
+      .brand-title { font-weight:700; font-size:18px; color:white; }
+      .nav-link { display:flex; align-items:center; gap:12px; padding:14px 20px; color:rgba(255,255,255,0.85); text-decoration:none; }
+      .nav-link:hover{ background:rgba(255,255,255,0.06); color:white; border-left:4px solid rgba(255,255,255,0.12);}
+      .main { margin-left:250px; min-height:100vh; }
+      .header { background:white; padding:18px 26px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 6px rgba(0,0,0,0.04); border-bottom:1px solid #e9ecef; }
+      .page-title { font-size:24px; font-weight:700; color:#333; }
+      .content { padding:24px; }
+
+      /* Report list card */
+      .card-white { background:white; border-radius:12px; padding:18px; box-shadow:0 6px 20px rgba(0,0,0,0.06); border:1px solid #eef0f2; }
+      .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+      .search-input { width:420px; max-width:100%; }
+      .filter-panel { width:280px; max-width:100%; }
+
+      .report-list { margin-top:18px; }
+      .report-row {
+        display:flex; gap:12px; align-items:center; padding:14px; border-radius:8px; background:#fcfcfc;
+        border:1px solid #f1f3f4; margin-bottom:12px;
+        justify-content:space-between;
+      }
+      .report-left { display:flex; gap:12px; align-items:center; min-width:0; }
+      .avatar { width:48px; height:48px; border-radius:50%; object-fit:cover; border:2px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+      .report-meta { min-width:0; }
+      .report-meta strong { display:block; font-size:15px; color:#2c3e50; }
+      .report-meta small { display:block; color:var(--muted); font-size:13px; margin-top:4px; }
+
+      .report-middle { flex:1; padding:0 12px; min-width:0; }
+      .report-details { display:flex; gap:12px; flex-wrap:wrap; font-size:13px; color:#444; }
+      .report-details .badge { font-weight:600; }
+
+      .report-right { display:flex; gap:10px; align-items:center; }
+
+      .status-badge {
+        padding:6px 10px; border-radius:12px; font-weight:700; text-transform:uppercase; font-size:12px;
+      }
+      .status-pending { background:#fff3cd; color:#856404; border:1px solid #ffeaa7; }
+      .status-verified { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+      .status-resolved { background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb; }
+      .status-dismissed { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+
+      .btn-brand { background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
+      .btn-outline { background:white; color:var(--brand-1); border:1px solid var(--brand-1); padding:8px 12px; border-radius:8px; cursor:pointer; }
+
+      /* Responsive */
+      @media (max-width:900px) {
+        .controls { flex-direction:column; align-items:stretch; }
+        .search-input { width:100%; }
+        .filter-panel { width:100%;}
+      }
+
+      /* modal overrides */
+      .modal-body pre { white-space:pre-wrap; word-break:break-word; }
+    </style>
+  </head>
+  <body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" role="navigation">
+      <div class="sidebar-header">
+        <img src="assets/images/Logo.png" alt="logo" class="logo" />
+        <div class="brand-title">LipaAlertHub</div>
+        <div style="font-size:12px; opacity:0.9;">Admin Panel</div>
+      </div>
+
+      <nav>
+        <a href="Dashboard.html" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a href="IncidentReportList.html" class="nav-link" style="background:rgba(255,255,255,0.06); border-left:4px solid rgba(255,255,255,0.12)"><i class="fas fa-list"></i> Reports</a>
+        <a href="ReportForm.html" class="nav-link"><i class="fas fa-file-alt"></i> Report Form</a>
+        <a href="Announcements.html" class="nav-link"><i class="fas fa-bullhorn"></i> Announcements</a>
+        <a href="Forums.html" class="nav-link"><i class="fas fa-comments"></i> Forums</a>
+        <a href="Maps.html" class="nav-link"><i class="fas fa-map"></i> Map</a>
+        <a href="Chats.html" class="nav-link"><i class="fas fa-comment-dots"></i> Chats</a>
+        <a href="AccountVerification.html" class="nav-link"><i class="fas fa-users"></i> Accounts</a>
+        <a href="Analytics.html" class="nav-link"><i class="fas fa-chart-bar"></i> Analytics</a>
+        <a href="Contacts.html" class="nav-link"><i class="fas fa-phone"></i> Contacts</a>
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+      <header class="header">
+        <div>
+          <div class="page-title">Incident Reports</div>
+          <small style="color:var(--muted)">All reports submitted by agencies and residents</small>
+        </div>
+
+        <div style="display:flex; gap:12px; align-items:center;">
+          <div class="user-info" id="userInfo">
+            <div style="text-align:right; margin-right:8px;">
+              <div id="userName" style="font-weight:700;">Loading...</div>
+              <small id="userEmail" style="color:var(--muted)"></small>
+            </div>
+            <div id="userRoleBadge" class="role-badge" style="padding:6px 10px; border-radius:12px; background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); color:white; font-weight:700; font-size:12px;">ADMIN</div>
+          </div>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="card-white">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div class="controls">
+              <input id="searchInput" class="form-control search-input" placeholder="Search by name, location, type, createdBy..." />
+              <select id="sortSelect" class="form-select" style="width:200px;">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="status">Sort by Status</option>
+              </select>
+            </div>
+
+            <div style="display:flex; gap:8px; align-items:center;">
+              <button class="btn-outline" id="exportBtn"><i class="fas fa-file-export"></i> Export CSV</button>
+              <button class="btn-outline" id="createBtn" onclick="location.href='ReportForm.html'"><i class="fas fa-plus"></i> Create</button>
+              <button class="btn-brand" id="filterToggle"><i class="fas fa-filter"></i> Filters</button>
+            </div>
+          </div>
+
+          <!-- Filters panel -->
+          <div id="filterPanel" style="display:none; margin-top:14px;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <div class="filter-panel card-white" style="padding:12px;">
+                <label class="form-label">Date range</label>
+                <div style="display:flex; gap:8px;">
+                  <input type="date" id="dateFrom" class="form-control" />
+                  <input type="date" id="dateTo" class="form-control" />
+                </div>
+
+                <label class="form-label" style="margin-top:8px;">Status</label>
+                <div>
+                  <label class="form-check"><input type="checkbox" class="form-check-input filter-status" value="pending" /> Pending</label>
+                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-status" value="verified" /> Verified</label>
+                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-status" value="resolved" /> Resolved</label>
+                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-status" value="dismissed" /> Dismissed</label>
+                </div>
+
+                <label class="form-label" style="margin-top:8px;">Type</label>
+                <div>
+                  <label class="form-check"><input type="checkbox" class="form-check-input filter-type" value="Fire" /> Fire</label>
+                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-type" value="Medical" /> Medical</label>
+                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-type" value="Accident" /> Accident</label>
+                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-type" value="Flood" /> Flood</label>
+                </div>
+
+                <label class="form-label" style="margin-top:8px;">Barangay / Location</label>
+                <input id="filterLocation" class="form-control" placeholder="Type barangay or purok..." />
+
+                <label class="form-label" style="margin-top:8px;">Created By</label>
+                <input id="filterCreatedBy" class="form-control" placeholder="Agency or user who created..." />
+
+                <div style="display:flex; gap:8px; margin-top:10px;">
+                  <button id="applyFilters" class="btn-brand">Apply</button>
+                  <button id="clearFilters" class="btn-outline">Clear</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Report list -->
+          <div id="reportList" class="report-list" style="margin-top:20px;">
+            <!-- Appends rows here -->
+          </div>
+
+          <!-- Pagination -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+            <div>
+              <small id="resultCount">0 results</small>
+            </div>
+            <div>
+              <button id="prevPage" class="btn-outline" disabled>Prev</button>
+              <button id="nextPage" class="btn-outline" disabled>Next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- View Modal -->
+    <div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Report Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div id="modalContent">
+              <!-- Filled programmatically -->
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button id="verifyBtn" class="btn btn-success">Mark Verified</button>
+            <button id="resolveBtn" class="btn btn-primary">Mark Resolved</button>
+            <button id="dismissBtn" class="btn btn-danger">Dismiss</button>
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Firebase SDKs (same major version as your dashboard) -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+      import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+      import { getFirestore, collection, query, orderBy, onSnapshot, where, limit, startAfter, getDocs, doc, updateDoc, getDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+      import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+
+      // --- Firebase config (from your Dashboard file) ---
+      const firebaseConfig = {
+        apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+        authDomain: "lipaalerthub.firebaseapp.com",
+        projectId: "lipaalerthub",
+        storageBucket: "lipaalerthub.firebasestorage.app",
+        messagingSenderId: "991310233066",
+        appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+      const storage = getStorage(app);
+      // -------------------------------------------------
+
+      // Roles and other constants (matching dashboard)
+      const USER_ROLES = { ADMIN: 'admin', MONITOR: 'monitor', RESCUER:'rescuer', AGENCY:'agency', RESIDENT:'resident' };
+
+      // DOM refs
+      const reportListEl = document.getElementById('reportList');
+      const searchInput = document.getElementById('searchInput');
+      const filterToggle = document.getElementById('filterToggle');
+      const filterPanel = document.getElementById('filterPanel');
+      const applyFiltersBtn = document.getElementById('applyFilters');
+      const clearFiltersBtn = document.getElementById('clearFilters');
+      const dateFromEl = document.getElementById('dateFrom');
+      const dateToEl = document.getElementById('dateTo');
+      const filterLocationEl = document.getElementById('filterLocation');
+      const filterCreatedByEl = document.getElementById('filterCreatedBy');
+      const exportBtn = document.getElementById('exportBtn');
+      const resultCountEl = document.getElementById('resultCount');
+      const prevPageBtn = document.getElementById('prevPage');
+      const nextPageBtn = document.getElementById('nextPage');
+      const sortSelect = document.getElementById('sortSelect');
+
+      // Modal
+      const viewModalEl = document.getElementById('viewModal');
+      const bootstrapModal = new bootstrap.Modal(viewModalEl);
+      const modalContent = document.getElementById('modalContent');
+      const verifyBtn = document.getElementById('verifyBtn');
+      const resolveBtn = document.getElementById('resolveBtn');
+      const dismissBtn = document.getElementById('dismissBtn');
+
+      // Pagination & state
+      let lastVisible = null;
+      let firstVisible = null;
+      let pageSize = 10;
+      let currentSnapshot = null;
+      let docSnapshotsPages = []; // for simple back-navigation
+      let currentUser = null;
+      let currentUserInfo = null;
+
+      // Filters state
+      let activeFilters = {
+        statuses: [],
+        types: [],
+        dateFrom: null,
+        dateTo: null,
+        location: '',
+        createdBy: ''
+      };
+
+      // Real-time listener handle
+      let reportsUnsubscribe = null;
+
+      // Auth check and UI initialization
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          window.location.href = 'index.html';
+          return;
+        }
+        currentUser = user;
+        // fetch user doc to get role
+        try {
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            currentUserInfo = userDocSnap.data();
+            document.getElementById('userName').textContent = currentUserInfo.name || user.displayName || user.email;
+            document.getElementById('userEmail').textContent = user.email;
+            document.getElementById('userRoleBadge').textContent = (currentUserInfo.role || 'ADMIN').toUpperCase();
+          }
+        } catch (err) {
+          console.error('Failed fetch user info:', err);
+        }
+
+        initializeListeners();
+      });
+
+      // Toggle filter visibility
+      filterToggle.addEventListener('click', () => {
+        filterPanel.style.display = filterPanel.style.display === 'none' ? 'block' : 'none';
+      });
+
+      // Apply / clear filters
+      applyFiltersBtn.addEventListener('click', () => {
+        activeFilters.dateFrom = dateFromEl.value || null;
+        activeFilters.dateTo = dateToEl.value || null;
+        activeFilters.location = filterLocationEl.value.trim();
+        activeFilters.createdBy = filterCreatedByEl.value.trim();
+
+        // statuses and types
+        activeFilters.statuses = Array.from(document.querySelectorAll('.filter-status:checked')).map(i => i.value);
+        activeFilters.types = Array.from(document.querySelectorAll('.filter-type:checked')).map(i => i.value);
+
+        loadReports(true);
+      });
+
+      clearFiltersBtn.addEventListener('click', () => {
+        dateFromEl.value = ''; dateToEl.value = ''; filterLocationEl.value=''; filterCreatedByEl.value='';
+        document.querySelectorAll('.filter-status, .filter-type').forEach(cb => cb.checked = false);
+        activeFilters = { statuses:[], types:[], dateFrom:null, dateTo:null, location:'', createdBy:'' };
+        loadReports(true);
+      });
+
+      // Search & sort
+      let searchTimeout = null;
+      searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => loadReports(true), 400);
+      });
+
+      sortSelect.addEventListener('change', () => loadReports(true));
+
+      // Export CSV
+      exportBtn.addEventListener('click', exportCSV);
+
+      // Pagination
+      prevPageBtn.addEventListener('click', () => {
+        if (docSnapshotsPages.length > 1) {
+          // pop current page
+          docSnapshotsPages.pop();
+          const prevPage = docSnapshotsPages.pop() || null;
+          if (prevPage) {
+            loadReports(false, prevPage);
+          } else {
+            loadReports(true);
+          }
+        }
+      });
+
+      nextPageBtn.addEventListener('click', () => {
+        loadReports(false);
+      });
+
+      // Initialize real-time or initial listeners
+      function initializeListeners() {
+        loadReports(true);
+      }
+
+      // Build Firestore query based on filters
+      function buildBaseQuery() {
+        // We cannot build extremely complex Firestore queries with OR easily,
+        // so we'll primarily order and use where for simple things.
+        // For complex searches we will fetch a page and filter client-side.
+        let q = collection(db, 'incident_reports');
+
+        // Order
+        const sortVal = sortSelect.value;
+        if (sortVal === 'oldest') {
+          q = query(q, orderBy('timestamp', 'asc'));
+        } else {
+          // newest or default
+          q = query(q, orderBy('timestamp', 'desc'));
+        }
+
+        return q;
+      }
+
+      // Main loader - supports "reload" (reset paging) or "next" (pagination)
+      async function loadReports(reload = true, startAfterDoc = null) {
+        try {
+          // Unsubscribe previous realtime listener if any (we will use onSnapshot for real-time page)
+          if (reportsUnsubscribe) {
+            reportsUnsubscribe();
+            reportsUnsubscribe = null;
+          }
+
+          reportListEl.innerHTML = `<div class="text-muted">Loading reports...</div>`;
+
+          // Build base query and then fetch a page (client-side filter applied afterwards)
+          let baseQ = buildBaseQuery();
+
+          // If paginating forward and not reloading, start after lastVisible
+          if (!reload && lastVisible) {
+            baseQ = query(baseQ, startAfter(lastVisible), limit(pageSize));
+          } else if (startAfterDoc) {
+            baseQ = query(baseQ, startAfter(startAfterDoc), limit(pageSize));
+          } else {
+            baseQ = query(baseQ, limit(pageSize));
+          }
+
+          // Use onSnapshot so page updates in real-time
+          reportsUnsubscribe = onSnapshot(baseQ, (snapshot) => {
+            currentSnapshot = snapshot;
+            renderSnapshot(snapshot, reload);
+          }, (err) => {
+            console.error('Realtime error:', err);
+            reportListEl.innerHTML = `<div class="text-danger">Error loading reports.</div>`;
+          });
+
+        } catch (err) {
+          console.error('loadReports error', err);
+          reportListEl.innerHTML = `<div class="text-danger">Failed to load reports: ${err.message}</div>`;
+        }
+      }
+
+      // Render snapshot with client-side filtering & search
+      async function renderSnapshot(snapshot, resetPaging) {
+        const results = [];
+
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          results.push({ id: docSnap.id, data });
+        });
+
+        // client-side filter by search and complex filters
+        const searchTerm = (searchInput.value || '').toLowerCase();
+
+        const filtered = results.filter(item => {
+          const d = item.data;
+          // date range
+          if (activeFilters.dateFrom || activeFilters.dateTo) {
+            if (!d.timestamp) return false;
+            let docDate;
+            if (d.timestamp.seconds) docDate = new Date(d.timestamp.seconds * 1000);
+            else if (d.timestamp.toDate) docDate = d.timestamp.toDate();
+            else docDate = new Date(d.timestamp);
+            if (activeFilters.dateFrom) {
+              const from = new Date(activeFilters.dateFrom);
+              from.setHours(0,0,0,0);
+              if (docDate < from) return false;
+            }
+            if (activeFilters.dateTo) {
+              const to = new Date(activeFilters.dateTo); to.setHours(23,59,59,999);
+              if (docDate > to) return false;
+            }
+          }
+
+          // statuses
+          if (activeFilters.statuses.length) {
+            if (!activeFilters.statuses.includes((d.status || '').toLowerCase())) return false;
+          }
+
+          // types
+          if (activeFilters.types.length) {
+            if (!activeFilters.types.includes((d.emergencyType || '').toString())) return false;
+          }
+
+          // location filter
+          if (activeFilters.location) {
+            const locationStr = (d.barangay || '') + ' ' + (d.location || '') + ' ' + (d.purok || '');
+            if (!locationStr.toLowerCase().includes(activeFilters.location.toLowerCase())) return false;
+          }
+
+          // createdBy filter
+          if (activeFilters.createdBy) {
+            if (!((d.createdBy || '').toLowerCase().includes(activeFilters.createdBy.toLowerCase()))) return false;
+          }
+
+          // search
+          if (searchTerm) {
+            const candidate = [
+              d.name || '',
+              d.barangay || '',
+              d.location || '',
+              d.emergencyType || '',
+              d.status || '',
+              d.createdBy || ''
+            ].join(' ').toLowerCase();
+            if (!candidate.includes(searchTerm)) return false;
+          }
+
+          return true;
+        });
+
+        // Update paging markers for "next" and "prev"
+        if (filtered.length > 0) {
+          firstVisible = snapshot.docs[0] || null;
+          lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+
+          // store pages for prev navigation when resetPaging
+          if (resetPaging) {
+            docSnapshotsPages = [];
+            docSnapshotsPages.push(snapshot);
+          } else {
+            docSnapshotsPages.push(snapshot);
+          }
+        } else {
+          firstVisible = null;
+          lastVisible = null;
+        }
+
+        // Render rows
+        reportListEl.innerHTML = '';
+        if (filtered.length === 0) {
+          reportListEl.innerHTML = `<div class="text-muted">No reports found.</div>`;
+          resultCountEl.textContent = `0 results`;
+          prevPageBtn.disabled = !(docSnapshotsPages.length > 1);
+          nextPageBtn.disabled = true;
+          return;
+        }
+
+        filtered.forEach(item => {
+          const el = createReportRow(item.id, item.data);
+          reportListEl.appendChild(el);
+        });
+
+        resultCountEl.textContent = `${filtered.length} shown`;
+
+        // next page button availability - we enable next if snapshot.size === pageSize
+        nextPageBtn.disabled = !(snapshot.size === pageSize);
+        prevPageBtn.disabled = !(docSnapshotsPages.length > 1);
+      }
+
+      // Create the DOM row
+      function createReportRow(id, data) {
+        const row = document.createElement('div');
+        row.className = 'report-row';
+
+        const left = document.createElement('div');
+        left.className = 'report-left';
+
+        const avatar = document.createElement('img');
+        avatar.className = 'avatar';
+        // Use photoURL or default logo
+        avatar.src = data.photoURL || 'assets/images/Logo.png';
+        avatar.alt = 'reporter';
+
+        const meta = document.createElement('div');
+        meta.className = 'report-meta';
+        const nameEl = document.createElement('strong');
+        nameEl.textContent = data.name || (data.createdBy || 'Unknown');
+        const dateEl = document.createElement('small');
+        dateEl.textContent = formatTimestamp(data.timestamp);
+
+        meta.appendChild(nameEl);
+        meta.appendChild(dateEl);
+
+        left.appendChild(avatar);
+        left.appendChild(meta);
+
+        // middle details
+        const middle = document.createElement('div');
+        middle.className = 'report-middle';
+
+        const details = document.createElement('div');
+        details.className = 'report-details';
+
+        const typeSpan = document.createElement('span');
+        typeSpan.innerHTML = `<strong>Type:</strong> ${data.emergencyType || 'N/A'}`;
+
+        const statusSpan = document.createElement('span');
+        const statusClass = 'status-' + ((data.status || 'pending').toLowerCase());
+        statusSpan.innerHTML = `<span class="status-badge ${statusClass}">${(data.status || 'Pending').toString()}</span>`;
+
+        const locSpan = document.createElement('span');
+        locSpan.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${(data.barangay || '')} ${(data.location || '')}`;
+
+        const createdBySpan = document.createElement('span');
+        createdBySpan.innerHTML = `<small>Created by: <strong>${data.createdBy || 'Unknown'}</strong></small>`;
+
+        details.appendChild(typeSpan);
+        details.appendChild(statusSpan);
+        details.appendChild(locSpan);
+        details.appendChild(createdBySpan);
+
+        middle.appendChild(details);
+
+        // right actions
+        const right = document.createElement('div');
+        right.className = 'report-right';
+
+        const viewBtn = document.createElement('button');
+        viewBtn.className = 'btn-outline';
+        viewBtn.innerHTML = '<i class="fas fa-eye"></i> View';
+        viewBtn.onclick = () => openViewModal(id, data);
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-outline';
+        editBtn.innerHTML = '<i class="fas fa-edit"></i> Edit';
+        editBtn.onclick = () => { window.location.href = `ReportForm.html?id=${id}`; };
+
+        right.appendChild(viewBtn);
+        right.appendChild(editBtn);
+
+        row.appendChild(left);
+        row.appendChild(middle);
+        row.appendChild(right);
+
+        return row;
+      }
+
+      // Format Firestore timestamp
+      function formatTimestamp(timestamp) {
+        if (!timestamp) return 'Unknown';
+        let d;
+        if (timestamp.seconds) d = new Date(timestamp.seconds * 1000);
+        else if (timestamp.toDate) d = timestamp.toDate();
+        else d = new Date(timestamp);
+        return d.toLocaleString();
+      }
+
+      // View modal
+      let currentlyViewingId = null;
+      function openViewModal(id, data) {
+        currentlyViewingId = id;
+        modalContent.innerHTML = `
+          <div>
+            <h5>${data.emergencyType || 'Incident'}</h5>
+            <p><strong>Reported by:</strong> ${data.name || 'Unknown'}</p>
+            <p><strong>Created By:</strong> ${data.createdBy || 'N/A'}</p>
+            <p><strong>Status:</strong> ${(data.status || 'Pending')}</p>
+            <p><strong>Date:</strong> ${formatTimestamp(data.timestamp)}</p>
+            <p><strong>Barangay:</strong> ${data.barangay || ''}</p>
+            <p><strong>Location:</strong> ${data.location || ''} ${data.purok ? ' - ' + data.purok : ''}</p>
+            <p><strong>Details:</strong></p>
+            <pre style="background:#f7f7f7;padding:10px;border-radius:6px;">${data.details || data.description || 'No details provided.'}</pre>
+          </div>
+        `;
+
+        // images (if any)
+        if (data.images && Array.isArray(data.images) && data.images.length) {
+          const gallery = document.createElement('div');
+          gallery.style.display = 'flex'; gallery.style.gap = '8px'; gallery.style.flexWrap = 'wrap'; gallery.style.marginTop = '12px';
+          data.images.forEach(url => {
+            const img = document.createElement('img');
+            img.src = url;
+            img.style.width = '120px';
+            img.style.height = '80px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '6px';
+            img.style.border = '1px solid #eee';
+            gallery.appendChild(img);
+          });
+          modalContent.appendChild(gallery);
+        }
+
+        // enable/disable action buttons based on role/status
+        const statusLower = (data.status || 'pending').toLowerCase();
+        verifyBtn.style.display = (statusLower === 'pending') ? 'inline-block' : 'none';
+        resolveBtn.style.display = (statusLower !== 'resolved') ? 'inline-block' : 'none';
+        dismissBtn.style.display = (statusLower !== 'dismissed') ? 'inline-block' : 'none';
+
+        // Show modal
+        bootstrapModal.show();
+      }
+
+      // Action handlers
+      verifyBtn.addEventListener('click', async () => {
+        if (!currentlyViewingId) return;
+        try {
+          await updateDoc(doc(db, 'incident_reports', currentlyViewingId), {
+            status: 'verified',
+            verifiedAt: new Date(),
+            verifiedBy: currentUser?.email || 'system',
+            updatedAt: new Date()
+          });
+          showNotification('Report marked verified', 'success');
+          bootstrapModal.hide();
+        } catch (err) {
+          console.error(err);
+          showNotification('Failed to verify: ' + err.message, 'error');
+        }
+      });
+
+      resolveBtn.addEventListener('click', async () => {
+        if (!currentlyViewingId) return;
+        try {
+          await updateDoc(doc(db, 'incident_reports', currentlyViewingId), {
+            status: 'resolved',
+            resolvedAt: new Date(),
+            resolvedBy: currentUser?.email || 'system',
+            updatedAt: new Date()
+          });
+          showNotification('Report marked resolved', 'success');
+          bootstrapModal.hide();
+        } catch (err) {
+          console.error(err);
+          showNotification('Failed to resolve: ' + err.message, 'error');
+        }
+      });
+
+      dismissBtn.addEventListener('click', async () => {
+        if (!currentlyViewingId) return;
+        const reason = prompt('Reason for dismissal (optional):');
+        try {
+          await updateDoc(doc(db, 'incident_reports', currentlyViewingId), {
+            status: 'dismissed',
+            dismissedAt: new Date(),
+            dismissedBy: currentUser?.email || 'system',
+            dismissalReason: reason || '',
+            updatedAt: new Date()
+          });
+          showNotification('Report dismissed', 'warning');
+          bootstrapModal.hide();
+        } catch (err) {
+          console.error(err);
+          showNotification('Failed to dismiss: ' + err.message, 'error');
+        }
+      });
+
+      // Export CSV from currently shown snapshot (client filter applied)
+      async function exportCSV() {
+        if (!currentSnapshot) {
+          showNotification('No data to export', 'warning');
+          return;
+        }
+
+        const rows = [];
+        currentSnapshot.forEach(docSnap => {
+          const d = docSnap.data();
+          rows.push({
+            id: docSnap.id,
+            name: d.name || '',
+            createdBy: d.createdBy || '',
+            type: d.emergencyType || '',
+            status: d.status || '',
+            barangay: d.barangay || '',
+            location: d.location || '',
+            date: formatTimestamp(d.timestamp),
+            details: (d.details || d.description || '').replace(/\n/g,' ')
+          });
+        });
+
+        if (!rows.length) {
+          showNotification('No rows to export', 'warning');
+          return;
+        }
+
+        const csvHeader = Object.keys(rows[0]).join(',');
+        const csvBody = rows.map(r => Object.values(r).map(val => `"${(val||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+        const csv = csvHeader + '\n' + csvBody;
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `incident_reports_export_${Date.now()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      // Simple notification
+      function showNotification(message, type = 'info') {
+        // small bootstrap toast-like floating
+        const el = document.createElement('div');
+        el.style.position = 'fixed';
+        el.style.right = '20px';
+        el.style.top = '20px';
+        el.style.padding = '12px 16px';
+        el.style.borderRadius = '10px';
+        el.style.color = 'white';
+        el.style.zIndex = 99999;
+        el.style.fontWeight = 700;
+        el.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+
+        if (type === 'success') { el.style.background = 'linear-gradient(135deg,#27ae60,#2ecc71)'; }
+        else if (type === 'error') { el.style.background = 'linear-gradient(135deg,#e74c3c,#c0392b)'; }
+        else if (type === 'warning') { el.style.background = 'linear-gradient(135deg,#f39c12,#e67e22)'; }
+        else { el.style.background = 'linear-gradient(135deg,#3498db,#2980b9)'; }
+
+        el.textContent = message;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 4200);
+      }
+
+      // Clean up when user navigates away
+      window.addEventListener('beforeunload', () => {
+        if (reportsUnsubscribe) reportsUnsubscribe();
+      });
+
+      // Utility: startAfter stub re-export for older import compatibility
+      // (we used startAfter from firebase-firestore import above).
+      // No-op here.
+
+      // Kick off initial load when DOM ready (auth will call initializeListeners)
+      document.addEventListener('DOMContentLoaded', () => {
+        // If not logged in yet, auth handler will handle loads
+      });
+    </script>
+  </body>
+  </html>

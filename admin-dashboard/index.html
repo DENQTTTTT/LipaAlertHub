@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LipaAlertHub Admin Portal</title>
+  <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body, html {
+  height: 100%;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+}
+
+.left-panel {
+  flex: 1;
+  background-color: #d53b2c;
+  background-image: url('images/background.png'); /* ✅ fixed */
+  background-size: cover;
+  background-position: center;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: left;
+}
+
+.welcome-text h1 {
+  font-size: 32px;
+  line-height: 1.4;
+  font-weight: bold;
+}
+
+.welcome-text h1 span {
+  color: white;
+}
+
+.welcome-text p {
+  margin-top: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+/* Right Panel */
+.right-panel {
+  flex: 1;
+  background-color: #f9f9f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-box {
+  width: 80%;
+  max-width: 350px;
+  text-align: center;
+}
+
+.logo {
+  width: 170px;
+  margin-bottom: 10px;
+}
+
+h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+  color: #222;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+label {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  margin: 10px 0 5px;
+  color: #333;
+}
+
+input {
+  padding: 10px;
+  border: none;
+  border-radius: 25px;
+  background-color: #e6e6e6;
+  font-size: 14px;
+}
+
+button {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #d53b2c;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background-color: #b92e20;
+}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="left-panel">
+      <div class="welcome-text">
+        <h1>Welcome to the<br><span>LipaAlertHub Admin Portal</span></h1>
+        <p>
+          Empowering Safety. Enhancing Response.<br />
+          Manage real-time reports, verify incidents, and keep the community<br />
+          informed through timely announcements and alerts. Your leadership<br />
+          helps us build a safer, more connected Lipa City. Thank you for being<br />
+          part of the mission!
+        </p>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="login-box">
+        <img src="assets\images\Logo.png" alt="LipaAlertHub Logo" class="logo" /> <!-- ✅ fixed -->
+        <h2>Admin Login</h2>
+        <form id="loginForm">
+          <label for="username">USERNAME</label>
+          <input type="text" id="username" name="username" placeholder="admin@email.com" required />
+
+          <label for="password">PASSWORD</label>
+          <input type="password" id="password" name="password" placeholder="•••••" required />
+
+          <button type="submit">Login</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import { 
+    getAuth, 
+    signInWithEmailAndPassword, 
+    setPersistence, 
+    browserLocalPersistence 
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+    authDomain: "lipaalerthub.firebaseapp.com",
+    projectId: "lipaalerthub",
+    storageBucket: "lipaalerthub.appspot.com",   // ✅ fixed
+    messagingSenderId: "991310233066",
+    appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+    measurementId: "G-PCEYY3PFWW"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // ✅ make login persistent
+  await setPersistence(auth, browserLocalPersistence);
+
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // ✅ force refresh token to get the latest claims
+      const token = await user.getIdTokenResult(true);
+
+      if (token.claims.admin) {
+        alert("✅ Welcome Admin!");
+        window.location.href = "dashboard.html"; 
+      } else {
+        alert("⛔ Access denied: Not an admin!");
+        await auth.signOut(); // prevent infinite loop
+      }
+    } catch (error) {
+      alert("Login failed: " + error.message);
+      console.error(error);
+    }
+  });
+</script>
+</body>
+</html>

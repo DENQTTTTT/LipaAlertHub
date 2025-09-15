@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LipaAlertHub - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .dashboard-container {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            border: 3px solid white;
+        }
+
+        .brand-title {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .brand-subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 12px;
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link i {
+            width: 20px;
+            margin-right: 15px;
+            font-size: 16px;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            min-height: 100vh;
+            background: #f8f9fa;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-details {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: white;
+        }
+
+        .role-badge.admin {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .role-badge.monitor {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+        }
+
+        .dashboard-content {
+            padding: 30px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .content-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title i {
+            color: #d53b2c;
+        }
+
+        .reports-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .report-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #d53b2c;
+            transition: all 0.3s ease;
+        }
+
+        .report-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .report-info h6 {
+            color: #d53b2c;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .report-meta {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .status-badge.verified {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-badge.assigned {
+            background: #cce5ff;
+            color: #0056b3;
+            border: 1px solid #b3d7ff;
+        }
+
+        .status-badge.dismissed {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-badge.resolved {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-verify {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+        }
+
+        .btn-action:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .analytics-chart {
+            height: 300px;
+            display: flex;
+            align-items: end;
+            justify-content: space-around;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 15px;
+            position: relative;
+        }
+
+        .chart-bar {
+            width: 12%;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            text-align: center;
+            font-size: 11px;
+            padding: 8px 4px;
+            border-radius: 8px 8px 0 0;
+            margin: 0 2px;
+            min-height: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: end;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .chart-bar:hover {
+            background: white;
+            transform: translateY(-5px);
+        }
+
+        .chart-day {
+            font-size: 10px;
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+
+        .chart-count {
+            font-size: 14px;
+            font-weight: bold;
+            color: #d53b2c;
+        }
+
+        .forum-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .forum-post {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #e74c3c;
+            transition: all 0.3s ease;
+        }
+
+        .forum-post:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .post-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .post-author {
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+
+        .post-content {
+            color: #555;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .post-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .loading-content, .error-content, .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .loading-spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #d53b2c;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        .error-content {
+            color: #dc3545;
+            background: #f8d7da;
+            border-radius: 10px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .no-data {
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px dashed #dee2e6;
+        }
+
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .notification {
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            min-width: 320px;
+            animation: slideIn 0.4s ease;
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .notification.warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .notification.info {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .dashboard-content {
+                padding: 20px 15px;
+            }
+
+            .header {
+                padding: 15px 20px;
+            }
+
+            .page-title {
+                font-size: 24px;
+            }
+
+            .report-item, .forum-post {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .action-buttons {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div style="text-align: center;">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+                Loading LipaAlertHub Dashboard...
+            </div>
+            <small style="opacity: 0.8;">
+                Verifying permissions & initializing RBAC system
+            </small>
+        </div>
+    </div>
+
+    <div id="dashboardContainer" class="dashboard-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
+                <div class="brand-title">LipaAlertHub</div>
+                <div class="brand-subtitle">Disaster Management System</div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item" data-role="admin,monitor">
+                    <a href="#" class="nav-link active" onclick="showDashboard()">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Dashboard
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin,monitor,rescuer">
+                    <a href="IncidentReportList.html" class="nav-link">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Reports
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="Announcements.html" class="nav-link">
+                        <i class="fas fa-bullhorn"></i>
+                        Announcements
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin,monitor">
+                    <a href="Forums.html" class="nav-link">
+                        <i class="fas fa-comments"></i>
+                        Forums
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="Maps.html" class="nav-link">
+                        <i class="fas fa-map"></i>
+                        Map
+                    </a>
+                </div>
+                
+                <div class="nav-item">
+                    <a href="Chats.html" class="nav-link">
+                        <i class="fas fa-comment-dots"></i>
+                        CHATS
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="AccountVerification.html" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        Accounts
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="Analytics.html" class="nav-link">
+                        <i class="fas fa-chart-bar"></i>
+                        Analytics
+                    </a>
+                </div>
+                
+                <div class="nav-item">
+                    <a href="Contacts.html" class="nav-link">
+                        <i class="fas fa-phone"></i>
+                        Contacts
+                    </a>
+                </div>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <h1 class="page-title">Dashboard</h1>
+                
+                <div class="user-info">
+                    <div class="user-details">
+                        <div class="user-name" data-user-info="name">Loading...</div>
+                        <div class="user-role" data-user-info="email">Loading...</div>
+                    </div>
+                    <div class="role-badge" data-user-info="role">Loading...</div>
+                    <div class="dropdown">
+                        <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle fa-2x" style="color: #d53b2c;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="logoutUser()">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-content">
+                <div class="dashboard-grid">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-clock"></i>
+                                Real-Time Incoming Reports
+                            </h3>
+                        </div>
+                        
+                        <div class="reports-container" id="reportsContainer">
+                            <div class="loading-content">
+                                <div class="loading-spinner-small"></div>
+                                <p>Loading emergency reports...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="content-card" data-role="admin">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <i class="fas fa-chart-line"></i>
+                                    Analytics
+                                </h3>
+                                <small class="text-muted">Number of incidents this week</small>
+                            </div>
+                            
+                            <div class="analytics-chart" id="analyticsChart">
+                                <div class="loading-content text-white">
+                                    <div class="loading-spinner-small"></div>
+                                    <p>Loading analytics...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="content-card" data-role="admin,monitor" style="margin-top: 30px;">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <i class="fas fa-comments"></i>
+                                    Forum
+                                </h3>
+                                <span class="badge bg-warning" id="pendingPostsBadge">0</span>
+                            </div>
+                            
+                            <div class="forum-container" id="forumContainer">
+                                <div class="loading-content">
+                                    <div class="loading-spinner-small"></div>
+                                    <p>Loading forum posts...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getStorage } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+            authDomain: "lipaalerthub.firebaseapp.com",
+            projectId: "lipaalerthub",
+            storageBucket: "lipaalerthub.firebasestorage.app",
+            messagingSenderId: "991310233066",
+            appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        import { 
+            collection, 
+            query, 
+            orderBy, 
+            onSnapshot, 
+            updateDoc, 
+            doc, 
+            where,
+            getDocs,
+            Timestamp,
+            limit,
+            getDoc
+        } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+        const USER_ROLES = {
+            ADMIN: 'admin',
+            MONITOR: 'monitor', 
+            RESCUER: 'rescuer',
+            AGENCY: 'agency',
+            RESIDENT: 'resident'
+        };
+
+        const USER_STATUS = {
+            ACTIVE: 'active',
+            PENDING: 'pending',
+            SUSPENDED: 'suspended',
+            INACTIVE: 'inactive'
+        };
+
+        let currentUserInfo = null;
+        let reportsListener = null;
+        let forumListener = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                console.log('🚀 Initializing LipaAlertHub Dashboard...');
+                await checkAuthentication();
+            } catch (error) {
+                console.error('❌ Dashboard initialization failed:', error);
+                showNotification('Failed to load dashboard. Please try again.', 'error');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 3000);
+            }
+        });
+
+        async function checkAuthentication() {
+            return new Promise((resolve, reject) => {
+                onAuthStateChanged(auth, async (user) => {
+                    if (!user) {
+                        window.location.href = "index.html";
+                        reject(new Error('User not authenticated'));
+                        return;
+                    }
+
+                    try {
+                        const userDocRef = doc(db, 'users', user.uid);
+                        const userDoc = await getDoc(userDocRef);
+                        
+                        if (!userDoc.exists()) {
+                            alert("User profile not found. Please contact administrator.");
+                            await signOut(auth);
+                            window.location.href = "index.html?error=no-profile";
+                            reject(new Error('User profile not found'));
+                            return;
+                        }
+
+                        const userData = userDoc.data();
+                        const userRole = userData.role;
+                        const userStatus = userData.status || USER_STATUS.ACTIVE;
+
+                        console.log('User auth check:', {
+                            uid: user.uid,
+                            email: user.email,
+                            role: userRole,
+                            status: userStatus
+                        });
+
+                        if (userStatus === USER_STATUS.PENDING) {
+                            alert("Your account is pending approval. Please contact administrator.");
+                            await signOut(auth);
+                            window.location.href = "index.html?error=pending-approval";
+                            reject(new Error('Account pending approval'));
+                            return;
+                        }
+
+                        if (userStatus === USER_STATUS.SUSPENDED || userStatus === USER_STATUS.INACTIVE) {
+                            alert("Your account has been suspended. Please contact administrator.");
+                            await signOut(auth);
+                            window.location.href = "index.html?error=account-suspended";
+                            reject(new Error('Account suspended'));
+                            return;
+                        }
+
+                        if (userRole !== USER_ROLES.ADMIN && userRole !== USER_ROLES.MONITOR) {
+                            alert(`Access denied. Dashboard requires Admin or Monitor role. Your role: ${userRole}`);
+                            await signOut(auth);
+                            window.location.href = "index.html?error=insufficient-permissions";
+                            reject(new Error('Insufficient permissions'));
+                            return;
+                        }
+
+                        currentUserInfo = {
+                            user,
+                            role: userRole,
+                            status: userStatus,
+                            userData
+                        };
+
+                        console.log('✅ Dashboard access granted:', {
+                            email: user.email,
+                            role: userRole
+                        });
+
+                        await initializeDashboard();
+                        resolve(currentUserInfo);
+
+                    } catch (error) {
+                        console.error('Error checking user role:', error);
+                        alert("Error verifying permissions. Please try again.");
+                        await signOut(auth);
+                        window.location.href = "index.html?error=auth-error";
+                        reject(error);
+                    }
+                });
+            });
+        }
+
+        async function initializeDashboard() {
+            try {
+                applyRoleBasedUI();
+                updateUserInfo();
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('dashboardContainer').style.display = 'block';
+                await loadDashboardData();
+                const welcomeMessage = `Welcome back, ${currentUserInfo.userData?.name || currentUserInfo.user.email}!`;
+                showNotification(welcomeMessage, 'success');
+            } catch (error) {
+                console.error('Error initializing dashboard:', error);
+                showNotification('Error loading dashboard data', 'warning');
+            }
+        }
+
+        function applyRoleBasedUI() {
+            const roleElements = document.querySelectorAll('[data-role]');
+            roleElements.forEach(element => {
+                const allowedRoles = element.getAttribute('data-role').split(',');
+                if (!allowedRoles.includes(currentUserInfo.role)) {
+                    element.style.display = 'none';
+                }
+            });
+        }
+
+        function updateUserInfo() {
+            const nameElement = document.querySelector('[data-user-info="name"]');
+            const emailElement = document.querySelector('[data-user-info="email"]');
+            const roleElement = document.querySelector('[data-user-info="role"]');
+            
+            if (nameElement) {
+                nameElement.textContent = currentUserInfo.userData?.name || 
+                                        currentUserInfo.user.displayName || 
+                                        'User';
+            }
+            
+            if (emailElement) {
+                emailElement.textContent = currentUserInfo.user.email;
+            }
+            
+            if (roleElement) {
+                const roleDisplayName = {
+                    [USER_ROLES.ADMIN]: 'Administrator',
+                    [USER_ROLES.MONITOR]: 'Monitor'
+                }[currentUserInfo.role] || currentUserInfo.role.toUpperCase();
+                
+                roleElement.textContent = roleDisplayName;
+                roleElement.className = `role-badge ${currentUserInfo.role}`;
+            }
+        }
+
+        async function loadDashboardData() {
+            try {
+                console.log('📊 Loading dashboard data...');
+                await loadRecentReports();
+                
+                if (currentUserInfo.role === USER_ROLES.ADMIN) {
+                    await loadAnalytics();
+                }
+                
+                if (currentUserInfo.role === USER_ROLES.ADMIN || currentUserInfo.role === USER_ROLES.MONITOR) {
+                    await loadForumPosts();
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                showNotification('Error loading some dashboard data', 'warning');
+            }
+        }
+
+        async function loadRecentReports() {
+            const container = document.getElementById('reportsContainer');
+            
+            try {
+                const q = query(
+                    collection(db, "incident_reports"),
+                    orderBy("timestamp", "desc"),
+                    limit(10)
+                );
+
+                if (reportsListener) {
+                    reportsListener();
+                }
+
+                reportsListener = onSnapshot(q, (snapshot) => {
+                    container.innerHTML = '';
+                    
+                    if (snapshot.empty) {
+                        container.innerHTML = `
+                            <div class="no-data">
+                                <i class="fas fa-inbox fa-2x mb-3"></i>
+                                <p>No emergency reports found</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        const reportElement = createReportElement(docSnap.id, data);
+                        container.appendChild(reportElement);
+                    });
+                    
+                    console.log(`📋 Loaded ${snapshot.size} reports`);
+                }, (error) => {
+                    console.error('Error loading reports:', error);
+                    container.innerHTML = `
+                        <div class="error-content">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                            <p>Error loading reports</p>
+                        </div>
+                    `;
+                });
+
+            } catch (error) {
+                console.error('Error setting up reports listener:', error);
+                container.innerHTML = `
+                    <div class="error-content">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Error loading emergency reports</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Create Report Element - Shows both View and Verify buttons as appropriate
+        function createReportElement(id, data) {
+            const reportDiv = document.createElement('div');
+            reportDiv.className = 'report-item';
+            
+            let actionButtons = '';
+            
+            // Always show View button
+            actionButtons += `
+                <button class="btn-action" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white;" onclick="viewReport('${id}')">
+                    <i class="fas fa-eye"></i> View
+                </button>
+            `;
+            
+            // Show verify button only for pending reports
+            if (data.status === 'pending' || !data.status) {
+                actionButtons += `
+                    <button class="btn-action btn-verify" onclick="verifyReport('${id}')">
+                        <i class="fas fa-check"></i> Verify
+                    </button>
+                `;
+            }
+            
+            reportDiv.innerHTML = `
+                <div class="report-info flex-grow-1">
+                    <h6>${data.emergencyType || 'Unknown Emergency'}</h6>
+                    <div class="report-meta">
+                        <i class="fas fa-map-marker-alt me-1"></i>${data.barangay || 'Unknown Location'} • 
+                        <i class="fas fa-user me-1"></i>${data.name || 'Anonymous'} • 
+                        <i class="fas fa-clock me-1"></i>${formatTimestamp(data.timestamp)}
+                    </div>
+                    <span class="status-badge ${data.status || 'pending'}">${(data.status || 'pending').toUpperCase()}</span>
+                </div>
+                
+                <div class="action-buttons">
+                    ${actionButtons}
+                </div>
+            `;
+            
+            return reportDiv;
+        }
+
+        async function loadAnalytics() {
+            try {
+                const analyticsContainer = document.getElementById("analyticsChart");
+                
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                
+                const q = query(
+                    collection(db, "incident_reports"),
+                    where("timestamp", ">=", Timestamp.fromDate(weekAgo)),
+                    orderBy("timestamp", "desc")
+                );
+
+                const snapshot = await getDocs(q);
+                
+                const dailyCounts = {};
+                const today = new Date();
+                
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    const dateKey = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    dailyCounts[dateKey] = 0;
+                }
+                
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    let incidentDate = new Date();
+                    
+                    if (data.timestamp?.seconds) {
+                        incidentDate = new Date(data.timestamp.seconds * 1000);
+                    } else if (data.timestamp?.toDate) {
+                        incidentDate = data.timestamp.toDate();
+                    }
+                    
+                    const dayKey = incidentDate.toLocaleDateString('en-US', { weekday: 'short' });
+                    if (dailyCounts.hasOwnProperty(dayKey)) {
+                        dailyCounts[dayKey]++;
+                    }
+                });
+                
+                const maxCount = Math.max(...Object.values(dailyCounts), 1);
+                analyticsContainer.innerHTML = "";
+                
+                Object.entries(dailyCounts).forEach(([day, count]) => {
+                    const percentage = (count / maxCount) * 100;
+                    const bar = document.createElement("div");
+                    bar.className = "chart-bar";
+                    bar.style.height = `${Math.max(percentage, 15)}%`;
+                    bar.innerHTML = `
+                        <div class="chart-day">${day}</div>
+                        <div class="chart-count">${count}</div>
+                    `;
+                    analyticsContainer.appendChild(bar);
+                });
+                
+            } catch (error) {
+                console.error("Error loading analytics:", error);
+                document.getElementById("analyticsChart").innerHTML = `
+                    <div class="loading-content text-white">
+                        Error loading analytics
+                    </div>
+                `;
+            }
+        }
+
+        async function loadForumPosts() {
+            const container = document.getElementById('forumContainer');
+            
+            try {
+                const q = query(
+                    collection(db, "forumPosts"),
+                    where("status", "==", "pending"),
+                    orderBy("createdAt", "desc"),
+                    limit(5)
+                );
+
+                if (forumListener) {
+                    forumListener();
+                }
+
+                forumListener = onSnapshot(q, (snapshot) => {
+                    container.innerHTML = '';
+                    const pendingCount = snapshot.size;
+                    
+                    document.getElementById('pendingPostsBadge').textContent = pendingCount;
+                    
+                    if (snapshot.empty) {
+                        container.innerHTML = `
+                            <div class="no-data">
+                                <i class="fas fa-check-circle fa-2x mb-3 text-success"></i>
+                                <p>No pending posts</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        const postElement = createForumPostElement(docSnap.id, data);
+                        container.appendChild(postElement);
+                    });
+                }, (error) => {
+                    console.error('Error loading forum posts:', error);
+                    container.innerHTML = `
+                        <div class="error-content">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                            <p>Error loading posts</p>
+                        </div>
+                    `;
+                    document.getElementById('pendingPostsBadge').textContent = '0';
+                });
+
+            } catch (error) {
+                console.error('Error setting up forum listener:', error);
+                container.innerHTML = `
+                    <div class="error-content">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Error loading posts</p>
+                    </div>
+                `;
+                document.getElementById('pendingPostsBadge').textContent = '0';
+            }
+        }
+
+        function createForumPostElement(id, data) {
+            const postDiv = document.createElement('div');
+            postDiv.className = 'forum-post';
+            
+            postDiv.innerHTML = `
+                <div class="post-header">
+                    <div>
+                        <div class="post-title">${data.title || 'Untitled Post'}</div>
+                        <div class="post-author">by ${data.userName || data.authorName || 'Anonymous'}</div>
+                    </div>
+                </div>
+                <div class="post-content">${(data.content || '').substring(0, 150)}${data.content?.length > 150 ? '...' : ''}</div>
+                <div class="post-actions">
+                    <button class="btn-action btn-verify" onclick="approvePost('${id}')">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    <button class="btn-action" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;" onclick="rejectPost('${id}')">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                </div>
+            `;
+            
+            return postDiv;
+        }
+
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return 'Unknown time';
+            
+            let date;
+            if (timestamp.seconds) {
+                date = new Date(timestamp.seconds * 1000);
+            } else if (timestamp.toDate) {
+                date = timestamp.toDate();
+            } else {
+                date = new Date(timestamp);
+            }
+            
+            return date.toLocaleString();
+        }
+
+        window.showDashboard = function() {
+            console.log('Already on dashboard');
+        };
+
+        // Verify button redirects to report.html with report ID for full verification workflow
+        window.verifyReport = function(id) {
+            window.location.href = `report.html?id=${id}`;
+        };
+
+        // View button also redirects to report.html but for read-only viewing
+        window.viewReport = function(id) {
+            window.location.href = `report.html?id=${id}`;
+        };
+
+        window.approvePost = async function(postId) {
+            try {
+                await updateDoc(doc(db, "forumPosts", postId), {
+                    status: "approved",
+                    reviewedAt: new Date(),
+                    reviewedBy: currentUserInfo.user.email,
+                    updatedAt: new Date()
+                });
+                showNotification("Post approved successfully!", "success");
+            } catch (error) {
+                console.error("Error approving post:", error);
+                showNotification("Failed to approve post: " + error.message, "error");
+            }
+        };
+
+        window.rejectPost = async function(postId) {
+            const reason = prompt("Reason for rejection (optional):");
+            if (reason === null) return;
+            
+            try {
+                await updateDoc(doc(db, "forumPosts", postId), {
+                    status: "rejected",
+                    rejectionReason: reason || "No reason provided",
+                    reviewedAt: new Date(),
+                    reviewedBy: currentUserInfo.user.email,
+                    updatedAt: new Date()
+                });
+                showNotification("Post rejected", "warning");
+            } catch (error) {
+                console.error("Error rejecting post:", error);
+                showNotification("Failed to reject post: " + error.message, "error");
+            }
+        };
+
+        window.logoutUser = async function() {
+            if (confirm("Are you sure you want to logout?")) {
+                try {
+                    await signOut(auth);
+                    showNotification("Logged out successfully", "info");
+                    window.location.href = "index.html";
+                } catch (error) {
+                    console.error("Logout error:", error);
+                    showNotification("Error logging out", "error");
+                }
+            }
+        };
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            let container = document.getElementById('notificationContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'notificationContainer';
+                container.className = 'notification-container';
+                document.body.appendChild(container);
+            }
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+            
+            notification.addEventListener('click', () => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            });
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (reportsListener) reportsListener();
+            if (forumListener) forumListener();
+        });
+
+    </script>
+</body>
+</html>

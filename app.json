@@ -1,42 +1,75 @@
 {
   "expo": {
     "name": "LipaAlertHub",
-    "slug": "LipaAlertHub",
+    "slug": "lipaalerthub",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lipaalerthub",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0fb2ea21-efe5-4080-852e-51613e8be20d"
+      }
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyB2MdahsHMIyhDjBTTVwgAm1i-zVx4OD5U"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need access to your location to show nearby incidents.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "We need access to your location to show nearby incidents."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.reden.lipaalerthub",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDHNKCfdb_Ae0sMaSmdDf88xjOvj2hJM68"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ],
+      "newArchEnabled": false
     },
     "web": {
-      "bundler": "metro",
-      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
       [
-        "expo-splash-screen",
+        "expo-location",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "locationAlwaysAndWhenInUsePermission": "Allow LipaAlertHub to use your location to show nearby incidents.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow LipaAlertHub to access your camera to take incident photos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff"
         }
       ]
-    ],
-    "experiments": {
-      "typedRoutes": true
-    }
+    ]
   }
 }

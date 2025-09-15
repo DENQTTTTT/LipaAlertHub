@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LipaAlertHub - Incident Reporting</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+    body { background-color: #f2f2f2; display: flex; height: 100vh; }
+    .container { display: flex; width: 100%; }
+
+    /* Sidebar */
+    .sidebar { width: 220px; background-color: #d53b2c; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
+    .logo-section { text-align: center; margin-bottom: 30px; }
+    .logo { width: 60px; margin-bottom: 10px; }
+    .sidebar h2 { font-size: 18px; }
+    .sidebar ul { list-style: none; padding: 0; width: 100%; }
+    .sidebar li { padding: 12px 20px; display: flex; align-items: center; cursor: pointer; font-weight: bold; }
+    .sidebar li:hover { background-color: #b92e20; }
+    .sidebar button { width: 100%; padding: 12px 20px; font-weight: bold; background-color: #d53b2c; border: none; text-align: left; color: white; cursor: pointer; font-size: 15px; transition: background 0.3s ease; }
+    .sidebar button:hover { background-color: #b72c20; }
+
+    /* Main content */
+    .main-content { flex: 1; padding: 20px; display: flex; flex-direction: column; }
+    .header { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+    .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+
+    /* Reports list */
+    .reports-list ul { list-style: none; padding: 0; }
+    .reports-list li { padding: 15px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+    .reports-list li:last-child { border-bottom: none; }
+    .reports-list small { color: gray; font-size: 12px; }
+    .reports-list button { background-color: #ccc; border: none; border-radius: 20px; padding: 5px 15px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+    .reports-list button:hover { background-color: #aaa; }
+    .verify { background: #4CAF50 !important; color: white; }
+    .verify:hover { background: #388E3C !important; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo-section">
+        <img src="images/Logo.png" alt="Logo" class="logo" />
+        <h2>LipaAlertHub</h2>
+      </div>
+      <nav>
+        <ul>
+          <li><button onclick="location.href='dashboard.html'">📊 Dashboard</button></li>
+          <li><button onclick="location.href='report.html'">📄 Reports</button></li>
+          <li><button onclick="location.href='announcements.html'">📢 Announcements</button></li>
+          <li><button onclick="location.href='forums.html'">💬 Forums</button></li>
+          <li><button onclick="location.href='maps.html'">🗺️ Map</button></li>
+          <li><button onclick="location.href='chats.html'">💭 Chats</button></li>
+          <li><button onclick="location.href='accounts.html'">👤 Accounts</button></li>
+          <li><button onclick="location.href='analytics.html'">📈 Analytics</button></li>
+          <li><button onclick="location.href='contacts.html'">📞 Contacts</button></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+      <div class="header">Incident Reporting</div>
+      <div class="card reports-list">
+        <h2>Real-Time Reports</h2>
+        <ul id="reportsList">
+          <!-- Firestore reports will load here -->
+        </ul>
+      </div>
+    </main>
+  </div>
+
+  <!-- Firebase Script -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, collection, query, orderBy, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+      authDomain: "lipaalerthub.firebaseapp.com",
+      projectId: "lipaalerthub",
+      storageBucket: "lipaalerthub.firebasestorage.app",
+      messagingSenderId: "991310233066",
+      appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+      measurementId: "G-PCEYY3PFWW"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const reportsList = document.getElementById("reportsList");
+
+    // ✅ Load real-time reports
+    const q = query(collection(db, "incident_reports"), orderBy("createdAt", "desc"));
+    onSnapshot(q, (snapshot) => {
+      reportsList.innerHTML = "";
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <span>
+            <strong>${data.emergencyType}</strong> in ${data.barangay}<br>
+            <small>${new Date(data.createdAt?.seconds * 1000).toLocaleString()}</small>
+          </span>
+          <button class="verify" onclick="verifyReport('${docSnap.id}')">Verify</button>
+        `;
+        reportsList.appendChild(li);
+      });
+    });
+
+    // ✅ Verify report
+    window.verifyReport = async (id) => {
+      try {
+        await updateDoc(doc(db, "incident_reports", id), { status: "verified" });
+        alert("Report verified ✅");
+      } catch (error) {
+        console.error("Error verifying:", error);
+        alert("❌ Failed to verify report");
+      }
+    };
+  </script>
+</body>
+</html>

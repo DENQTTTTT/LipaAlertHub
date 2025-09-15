@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chats</title>
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; background: #f2f2f2; }
+    .container { display: flex; width: 100%; }
+    .sidebar { width: 220px; background: #d53b2c; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
+    .logo { width: 60px; margin-bottom: 10px; }
+    .main { flex: 1; display: flex; flex-direction: column; }
+    .chat-box { flex: 1; padding: 20px; overflow-y: auto; background: white; }
+    .chat-message { margin-bottom: 15px; padding: 10px; border-radius: 8px; background: #eee; }
+    .chat-message.admin { background: #d53b2c; color: white; }
+    form { display: flex; padding: 10px; background: #fff; }
+    input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-right: 10px; }
+    button { padding: 10px 15px; background: #d53b2c; color: white; border: none; border-radius: 8px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="logo-section">
+        <img src="images/Logo.png" class="logo" />
+        <h2>LipaAlertHub</h2>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="chat-box" id="chatBox"></div>
+      <form id="chatForm">
+        <input type="text" id="chatInput" placeholder="Type a message..." required />
+        <button type="submit">Send</button>
+      </form>
+    </main>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot, orderBy, query } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+      authDomain: "lipaalerthub.firebaseapp.com",
+      projectId: "lipaalerthub",
+      storageBucket: "lipaalerthub.firebasestorage.app",
+      messagingSenderId: "991310233066",
+      appId: "1:991310233066:web:7e836a60e5c4a302de0693"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const chatBox = document.getElementById("chatBox");
+    const chatForm = document.getElementById("chatForm");
+
+    chatForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("chatInput").value;
+      await addDoc(collection(db, "chats"), {
+        sender: "Admin",
+        message: msg,
+        createdAt: serverTimestamp()
+      });
+      chatForm.reset();
+    });
+
+    const q = query(collection(db, "chats"), orderBy("createdAt", "asc"));
+    onSnapshot(q, (snapshot) => {
+      chatBox.innerHTML = "";
+      snapshot.forEach((doc) => {
+        const d = doc.data();
+        const div = document.createElement("div");
+        div.className = "chat-message" + (d.sender === "Admin" ? " admin" : "");
+        div.innerHTML = `<strong>${d.sender}:</strong> ${d.message}`;
+        chatBox.appendChild(div);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+  </script>
+</body>
+</html>

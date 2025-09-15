@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contacts</title>
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; background: #f2f2f2; }
+    .container { display: flex; width: 100%; }
+    .sidebar { width: 220px; background: #d53b2c; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
+    .logo { width: 60px; margin-bottom: 10px; }
+    .main { flex: 1; padding: 30px; }
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.1); margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="logo-section">
+        <img src="images/Logo.png" class="logo" />
+        <h2>LipaAlertHub</h2>
+      </div>
+    </aside>
+    <main class="main">
+      <h2>📞 Contact Messages</h2>
+      <div id="contacts"></div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, orderBy, query } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+      authDomain: "lipaalerthub.firebaseapp.com",
+      projectId: "lipaalerthub",
+      storageBucket: "lipaalerthub.firebasestorage.app",
+      messagingSenderId: "991310233066",
+      appId: "1:991310233066:web:7e836a60e5c4a302de0693"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const container = document.getElementById("contacts");
+    const q = query(collection(db, "contacts"), orderBy("createdAt", "desc"));
+    onSnapshot(q, (snapshot) => {
+      container.innerHTML = "";
+      snapshot.forEach((doc) => {
+        const d = doc.data();
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `<h4>${d.name} (${d.email})</h4><p>${d.message}</p><small>${d.createdAt?.toDate().toLocaleString() || ""}</small>`;
+        container.appendChild(div);
+      });
+    });
+  </script>
+</body>
+</html>
