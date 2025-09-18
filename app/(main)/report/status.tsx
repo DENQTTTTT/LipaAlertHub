@@ -58,6 +58,28 @@ export default function ReportStatus() {
           </View>
         );
 
+      case "accepted":
+        return (
+          <View style={styles.card}>
+            <Ionicons name="checkmark-done-outline" size={72} color="#22c55e" />
+            <Text style={styles.title}>Report Accepted</Text>
+            <Text style={styles.message}>
+              Your report has been accepted by CDRRMO and assigned to responders. 
+              You will be notified with further updates on the response progress.
+            </Text>
+            {renderReportDetails(getStatusDisplayText(report.status))}
+            <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
+              <Text style={styles.buttonText}>Chat with CDRRMO</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.button, styles.secondaryButton]} 
+              onPress={handleReturnToDashboard}
+            >
+              <Text style={styles.buttonText}>Return to Dashboard</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
       case "verified":
         return (
           <View style={styles.card}>

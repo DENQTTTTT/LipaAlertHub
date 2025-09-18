@@ -1,7 +1,7 @@
-// app/(main)/notifications/index.tsx - Updated with Forum Notifications
+// app/(main)/notifications/index.tsx - Updated Compact Design
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../../../hooks/useAuth";
 import { NotificationData, notificationService } from "../../../services/notifications";
 
@@ -15,7 +15,6 @@ export default function NotificationsScreen() {
   useEffect(() => {
     if (!user?.uid) return;
 
-    // Subscribe to notifications
     const unsubscribe = notificationService.getUserNotifications(user.uid, (notificationsList) => {
       setNotifications(notificationsList);
       setLoading(false);
@@ -26,26 +25,24 @@ export default function NotificationsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // The real-time listener will automatically update the data
     setTimeout(() => setRefreshing(false), 1000);
   };
 
   const handleNotificationPress = async (notification: NotificationData) => {
     try {
-      // Mark as read
       if (notification.status === 'unread' && notification.id) {
         await notificationService.markAsRead(notification.id);
       }
 
       // Navigate based on notification type
       if (notification.type.startsWith('report_')) {
-        // Navigate to report status screen
-        router.push({
-          pathname: '/(main)/report/status',
-          params: { reportId: notification.reportId }
-        });
+        if (notification.reportId) {
+          router.push({
+            pathname: '/(main)/report/status',
+            params: { reportId: notification.reportId }
+          });
+        }
       } else if (notification.type.startsWith('forum_')) {
-        // Navigate to specific forum post
         if (notification.forumPostId) {
           router.push({
             pathname: '/(main)/forum/post',
@@ -54,6 +51,16 @@ export default function NotificationsScreen() {
         } else {
           router.push('/(main)/forum');
         }
+      } else if (notification.type.startsWith('chat_')) {
+        if (notification.chatRoomId) {
+          router.push({
+            pathname: '/(main)/chat',
+            params: { roomId: notification.chatRoomId }
+          });
+        }
+      } else {
+        // For account updates or other types, show a simple alert
+        Alert.alert("Notification", notification.body);
       }
     } catch (error) {
       console.error('Error handling notification press:', error);
@@ -61,58 +68,28 @@ export default function NotificationsScreen() {
   };
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
-      // Report notifications
-      case 'report_submitted':
-        return '📝';
-      case 'report_verified':
-        return '✅';
-      case 'report_approved':
-        return '👍';
-      case 'report_rejected':
-      case 'report_failed':
-        return '❌';
-      case 'report_resolved':
-        return '✅';
-      // Forum notifications  
-      case 'forum_reply':
-        return '💬';
-      case 'forum_like_post':
-        return '❤️';
-      case 'forum_like_reply':
-        return '👍';
-      case 'forum_mention':
-        return '@';
-      default:
-        return '🔔';
-    }
+    if (type.startsWith('report_')) return '🚨';
+    if (type.startsWith('forum_')) return '💬';
+    if (type.startsWith('chat_')) return '📱';
+    return '👤'; // account updates or default
   };
 
-  const getNotificationIconBg = (type: string, status: string) => {
-    if (status === 'unread') {
-      switch (type) {
-        case 'report_verified':
-        case 'report_approved':
-        case 'report_resolved':
-          return '#22c55e';
-        case 'report_rejected':
-        case 'report_failed':
-          return '#ef4444';
-        case 'report_submitted':
-          return '#3b82f6';
-        // Forum notification colors
-        case 'forum_reply':
-          return '#9c27b0';
-        case 'forum_like_post':
-        case 'forum_like_reply':
-          return '#e91e63';
-        case 'forum_mention':
-          return '#ff9800';
-        default:
-          return '#6b7280';
+  const getIconColor = (type: string, status: string) => {
+    const opacity = status === 'unread' ? 1 : 0.6;
+    
+    if (type.startsWith('report_')) {
+      if (type.includes('approved') || type.includes('verified') || type.includes('resolved')) {
+        return `rgba(34, 197, 94, ${opacity})`; // green
       }
+      if (type.includes('rejected') || type.includes('failed')) {
+        return `rgba(239, 68, 68, ${opacity})`; // red  
+      }
+      return `rgba(59, 130, 246, ${opacity})`; // blue
     }
-    return '#9ca3af';
+    
+    if (type.startsWith('forum_')) return `rgba(156, 39, 176, ${opacity})`; // purple
+    if (type.startsWith('chat_')) return `rgba(52, 152, 219, ${opacity})`; // light blue
+    return `rgba(107, 114, 128, ${opacity})`; // gray for account
   };
 
   const formatTime = (timestamp: any) => {
@@ -122,20 +99,22 @@ export default function NotificationsScreen() {
     const notificationTime = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     const diffInMinutes = Math.floor((now.getTime() - notificationTime.getTime()) / (1000 * 60));
     
-    if (diffInMinutes < 60) {
-      return diffInMinutes <= 1 ? 'Just now' : `${diffInMinutes} minutes ago`;
-    }
+    if (diffInMinutes < 1) return 'Now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m`;
     
     const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) {
-      return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-    }
+    if (diffInHours < 24) return `${diffInHours}h`;
     
     const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays < 7) return `${diffInDays}d`;
+    
+    return notificationTime.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    });
   };
 
-  // Mark all notifications as read
   const markAllAsRead = async () => {
     try {
       const unreadNotifications = notifications
@@ -151,10 +130,49 @@ export default function NotificationsScreen() {
     }
   };
 
+  const renderNotification = ({ item }: { item: NotificationData }) => (
+    <TouchableOpacity
+      style={[
+        styles.notificationItem,
+        item.status === 'unread' && styles.unreadItem
+      ]}
+      onPress={() => handleNotificationPress(item)}
+      activeOpacity={0.7}
+    >
+      <View style={[
+        styles.iconContainer, 
+        { backgroundColor: getIconColor(item.type, item.status) }
+      ]}>
+        <Text style={styles.iconText}>
+          {getNotificationIcon(item.type)}
+        </Text>
+      </View>
+      
+      <View style={styles.contentContainer}>
+        <View style={styles.titleRow}>
+          <Text style={[
+            styles.title,
+            item.status === 'unread' && styles.unreadTitle
+          ]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          {item.status === 'unread' && <View style={styles.unreadDot} />}
+        </View>
+        <Text style={styles.message} numberOfLines={2}>
+          {item.body}
+        </Text>
+      </View>
+      
+      <Text style={styles.timestamp}>
+        {formatTime(item.createdAt)}
+      </Text>
+    </TouchableOpacity>
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text>Loading notifications...</Text>
+        <Text style={styles.loadingText}>Loading notifications...</Text>
       </View>
     );
   }
@@ -165,7 +183,7 @@ export default function NotificationsScreen() {
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Image 
-           source={require('../../../assets/images/logo.png')} 
+            source={require('../../../assets/images/logo.png')} 
             style={styles.logoImage}
           />
           <Text style={styles.logoTitle}>LipaAlertHub</Text>
@@ -184,75 +202,29 @@ export default function NotificationsScreen() {
       </View>
 
       {/* Notifications List */}
-      <ScrollView 
-        style={styles.notificationsContainer}
-        showsVerticalScrollIndicator={false}
+      <FlatList
+        data={notifications}
+        renderItem={renderNotification}
+        keyExtractor={(item) => item.id || 'temp'}
+        style={styles.listContainer}
         contentContainerStyle={[
-          styles.notificationsContent,
+          styles.listContent,
           notifications.length === 0 && styles.centered
         ]}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-      >
-        {notifications.length === 0 ? (
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>🔔</Text>
             <Text style={styles.emptyTitle}>No Notifications</Text>
             <Text style={styles.emptyText}>
-              You'll see updates about your incident reports and forum activity here.
+              You'll see updates about your reports, forum activity, and chat messages here.
             </Text>
           </View>
-        ) : (
-          notifications.map((notification) => (
-            <TouchableOpacity
-              key={notification.id}
-              style={[
-                styles.notificationCard,
-                notification.status === 'unread' && styles.unreadCard
-              ]}
-              onPress={() => handleNotificationPress(notification)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.notificationHeader}>
-                <View style={[
-                  styles.iconContainer, 
-                  { backgroundColor: getNotificationIconBg(notification.type, notification.status) }
-                ]}>
-                  <Text style={styles.iconText}>
-                    {getNotificationIcon(notification.type)}
-                  </Text>
-                </View>
-                <View style={styles.notificationContent}>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.notificationTitle}>{notification.title}</Text>
-                    {notification.status === 'unread' && <View style={styles.unreadDot} />}
-                  </View>
-                  <Text style={styles.notificationTime}>
-                    {formatTime(notification.createdAt)}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.notificationMessage}>
-                {notification.body}
-              </Text>
-              
-              {/* Show location for report notifications */}
-              {notification.data?.reportLocation && (
-                <Text style={styles.locationText}>
-                  📍 {notification.data.reportLocation}
-                </Text>
-              )}
-              
-              {/* Show post title for forum notifications */}
-              {notification.data?.postTitle && notification.type.startsWith('forum_') && (
-                <Text style={styles.postTitleText}>
-                  📝 "{notification.data.postTitle}"
-                </Text>
-              )}
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
+        }
+      />
     </View>
   );
 }
@@ -260,32 +232,35 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f8f9fa",
   },
   centered: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 60,
-    paddingBottom: 30,
+    paddingBottom: 20,
     backgroundColor: "#ffffff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
   },
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 16,
   },
   logoImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    marginRight: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    marginRight: 8,
     resizeMode: 'contain',
   },
   logoTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     color: "#1f2937",
   },
@@ -293,9 +268,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 2,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "bold",
     color: "#1f2937",
     flex: 1,
@@ -303,7 +279,7 @@ const styles = StyleSheet.create({
   markAllButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 12,
     backgroundColor: "#3b82f6",
   },
   markAllText: {
@@ -311,104 +287,97 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  notificationsContainer: {
+  loadingText: {
+    fontSize: 16,
+    color: "#6b7280",
+  },
+  listContainer: {
     flex: 1,
   },
-  notificationsContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+  listContent: {
     paddingBottom: 100,
   },
-  notificationCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
-  unreadCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: "#3b82f6",
-  },
-  notificationHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
+  unreadItem: {
+    backgroundColor: '#f8faff',
+    borderLeftWidth: 3,
+    borderLeftColor: '#3b82f6',
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   iconText: {
-    fontSize: 20,
-  },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#1f2937",
+  },
+  contentContainer: {
     flex: 1,
+    marginRight: 8,
+  // Removed duplicate titleRow style, merged into the previous definition.
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
+    flex: 1,
+  },
+  unreadTitle: {
+    color: '#1f2937',
+    fontWeight: '700',
   },
   unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#3b82f6",
-    marginLeft: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#3b82f6',
+    marginLeft: 6,
   },
-  notificationTime: {
-    fontSize: 12,
-    color: "#6b7280",
+  message: {
+    fontSize: 13,
+    color: '#6b7280',
+    lineHeight: 18,
   },
-  notificationMessage: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#4b5563",
-    marginLeft: 52,
-    marginBottom: 8,
-  },
-  locationText: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginLeft: 52,
-    fontStyle: 'italic',
-  },
-  postTitleText: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginLeft: 52,
-    fontStyle: 'italic',
-    marginTop: 4,
+  timestamp: {
+    fontSize: 11,
+    color: '#9ca3af',
+    fontWeight: '500',
+    minWidth: 40,
+    textAlign: 'right',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingHorizontal: 40,
+    paddingVertical: 80,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+    opacity: 0.5,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#374151',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
     color: '#6b7280',
     textAlign: 'center',
-    paddingHorizontal: 20,
+    lineHeight: 20,
   },
 });

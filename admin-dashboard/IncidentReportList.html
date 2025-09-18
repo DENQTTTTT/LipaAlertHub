@@ -1,817 +1,1180 @@
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>LipaAlertHub - Incident Report List</title>
-
-    <!-- External libs used in Dashboard -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Reports | LipaAlertHub</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <style>
-      /* Copied & adapted styling from Dashboard for consistent look */
-      :root { --brand-1: #d53b2c; --brand-2:#b92e20; --muted:#666; --bg:#f8f9fa; }
-      *{box-sizing:border-box}
-      body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background:var(--bg); margin:0; }
-      .sidebar {
-        position: fixed; left:0; top:0; width:250px; height:100vh;
-        background: linear-gradient(180deg,var(--brand-1),var(--brand-2)); color:white; z-index:1000; overflow-y:auto;
-        box-shadow: 4px 0 20px rgba(0,0,0,0.08);
-      }
-      .sidebar-header { text-align:center; padding:20px; border-bottom:1px solid rgba(255,255,255,0.08); }
-      .logo { width:60px; height:60px; border-radius:50%; border:3px solid white; display:block; margin:0 auto 10px; object-fit:cover;}
-      .brand-title { font-weight:700; font-size:18px; color:white; }
-      .nav-link { display:flex; align-items:center; gap:12px; padding:14px 20px; color:rgba(255,255,255,0.85); text-decoration:none; }
-      .nav-link:hover{ background:rgba(255,255,255,0.06); color:white; border-left:4px solid rgba(255,255,255,0.12);}
-      .main { margin-left:250px; min-height:100vh; }
-      .header { background:white; padding:18px 26px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 6px rgba(0,0,0,0.04); border-bottom:1px solid #e9ecef; }
-      .page-title { font-size:24px; font-weight:700; color:#333; }
-      .content { padding:24px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-      /* Report list card */
-      .card-white { background:white; border-radius:12px; padding:18px; box-shadow:0 6px 20px rgba(0,0,0,0.06); border:1px solid #eef0f2; }
-      .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-      .search-input { width:420px; max-width:100%; }
-      .filter-panel { width:280px; max-width:100%; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+        }
 
-      .report-list { margin-top:18px; }
-      .report-row {
-        display:flex; gap:12px; align-items:center; padding:14px; border-radius:8px; background:#fcfcfc;
-        border:1px solid #f1f3f4; margin-bottom:12px;
-        justify-content:space-between;
-      }
-      .report-left { display:flex; gap:12px; align-items:center; min-width:0; }
-      .avatar { width:48px; height:48px; border-radius:50%; object-fit:cover; border:2px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-      .report-meta { min-width:0; }
-      .report-meta strong { display:block; font-size:15px; color:#2c3e50; }
-      .report-meta small { display:block; color:var(--muted); font-size:13px; margin-top:4px; }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
 
-      .report-middle { flex:1; padding:0 12px; min-width:0; }
-      .report-details { display:flex; gap:12px; flex-wrap:wrap; font-size:13px; color:#444; }
-      .report-details .badge { font-weight:600; }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
 
-      .report-right { display:flex; gap:10px; align-items:center; }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-      .status-badge {
-        padding:6px 10px; border-radius:12px; font-weight:700; text-transform:uppercase; font-size:12px;
-      }
-      .status-pending { background:#fff3cd; color:#856404; border:1px solid #ffeaa7; }
-      .status-verified { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
-      .status-resolved { background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb; }
-      .status-dismissed { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+        }
 
-      .btn-brand { background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
-      .btn-outline { background:white; color:var(--brand-1); border:1px solid var(--brand-1); padding:8px 12px; border-radius:8px; cursor:pointer; }
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
 
-      /* Responsive */
-      @media (max-width:900px) {
-        .controls { flex-direction:column; align-items:stretch; }
-        .search-input { width:100%; }
-        .filter-panel { width:100%;}
-      }
+        .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            border: 3px solid white;
+        }
 
-      /* modal overrides */
-      .modal-body pre { white-space:pre-wrap; word-break:break-word; }
+        .brand-title {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .brand-subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 12px;
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link i {
+            width: 20px;
+            margin-right: 15px;
+            font-size: 16px;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            min-height: 100vh;
+            background: #f8f9fa;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-details {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: white;
+        }
+
+        .role-badge.admin {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .role-badge.monitor {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .create-button {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .create-button:hover {
+            background: linear-gradient(135deg, #20c997, #17a2b8);
+            transform: translateY(-2px);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .filters-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .filters-row {
+            display: flex;
+            gap: 20px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .filter-input, .filter-select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #d53b2c;
+            box-shadow: 0 0 0 0.2rem rgba(213, 59, 44, 0.25);
+        }
+
+        .clear-filters-btn {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            height: fit-content;
+        }
+
+        .clear-filters-btn:hover {
+            background: linear-gradient(135deg, #495057, #343a40);
+            transform: translateY(-1px);
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            overflow-x: auto;
+        }
+
+        .reports-table {
+            width: 100%;
+            margin-bottom: 0;
+        }
+
+        .reports-table thead th {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: none;
+            color: #333;
+            font-weight: 600;
+            padding: 15px 12px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .reports-table tbody td {
+            padding: 15px 12px;
+            border-top: 1px solid #e9ecef;
+            vertical-align: middle;
+        }
+
+        .reports-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .report-id {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .emergency-type {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .emergency-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+        }
+
+        .emergency-icon.fire { background: #e74c3c; }
+        .emergency-icon.medical { background: #f44336; }
+        .emergency-icon.crime { background: #8e24aa; }
+        .emergency-icon.flood { background: #2196f3; }
+        .emergency-icon.accident { background: #ff9800; }
+        .emergency-icon.infrastructure { background: #607d8b; }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            border: none;
+            display: inline-block;
+        }
+
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.accepted, .status-badge.approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.assigned {
+            background: #cce5ff;
+            color: #0056b3;
+        }
+
+        .status-badge.resolved {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-badge.dismissed, .status-badge.rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .view-btn {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn:hover {
+            background: linear-gradient(135deg, #0056b3, #004085);
+            transform: scale(1.05);
+            color: white;
+        }
+
+        .loading-content, .error-content, .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .loading-spinner-small {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #d53b2c;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        .error-content {
+            color: #dc3545;
+            background: #f8d7da;
+            border-radius: 10px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .no-data {
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px dashed #dee2e6;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1;
+            min-width: 200px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #d53b2c;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1500;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .notification {
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            min-width: 320px;
+            animation: slideIn 0.4s ease;
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .notification.warning {
+            background: linear-gradient(135deg, #ffc107, #fd7e14);
+        }
+
+        .notification.info {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .header {
+                padding: 15px 20px;
+            }
+
+            .page-title {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 20px 15px;
+            }
+
+            .content-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filters-row {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                min-width: 100%;
+            }
+
+            .stats-row {
+                flex-direction: column;
+            }
+
+            .stat-card {
+                min-width: 100%;
+            }
+
+            .table-container {
+                padding: 15px;
+            }
+
+            .reports-table {
+                font-size: 13px;
+            }
+
+            .reports-table thead th,
+            .reports-table tbody td {
+                padding: 10px 8px;
+            }
+        }
     </style>
-  </head>
-  <body>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" role="navigation">
-      <div class="sidebar-header">
-        <img src="assets/images/Logo.png" alt="logo" class="logo" />
-        <div class="brand-title">LipaAlertHub</div>
-        <div style="font-size:12px; opacity:0.9;">Admin Panel</div>
-      </div>
-
-      <nav>
-        <a href="Dashboard.html" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-        <a href="IncidentReportList.html" class="nav-link" style="background:rgba(255,255,255,0.06); border-left:4px solid rgba(255,255,255,0.12)"><i class="fas fa-list"></i> Reports</a>
-        <a href="ReportForm.html" class="nav-link"><i class="fas fa-file-alt"></i> Report Form</a>
-        <a href="Announcements.html" class="nav-link"><i class="fas fa-bullhorn"></i> Announcements</a>
-        <a href="Forums.html" class="nav-link"><i class="fas fa-comments"></i> Forums</a>
-        <a href="Maps.html" class="nav-link"><i class="fas fa-map"></i> Map</a>
-        <a href="Chats.html" class="nav-link"><i class="fas fa-comment-dots"></i> Chats</a>
-        <a href="AccountVerification.html" class="nav-link"><i class="fas fa-users"></i> Accounts</a>
-        <a href="Analytics.html" class="nav-link"><i class="fas fa-chart-bar"></i> Analytics</a>
-        <a href="Contacts.html" class="nav-link"><i class="fas fa-phone"></i> Contacts</a>
-      </nav>
-    </aside>
-
-    <!-- Main content -->
-    <main class="main">
-      <header class="header">
-        <div>
-          <div class="page-title">Incident Reports</div>
-          <small style="color:var(--muted)">All reports submitted by agencies and residents</small>
+</head>
+<body>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div style="text-align: center;">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+                Loading Incident Reports...
+            </div>
         </div>
-
-        <div style="display:flex; gap:12px; align-items:center;">
-          <div class="user-info" id="userInfo">
-            <div style="text-align:right; margin-right:8px;">
-              <div id="userName" style="font-weight:700;">Loading...</div>
-              <small id="userEmail" style="color:var(--muted)"></small>
-            </div>
-            <div id="userRoleBadge" class="role-badge" style="padding:6px 10px; border-radius:12px; background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); color:white; font-weight:700; font-size:12px;">ADMIN</div>
-          </div>
-        </div>
-      </header>
-
-      <section class="content">
-        <div class="card-white">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-            <div class="controls">
-              <input id="searchInput" class="form-control search-input" placeholder="Search by name, location, type, createdBy..." />
-              <select id="sortSelect" class="form-select" style="width:200px;">
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="status">Sort by Status</option>
-              </select>
-            </div>
-
-            <div style="display:flex; gap:8px; align-items:center;">
-              <button class="btn-outline" id="exportBtn"><i class="fas fa-file-export"></i> Export CSV</button>
-              <button class="btn-outline" id="createBtn" onclick="location.href='ReportForm.html'"><i class="fas fa-plus"></i> Create</button>
-              <button class="btn-brand" id="filterToggle"><i class="fas fa-filter"></i> Filters</button>
-            </div>
-          </div>
-
-          <!-- Filters panel -->
-          <div id="filterPanel" style="display:none; margin-top:14px;">
-            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-              <div class="filter-panel card-white" style="padding:12px;">
-                <label class="form-label">Date range</label>
-                <div style="display:flex; gap:8px;">
-                  <input type="date" id="dateFrom" class="form-control" />
-                  <input type="date" id="dateTo" class="form-control" />
-                </div>
-
-                <label class="form-label" style="margin-top:8px;">Status</label>
-                <div>
-                  <label class="form-check"><input type="checkbox" class="form-check-input filter-status" value="pending" /> Pending</label>
-                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-status" value="verified" /> Verified</label>
-                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-status" value="resolved" /> Resolved</label>
-                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-status" value="dismissed" /> Dismissed</label>
-                </div>
-
-                <label class="form-label" style="margin-top:8px;">Type</label>
-                <div>
-                  <label class="form-check"><input type="checkbox" class="form-check-input filter-type" value="Fire" /> Fire</label>
-                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-type" value="Medical" /> Medical</label>
-                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-type" value="Accident" /> Accident</label>
-                  <label class="form-check ms-2"><input type="checkbox" class="form-check-input filter-type" value="Flood" /> Flood</label>
-                </div>
-
-                <label class="form-label" style="margin-top:8px;">Barangay / Location</label>
-                <input id="filterLocation" class="form-control" placeholder="Type barangay or purok..." />
-
-                <label class="form-label" style="margin-top:8px;">Created By</label>
-                <input id="filterCreatedBy" class="form-control" placeholder="Agency or user who created..." />
-
-                <div style="display:flex; gap:8px; margin-top:10px;">
-                  <button id="applyFilters" class="btn-brand">Apply</button>
-                  <button id="clearFilters" class="btn-outline">Clear</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Report list -->
-          <div id="reportList" class="report-list" style="margin-top:20px;">
-            <!-- Appends rows here -->
-          </div>
-
-          <!-- Pagination -->
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
-            <div>
-              <small id="resultCount">0 results</small>
-            </div>
-            <div>
-              <button id="prevPage" class="btn-outline" disabled>Prev</button>
-              <button id="nextPage" class="btn-outline" disabled>Next</button>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <!-- View Modal -->
-    <div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Report Details</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div id="modalContent">
-              <!-- Filled programmatically -->
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button id="verifyBtn" class="btn btn-success">Mark Verified</button>
-            <button id="resolveBtn" class="btn btn-primary">Mark Resolved</button>
-            <button id="dismissBtn" class="btn btn-danger">Dismiss</button>
-            <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          </div>
-        </div>
-      </div>
     </div>
 
-    <!-- Dependencies -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
+            <div class="brand-title">LipaAlertHub</div>
+            <div class="brand-subtitle">Disaster Management System</div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <div class="nav-item">
+                <a href="dashboard.html" class="nav-link">
+                    <i class="fas fa-tachometer-alt"></i>
+                    Dashboard
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="IncidentReportList.html" class="nav-link active">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Reports
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="Announcements.html" class="nav-link">
+                    <i class="fas fa-bullhorn"></i>
+                    Announcements
+                </a>
+            </div>
+
+             <div class="nav-item" data-role="admin">
+                    <a href="EmergencyTips.html" class="nav-link active">
+                        <i class="fas fa-lightbulb"></i>
+                        Emergency Tips
+                    </a>
+                </div>
+            
+            <div class="nav-item">
+                <a href="Forums.html" class="nav-link">
+                    <i class="fas fa-comments"></i>
+                    Forums
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="Maps.html" class="nav-link">
+                    <i class="fas fa-map"></i>
+                    Map
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="Chats.html" class="nav-link">
+                    <i class="fas fa-comment-dots"></i>
+                    CHATS
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="AccountVerification.html" class="nav-link">
+                    <i class="fas fa-users"></i>
+                    Accounts
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="Analytics.html" class="nav-link">
+                    <i class="fas fa-chart-bar"></i>
+                    Analytics
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="Contacts.html" class="nav-link">
+                    <i class="fas fa-phone"></i>
+                    Contacts
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h1 class="page-title">Incident Reports</h1>
+            
+            <div class="user-info">
+                <div class="user-details">
+                    <div class="user-name" id="userName">Loading...</div>
+                    <div class="user-role" id="userEmail">Loading...</div>
+                </div>
+                <div class="role-badge" id="userRole">Loading...</div>
+                <div class="dropdown">
+                    <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle fa-2x" style="color: #d53b2c;"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" onclick="logoutUser()">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="content-header">
+                <div>
+                    <h2 style="margin: 0; color: #333; font-size: 20px;">Emergency Reports Management</h2>
+                    <p style="margin: 0; color: #666; font-size: 14px;">View and manage all submitted incident reports</p>
+                </div>
+                <a href="ReportForm.html" class="create-button">
+                    <i class="fas fa-plus"></i>
+                    Create Report
+                </a>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="stats-row" id="statsRow">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCount">-</div>
+                    <div class="stat-label">Total Reports</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pendingCount">-</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="assignedCount">-</div>
+                    <div class="stat-label">Assigned</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="resolvedCount">-</div>
+                    <div class="stat-label">Resolved</div>
+                </div>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label class="filter-label">Search Reports</label>
+                        <input type="text" id="searchInput" class="filter-input" 
+                               placeholder="Search by address, type, reporter name...">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">Filter by Status</label>
+                        <select id="statusFilter" class="filter-select">
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="accepted">Accepted</option>
+                            <option value="approved">Approved</option>
+                            <option value="assigned">Assigned</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="dismissed">Dismissed</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">Filter by Type</label>
+                        <select id="typeFilter" class="filter-select">
+                            <option value="">All Types</option>
+                            <option value="fire">Fire Emergency</option>
+                            <option value="medical">Medical Emergency</option>
+                            <option value="crime">Crime Emergency</option>
+                            <option value="flood">Flood</option>
+                            <option value="accident">Accident</option>
+                            <option value="infrastructure">Infrastructure</option>
+                        </select>
+                    </div>
+                    
+                    <button id="clearFiltersBtn" class="clear-filters-btn">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Reports Table -->
+            <div class="table-container">
+                <div id="tableContent">
+                    <div class="loading-content">
+                        <div class="loading-spinner-small"></div>
+                        <p>Loading incident reports...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Firebase SDKs (same major version as your dashboard) -->
     <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-      import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-      import { getFirestore, collection, query, orderBy, onSnapshot, where, limit, startAfter, getDocs, doc, updateDoc, getDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-      import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            query, 
+            orderBy, 
+            onSnapshot, 
+            doc, 
+            getDoc,
+            where
+        } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-      // --- Firebase config (from your Dashboard file) ---
-      const firebaseConfig = {
-        apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
-        authDomain: "lipaalerthub.firebaseapp.com",
-        projectId: "lipaalerthub",
-        storageBucket: "lipaalerthub.firebasestorage.app",
-        messagingSenderId: "991310233066",
-        appId: "1:991310233066:web:7e836a60e5c4a302de0693",
-      };
+        const firebaseConfig = {
+            apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+            authDomain: "lipaalerthub.firebaseapp.com",
+            projectId: "lipaalerthub",
+            storageBucket: "lipaalerthub.firebasestorage.app",
+            messagingSenderId: "991310233066",
+            appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+        };
 
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      const db = getFirestore(app);
-      const storage = getStorage(app);
-      // -------------------------------------------------
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-      // Roles and other constants (matching dashboard)
-      const USER_ROLES = { ADMIN: 'admin', MONITOR: 'monitor', RESCUER:'rescuer', AGENCY:'agency', RESIDENT:'resident' };
+        let currentUser = null;
+        let allReports = [];
+        let filteredReports = [];
+        let reportsListener = null;
 
-      // DOM refs
-      const reportListEl = document.getElementById('reportList');
-      const searchInput = document.getElementById('searchInput');
-      const filterToggle = document.getElementById('filterToggle');
-      const filterPanel = document.getElementById('filterPanel');
-      const applyFiltersBtn = document.getElementById('applyFilters');
-      const clearFiltersBtn = document.getElementById('clearFilters');
-      const dateFromEl = document.getElementById('dateFrom');
-      const dateToEl = document.getElementById('dateTo');
-      const filterLocationEl = document.getElementById('filterLocation');
-      const filterCreatedByEl = document.getElementById('filterCreatedBy');
-      const exportBtn = document.getElementById('exportBtn');
-      const resultCountEl = document.getElementById('resultCount');
-      const prevPageBtn = document.getElementById('prevPage');
-      const nextPageBtn = document.getElementById('nextPage');
-      const sortSelect = document.getElementById('sortSelect');
+        // DOM Elements
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const typeFilter = document.getElementById('typeFilter');
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        const tableContent = document.getElementById('tableContent');
 
-      // Modal
-      const viewModalEl = document.getElementById('viewModal');
-      const bootstrapModal = new bootstrap.Modal(viewModalEl);
-      const modalContent = document.getElementById('modalContent');
-      const verifyBtn = document.getElementById('verifyBtn');
-      const resolveBtn = document.getElementById('resolveBtn');
-      const dismissBtn = document.getElementById('dismissBtn');
+        // Statistics elements
+        const totalCount = document.getElementById('totalCount');
+        const pendingCount = document.getElementById('pendingCount');
+        const assignedCount = document.getElementById('assignedCount');
+        const resolvedCount = document.getElementById('resolvedCount');
 
-      // Pagination & state
-      let lastVisible = null;
-      let firstVisible = null;
-      let pageSize = 10;
-      let currentSnapshot = null;
-      let docSnapshotsPages = []; // for simple back-navigation
-      let currentUser = null;
-      let currentUserInfo = null;
+        // Emergency type mapping
+        const emergencyTypeMapping = {
+            'fire': 'Fire Emergency',
+            'medical': 'Medical Emergency',
+            'crime': 'Crime Emergency',
+            'flood': 'Flood',
+            'accident': 'Accident',
+            'infrastructure': 'Infrastructure'
+        };
 
-      // Filters state
-      let activeFilters = {
-        statuses: [],
-        types: [],
-        dateFrom: null,
-        dateTo: null,
-        location: '',
-        createdBy: ''
-      };
+        const emergencyIcons = {
+            'fire': 'fa-fire',
+            'medical': 'fa-heartbeat',
+            'crime': 'fa-shield-alt',
+            'flood': 'fa-water',
+            'accident': 'fa-car-crash',
+            'infrastructure': 'fa-tools'
+        };
 
-      // Real-time listener handle
-      let reportsUnsubscribe = null;
-
-      // Auth check and UI initialization
-      onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-          window.location.href = 'index.html';
-          return;
-        }
-        currentUser = user;
-        // fetch user doc to get role
-        try {
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists()) {
-            currentUserInfo = userDocSnap.data();
-            document.getElementById('userName').textContent = currentUserInfo.name || user.displayName || user.email;
-            document.getElementById('userEmail').textContent = user.email;
-            document.getElementById('userRoleBadge').textContent = (currentUserInfo.role || 'ADMIN').toUpperCase();
-          }
-        } catch (err) {
-          console.error('Failed fetch user info:', err);
-        }
-
-        initializeListeners();
-      });
-
-      // Toggle filter visibility
-      filterToggle.addEventListener('click', () => {
-        filterPanel.style.display = filterPanel.style.display === 'none' ? 'block' : 'none';
-      });
-
-      // Apply / clear filters
-      applyFiltersBtn.addEventListener('click', () => {
-        activeFilters.dateFrom = dateFromEl.value || null;
-        activeFilters.dateTo = dateToEl.value || null;
-        activeFilters.location = filterLocationEl.value.trim();
-        activeFilters.createdBy = filterCreatedByEl.value.trim();
-
-        // statuses and types
-        activeFilters.statuses = Array.from(document.querySelectorAll('.filter-status:checked')).map(i => i.value);
-        activeFilters.types = Array.from(document.querySelectorAll('.filter-type:checked')).map(i => i.value);
-
-        loadReports(true);
-      });
-
-      clearFiltersBtn.addEventListener('click', () => {
-        dateFromEl.value = ''; dateToEl.value = ''; filterLocationEl.value=''; filterCreatedByEl.value='';
-        document.querySelectorAll('.filter-status, .filter-type').forEach(cb => cb.checked = false);
-        activeFilters = { statuses:[], types:[], dateFrom:null, dateTo:null, location:'', createdBy:'' };
-        loadReports(true);
-      });
-
-      // Search & sort
-      let searchTimeout = null;
-      searchInput.addEventListener('input', () => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => loadReports(true), 400);
-      });
-
-      sortSelect.addEventListener('change', () => loadReports(true));
-
-      // Export CSV
-      exportBtn.addEventListener('click', exportCSV);
-
-      // Pagination
-      prevPageBtn.addEventListener('click', () => {
-        if (docSnapshotsPages.length > 1) {
-          // pop current page
-          docSnapshotsPages.pop();
-          const prevPage = docSnapshotsPages.pop() || null;
-          if (prevPage) {
-            loadReports(false, prevPage);
-          } else {
-            loadReports(true);
-          }
-        }
-      });
-
-      nextPageBtn.addEventListener('click', () => {
-        loadReports(false);
-      });
-
-      // Initialize real-time or initial listeners
-      function initializeListeners() {
-        loadReports(true);
-      }
-
-      // Build Firestore query based on filters
-      function buildBaseQuery() {
-        // We cannot build extremely complex Firestore queries with OR easily,
-        // so we'll primarily order and use where for simple things.
-        // For complex searches we will fetch a page and filter client-side.
-        let q = collection(db, 'incident_reports');
-
-        // Order
-        const sortVal = sortSelect.value;
-        if (sortVal === 'oldest') {
-          q = query(q, orderBy('timestamp', 'asc'));
-        } else {
-          // newest or default
-          q = query(q, orderBy('timestamp', 'desc'));
-        }
-
-        return q;
-      }
-
-      // Main loader - supports "reload" (reset paging) or "next" (pagination)
-      async function loadReports(reload = true, startAfterDoc = null) {
-        try {
-          // Unsubscribe previous realtime listener if any (we will use onSnapshot for real-time page)
-          if (reportsUnsubscribe) {
-            reportsUnsubscribe();
-            reportsUnsubscribe = null;
-          }
-
-          reportListEl.innerHTML = `<div class="text-muted">Loading reports...</div>`;
-
-          // Build base query and then fetch a page (client-side filter applied afterwards)
-          let baseQ = buildBaseQuery();
-
-          // If paginating forward and not reloading, start after lastVisible
-          if (!reload && lastVisible) {
-            baseQ = query(baseQ, startAfter(lastVisible), limit(pageSize));
-          } else if (startAfterDoc) {
-            baseQ = query(baseQ, startAfter(startAfterDoc), limit(pageSize));
-          } else {
-            baseQ = query(baseQ, limit(pageSize));
-          }
-
-          // Use onSnapshot so page updates in real-time
-          reportsUnsubscribe = onSnapshot(baseQ, (snapshot) => {
-            currentSnapshot = snapshot;
-            renderSnapshot(snapshot, reload);
-          }, (err) => {
-            console.error('Realtime error:', err);
-            reportListEl.innerHTML = `<div class="text-danger">Error loading reports.</div>`;
-          });
-
-        } catch (err) {
-          console.error('loadReports error', err);
-          reportListEl.innerHTML = `<div class="text-danger">Failed to load reports: ${err.message}</div>`;
-        }
-      }
-
-      // Render snapshot with client-side filtering & search
-      async function renderSnapshot(snapshot, resetPaging) {
-        const results = [];
-
-        snapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          results.push({ id: docSnap.id, data });
-        });
-
-        // client-side filter by search and complex filters
-        const searchTerm = (searchInput.value || '').toLowerCase();
-
-        const filtered = results.filter(item => {
-          const d = item.data;
-          // date range
-          if (activeFilters.dateFrom || activeFilters.dateTo) {
-            if (!d.timestamp) return false;
-            let docDate;
-            if (d.timestamp.seconds) docDate = new Date(d.timestamp.seconds * 1000);
-            else if (d.timestamp.toDate) docDate = d.timestamp.toDate();
-            else docDate = new Date(d.timestamp);
-            if (activeFilters.dateFrom) {
-              const from = new Date(activeFilters.dateFrom);
-              from.setHours(0,0,0,0);
-              if (docDate < from) return false;
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            let container = document.getElementById('notificationContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'notificationContainer';
+                container.className = 'notification-container';
+                document.body.appendChild(container);
             }
-            if (activeFilters.dateTo) {
-              const to = new Date(activeFilters.dateTo); to.setHours(23,59,59,999);
-              if (docDate > to) return false;
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+            
+            notification.addEventListener('click', () => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            });
+        }
+
+        function generateShortId(fullId) {
+            return fullId.substring(0, 6).toUpperCase();
+        }
+
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return 'Unknown';
+            
+            let date;
+            if (timestamp.seconds) {
+                date = new Date(timestamp.seconds * 1000);
+            } else if (timestamp.toDate) {
+                date = timestamp.toDate();
+            } else {
+                date = new Date(timestamp);
             }
-          }
+            
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
 
-          // statuses
-          if (activeFilters.statuses.length) {
-            if (!activeFilters.statuses.includes((d.status || '').toLowerCase())) return false;
-          }
+        function getEmergencyTypeDisplay(type) {
+            if (!type) return 'Unknown';
+            
+            // Handle both the key (fire, medical) and full name (Fire Emergency)
+            const lowerType = type.toLowerCase();
+            
+            // Check if it's already a full emergency type name
+            if (type.includes('Emergency') || type.includes('Accident') || type.includes('Flood') || type.includes('Infrastructure')) {
+                return type;
+            }
+            
+            // Map short names to full names
+            return emergencyTypeMapping[lowerType] || type;
+        }
 
-          // types
-          if (activeFilters.types.length) {
-            if (!activeFilters.types.includes((d.emergencyType || '').toString())) return false;
-          }
+        function getEmergencyIcon(type) {
+            if (!type) return 'fa-exclamation-triangle';
+            
+            const lowerType = type.toLowerCase();
+            
+            // Handle full emergency type names
+            if (type.includes('Fire')) return 'fa-fire';
+            if (type.includes('Medical')) return 'fa-heartbeat';
+            if (type.includes('Crime')) return 'fa-shield-alt';
+            if (type.includes('Flood')) return 'fa-water';
+            if (type.includes('Accident')) return 'fa-car-crash';
+            if (type.includes('Infrastructure')) return 'fa-tools';
+            
+            // Handle short names
+            return emergencyIcons[lowerType] || 'fa-exclamation-triangle';
+        }
 
-          // location filter
-          if (activeFilters.location) {
-            const locationStr = (d.barangay || '') + ' ' + (d.location || '') + ' ' + (d.purok || '');
-            if (!locationStr.toLowerCase().includes(activeFilters.location.toLowerCase())) return false;
-          }
+        function getEmergencyClass(type) {
+            if (!type) return 'infrastructure';
+            
+            const lowerType = type.toLowerCase();
+            
+            // Handle full emergency type names
+            if (type.includes('Fire')) return 'fire';
+            if (type.includes('Medical')) return 'medical';
+            if (type.includes('Crime')) return 'crime';
+            if (type.includes('Flood')) return 'flood';
+            if (type.includes('Accident')) return 'accident';
+            if (type.includes('Infrastructure')) return 'infrastructure';
+            
+            // Handle short names
+            return ['fire', 'medical', 'crime', 'flood', 'accident', 'infrastructure'].includes(lowerType) 
+                ? lowerType : 'infrastructure';
+        }
 
-          // createdBy filter
-          if (activeFilters.createdBy) {
-            if (!((d.createdBy || '').toLowerCase().includes(activeFilters.createdBy.toLowerCase()))) return false;
-          }
+        function updateStatistics() {
+            const stats = {
+                total: allReports.length,
+                pending: 0,
+                assigned: 0,
+                resolved: 0
+            };
 
-          // search
-          if (searchTerm) {
-            const candidate = [
-              d.name || '',
-              d.barangay || '',
-              d.location || '',
-              d.emergencyType || '',
-              d.status || '',
-              d.createdBy || ''
-            ].join(' ').toLowerCase();
-            if (!candidate.includes(searchTerm)) return false;
-          }
+            allReports.forEach(report => {
+                const status = report.status || 'pending';
+                if (status === 'pending') stats.pending++;
+                else if (status === 'assigned') stats.assigned++;
+                else if (status === 'resolved') stats.resolved++;
+            });
 
-          return true;
+            totalCount.textContent = stats.total;
+            pendingCount.textContent = stats.pending;
+            assignedCount.textContent = stats.assigned;
+            resolvedCount.textContent = stats.resolved;
+        }
+
+        function applyFilters() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const statusValue = statusFilter.value.toLowerCase();
+            const typeValue = typeFilter.value.toLowerCase();
+
+            filteredReports = allReports.filter(report => {
+                // Search filter
+                if (searchTerm) {
+                    const searchFields = [
+                        report.name || '',
+                        report.fullAddress || report.addressLine || report.barangay || '',
+                        report.emergencyType || '',
+                        report.subCategory || '',
+                        report.reporterId || ''
+                    ].join(' ').toLowerCase();
+                    
+                    if (!searchFields.includes(searchTerm)) {
+                        return false;
+                    }
+                }
+
+                // Status filter
+                if (statusValue && statusValue !== (report.status || 'pending').toLowerCase()) {
+                    return false;
+                }
+
+                // Type filter
+                if (typeValue) {
+                    const reportType = (report.emergencyType || '').toLowerCase();
+                    if (reportType !== typeValue && !reportType.includes(typeValue)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            renderTable();
+        }
+
+        function renderTable() {
+            if (filteredReports.length === 0) {
+                tableContent.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-inbox fa-3x mb-3" style="color: #dee2e6;"></i>
+                        <h5>No Reports Found</h5>
+                        <p>No incident reports match your current filters.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const tableHtml = `
+                <table class="table reports-table">
+                    <thead>
+                        <tr>
+                            <th>Report ID</th>
+                            <th>Emergency Type</th>
+                            <th>Subcategory</th>
+                            <th>Full Address</th>
+                            <th>Status</th>
+                            <th>Timestamp</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredReports.map(report => `
+                            <tr>
+                                <td><div class="report-id">${generateShortId(report.id)}</div></td>
+                                <td>
+                                    <div class="emergency-type">
+                                        <div class="emergency-icon ${getEmergencyClass(report.emergencyType)}">
+                                            <i class="fas ${getEmergencyIcon(report.emergencyType)}"></i>
+                                        </div>
+                                        ${getEmergencyTypeDisplay(report.emergencyType)}
+                                    </div>
+                                </td>
+                                <td>${report.subCategory || report.subcategory || report.incidentType || 'Not specified'}</td>
+                                <td>
+                                    <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
+                                         title="${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}">
+                                        ${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="status-badge ${(report.status || 'pending').toLowerCase()}">
+                                        ${(report.status || 'Pending').toUpperCase()}
+                                    </span>
+                                </td>
+                                <td>${formatTimestamp(report.timestamp)}</td>
+                                <td>
+                                    <a href="report.html?id=${report.id}" class="view-btn">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            tableContent.innerHTML = tableHtml;
+        }
+
+        function loadReports() {
+            const q = query(
+                collection(db, "incident_reports"),
+                orderBy("timestamp", "desc")
+            );
+
+            if (reportsListener) {
+                reportsListener();
+            }
+
+            reportsListener = onSnapshot(q, (snapshot) => {
+                allReports = [];
+                
+                snapshot.forEach((doc) => {
+                    allReports.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                console.log(`Loaded ${allReports.length} reports`);
+                updateStatistics();
+                applyFilters();
+            }, (error) => {
+                console.error("Error loading reports:", error);
+                tableContent.innerHTML = `
+                    <div class="error-content">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                        <h5>Error Loading Reports</h5>
+                        <p>Failed to load incident reports. Please refresh the page.</p>
+                    </div>
+                `;
+                showNotification("Error loading reports: " + error.message, "error");
+            });
+        }
+
+        function clearFilters() {
+            searchInput.value = '';
+            statusFilter.value = '';
+            typeFilter.value = '';
+            applyFilters();
+        }
+
+        // Event listeners
+        searchInput.addEventListener('input', applyFilters);
+        statusFilter.addEventListener('change', applyFilters);
+        typeFilter.addEventListener('change', applyFilters);
+        clearFiltersBtn.addEventListener('click', clearFilters);
+
+        window.logoutUser = async function() {
+            if (confirm("Are you sure you want to logout?")) {
+                try {
+                    await signOut(auth);
+                    showNotification("Logged out successfully", "info");
+                    window.location.href = "index.html";
+                } catch (error) {
+                    console.error("Logout error:", error);
+                    showNotification("Error logging out", "error");
+                }
+            }
+        };
+
+        // Authentication and initialization
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = "index.html";
+                return;
+            }
+
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (!userDoc.exists()) {
+                    showNotification("User profile not found", "error");
+                    window.location.href = "index.html";
+                    return;
+                }
+
+                const userData = userDoc.data();
+                if (!['admin', 'monitor', 'rescuer'].includes(userData.role)) {
+                    showNotification("Access denied. Admin, Monitor, or Rescuer role required.", "error");
+                    window.location.href = "index.html";
+                    return;
+                }
+
+                currentUser = { ...user, role: userData.role };
+                
+                // Update UI with user info
+                document.getElementById('userName').textContent = userData.name || user.displayName || user.email;
+                document.getElementById('userEmail').textContent = user.email;
+                
+                const roleElement = document.getElementById('userRole');
+                roleElement.textContent = userData.role.toUpperCase();
+                roleElement.className = `role-badge ${userData.role}`;
+                
+                // Hide loading overlay and start loading data
+                document.getElementById('loadingOverlay').style.display = 'none';
+                
+                loadReports();
+                showNotification(`Welcome back, ${userData.name || user.email}!`, "success");
+                
+            } catch (error) {
+                console.error('Authentication error:', error);
+                showNotification("Authentication error", "error");
+                window.location.href = "index.html";
+            }
         });
 
-        // Update paging markers for "next" and "prev"
-        if (filtered.length > 0) {
-          firstVisible = snapshot.docs[0] || null;
-          lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
-
-          // store pages for prev navigation when resetPaging
-          if (resetPaging) {
-            docSnapshotsPages = [];
-            docSnapshotsPages.push(snapshot);
-          } else {
-            docSnapshotsPages.push(snapshot);
-          }
-        } else {
-          firstVisible = null;
-          lastVisible = null;
-        }
-
-        // Render rows
-        reportListEl.innerHTML = '';
-        if (filtered.length === 0) {
-          reportListEl.innerHTML = `<div class="text-muted">No reports found.</div>`;
-          resultCountEl.textContent = `0 results`;
-          prevPageBtn.disabled = !(docSnapshotsPages.length > 1);
-          nextPageBtn.disabled = true;
-          return;
-        }
-
-        filtered.forEach(item => {
-          const el = createReportRow(item.id, item.data);
-          reportListEl.appendChild(el);
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (reportsListener) {
+                reportsListener();
+            }
         });
-
-        resultCountEl.textContent = `${filtered.length} shown`;
-
-        // next page button availability - we enable next if snapshot.size === pageSize
-        nextPageBtn.disabled = !(snapshot.size === pageSize);
-        prevPageBtn.disabled = !(docSnapshotsPages.length > 1);
-      }
-
-      // Create the DOM row
-      function createReportRow(id, data) {
-        const row = document.createElement('div');
-        row.className = 'report-row';
-
-        const left = document.createElement('div');
-        left.className = 'report-left';
-
-        const avatar = document.createElement('img');
-        avatar.className = 'avatar';
-        // Use photoURL or default logo
-        avatar.src = data.photoURL || 'assets/images/Logo.png';
-        avatar.alt = 'reporter';
-
-        const meta = document.createElement('div');
-        meta.className = 'report-meta';
-        const nameEl = document.createElement('strong');
-        nameEl.textContent = data.name || (data.createdBy || 'Unknown');
-        const dateEl = document.createElement('small');
-        dateEl.textContent = formatTimestamp(data.timestamp);
-
-        meta.appendChild(nameEl);
-        meta.appendChild(dateEl);
-
-        left.appendChild(avatar);
-        left.appendChild(meta);
-
-        // middle details
-        const middle = document.createElement('div');
-        middle.className = 'report-middle';
-
-        const details = document.createElement('div');
-        details.className = 'report-details';
-
-        const typeSpan = document.createElement('span');
-        typeSpan.innerHTML = `<strong>Type:</strong> ${data.emergencyType || 'N/A'}`;
-
-        const statusSpan = document.createElement('span');
-        const statusClass = 'status-' + ((data.status || 'pending').toLowerCase());
-        statusSpan.innerHTML = `<span class="status-badge ${statusClass}">${(data.status || 'Pending').toString()}</span>`;
-
-        const locSpan = document.createElement('span');
-        locSpan.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${(data.barangay || '')} ${(data.location || '')}`;
-
-        const createdBySpan = document.createElement('span');
-        createdBySpan.innerHTML = `<small>Created by: <strong>${data.createdBy || 'Unknown'}</strong></small>`;
-
-        details.appendChild(typeSpan);
-        details.appendChild(statusSpan);
-        details.appendChild(locSpan);
-        details.appendChild(createdBySpan);
-
-        middle.appendChild(details);
-
-        // right actions
-        const right = document.createElement('div');
-        right.className = 'report-right';
-
-        const viewBtn = document.createElement('button');
-        viewBtn.className = 'btn-outline';
-        viewBtn.innerHTML = '<i class="fas fa-eye"></i> View';
-        viewBtn.onclick = () => openViewModal(id, data);
-
-        const editBtn = document.createElement('button');
-        editBtn.className = 'btn-outline';
-        editBtn.innerHTML = '<i class="fas fa-edit"></i> Edit';
-        editBtn.onclick = () => { window.location.href = `ReportForm.html?id=${id}`; };
-
-        right.appendChild(viewBtn);
-        right.appendChild(editBtn);
-
-        row.appendChild(left);
-        row.appendChild(middle);
-        row.appendChild(right);
-
-        return row;
-      }
-
-      // Format Firestore timestamp
-      function formatTimestamp(timestamp) {
-        if (!timestamp) return 'Unknown';
-        let d;
-        if (timestamp.seconds) d = new Date(timestamp.seconds * 1000);
-        else if (timestamp.toDate) d = timestamp.toDate();
-        else d = new Date(timestamp);
-        return d.toLocaleString();
-      }
-
-      // View modal
-      let currentlyViewingId = null;
-      function openViewModal(id, data) {
-        currentlyViewingId = id;
-        modalContent.innerHTML = `
-          <div>
-            <h5>${data.emergencyType || 'Incident'}</h5>
-            <p><strong>Reported by:</strong> ${data.name || 'Unknown'}</p>
-            <p><strong>Created By:</strong> ${data.createdBy || 'N/A'}</p>
-            <p><strong>Status:</strong> ${(data.status || 'Pending')}</p>
-            <p><strong>Date:</strong> ${formatTimestamp(data.timestamp)}</p>
-            <p><strong>Barangay:</strong> ${data.barangay || ''}</p>
-            <p><strong>Location:</strong> ${data.location || ''} ${data.purok ? ' - ' + data.purok : ''}</p>
-            <p><strong>Details:</strong></p>
-            <pre style="background:#f7f7f7;padding:10px;border-radius:6px;">${data.details || data.description || 'No details provided.'}</pre>
-          </div>
-        `;
-
-        // images (if any)
-        if (data.images && Array.isArray(data.images) && data.images.length) {
-          const gallery = document.createElement('div');
-          gallery.style.display = 'flex'; gallery.style.gap = '8px'; gallery.style.flexWrap = 'wrap'; gallery.style.marginTop = '12px';
-          data.images.forEach(url => {
-            const img = document.createElement('img');
-            img.src = url;
-            img.style.width = '120px';
-            img.style.height = '80px';
-            img.style.objectFit = 'cover';
-            img.style.borderRadius = '6px';
-            img.style.border = '1px solid #eee';
-            gallery.appendChild(img);
-          });
-          modalContent.appendChild(gallery);
-        }
-
-        // enable/disable action buttons based on role/status
-        const statusLower = (data.status || 'pending').toLowerCase();
-        verifyBtn.style.display = (statusLower === 'pending') ? 'inline-block' : 'none';
-        resolveBtn.style.display = (statusLower !== 'resolved') ? 'inline-block' : 'none';
-        dismissBtn.style.display = (statusLower !== 'dismissed') ? 'inline-block' : 'none';
-
-        // Show modal
-        bootstrapModal.show();
-      }
-
-      // Action handlers
-      verifyBtn.addEventListener('click', async () => {
-        if (!currentlyViewingId) return;
-        try {
-          await updateDoc(doc(db, 'incident_reports', currentlyViewingId), {
-            status: 'verified',
-            verifiedAt: new Date(),
-            verifiedBy: currentUser?.email || 'system',
-            updatedAt: new Date()
-          });
-          showNotification('Report marked verified', 'success');
-          bootstrapModal.hide();
-        } catch (err) {
-          console.error(err);
-          showNotification('Failed to verify: ' + err.message, 'error');
-        }
-      });
-
-      resolveBtn.addEventListener('click', async () => {
-        if (!currentlyViewingId) return;
-        try {
-          await updateDoc(doc(db, 'incident_reports', currentlyViewingId), {
-            status: 'resolved',
-            resolvedAt: new Date(),
-            resolvedBy: currentUser?.email || 'system',
-            updatedAt: new Date()
-          });
-          showNotification('Report marked resolved', 'success');
-          bootstrapModal.hide();
-        } catch (err) {
-          console.error(err);
-          showNotification('Failed to resolve: ' + err.message, 'error');
-        }
-      });
-
-      dismissBtn.addEventListener('click', async () => {
-        if (!currentlyViewingId) return;
-        const reason = prompt('Reason for dismissal (optional):');
-        try {
-          await updateDoc(doc(db, 'incident_reports', currentlyViewingId), {
-            status: 'dismissed',
-            dismissedAt: new Date(),
-            dismissedBy: currentUser?.email || 'system',
-            dismissalReason: reason || '',
-            updatedAt: new Date()
-          });
-          showNotification('Report dismissed', 'warning');
-          bootstrapModal.hide();
-        } catch (err) {
-          console.error(err);
-          showNotification('Failed to dismiss: ' + err.message, 'error');
-        }
-      });
-
-      // Export CSV from currently shown snapshot (client filter applied)
-      async function exportCSV() {
-        if (!currentSnapshot) {
-          showNotification('No data to export', 'warning');
-          return;
-        }
-
-        const rows = [];
-        currentSnapshot.forEach(docSnap => {
-          const d = docSnap.data();
-          rows.push({
-            id: docSnap.id,
-            name: d.name || '',
-            createdBy: d.createdBy || '',
-            type: d.emergencyType || '',
-            status: d.status || '',
-            barangay: d.barangay || '',
-            location: d.location || '',
-            date: formatTimestamp(d.timestamp),
-            details: (d.details || d.description || '').replace(/\n/g,' ')
-          });
-        });
-
-        if (!rows.length) {
-          showNotification('No rows to export', 'warning');
-          return;
-        }
-
-        const csvHeader = Object.keys(rows[0]).join(',');
-        const csvBody = rows.map(r => Object.values(r).map(val => `"${(val||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
-        const csv = csvHeader + '\n' + csvBody;
-
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `incident_reports_export_${Date.now()}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-
-      // Simple notification
-      function showNotification(message, type = 'info') {
-        // small bootstrap toast-like floating
-        const el = document.createElement('div');
-        el.style.position = 'fixed';
-        el.style.right = '20px';
-        el.style.top = '20px';
-        el.style.padding = '12px 16px';
-        el.style.borderRadius = '10px';
-        el.style.color = 'white';
-        el.style.zIndex = 99999;
-        el.style.fontWeight = 700;
-        el.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
-
-        if (type === 'success') { el.style.background = 'linear-gradient(135deg,#27ae60,#2ecc71)'; }
-        else if (type === 'error') { el.style.background = 'linear-gradient(135deg,#e74c3c,#c0392b)'; }
-        else if (type === 'warning') { el.style.background = 'linear-gradient(135deg,#f39c12,#e67e22)'; }
-        else { el.style.background = 'linear-gradient(135deg,#3498db,#2980b9)'; }
-
-        el.textContent = message;
-        document.body.appendChild(el);
-        setTimeout(() => el.remove(), 4200);
-      }
-
-      // Clean up when user navigates away
-      window.addEventListener('beforeunload', () => {
-        if (reportsUnsubscribe) reportsUnsubscribe();
-      });
-
-      // Utility: startAfter stub re-export for older import compatibility
-      // (we used startAfter from firebase-firestore import above).
-      // No-op here.
-
-      // Kick off initial load when DOM ready (auth will call initializeListeners)
-      document.addEventListener('DOMContentLoaded', () => {
-        // If not logged in yet, auth handler will handle loads
-      });
     </script>
-  </body>
-  </html>
+</body>
+</html>

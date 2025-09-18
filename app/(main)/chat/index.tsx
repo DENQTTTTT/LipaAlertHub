@@ -1,25 +1,26 @@
-// app/(main)/chat/index.tsx - Chat Modal Component
+// app/(main)/chat/index.tsx - Fixed Chat Modal Component
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../hooks/useAuth';
-import { ChatMessage, chatService } from '../../../services/chat';
+import { useChat } from '../../../hooks/useChat';
+import { ChatMessage } from '../../../services/chat';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface ChatModalProps {
   isVisible: boolean;
@@ -27,50 +28,42 @@ interface ChatModalProps {
 }
 
 export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const { user } = useAuth();
+  const {
+    messages,
+    loading,
+    connected,
+    sending,
+    sendMessage,
+    markMessagesAsRead,
+  } = useChat();
 
+  // Mark messages as read when modal opens (only once)
   useEffect(() => {
-    if (isVisible && user) {
-      setLoading(true);
-      
-      // Set up real-time message listener
-      const unsubscribe = chatService.getChatMessages((newMessages) => {
-        setMessages(newMessages);
-        setLoading(false);
-        setIsConnected(true);
-        
-        // Auto-scroll to bottom when new messages arrive
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      });
-
-      return () => {
-        if (typeof unsubscribe === 'function') {
-          unsubscribe();
-        }
-      };
-    } else {
-      setMessages([]);
-      setIsConnected(false);
+    if (isVisible && connected && messages.length > 0) {
+      markMessagesAsRead();
     }
-  }, [isVisible, user]);
+  }, [isVisible, connected]); // Removed messages dependency to prevent constant calls
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0 && isVisible) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages, isVisible]);
 
   const handleSendMessage = async () => {
-    if (!inputText.trim() || sending) return;
+    if (!inputText.trim() || sending || !connected) return;
 
-    setSending(true);
     const messageToSend = inputText.trim();
     setInputText('');
 
     try {
-      await chatService.sendMessage(messageToSend);
+      await sendMessage(messageToSend);
       
       // Auto-scroll to bottom after sending
       setTimeout(() => {
@@ -81,11 +74,14 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
       Alert.alert(
         'Message Failed', 
         'Failed to send message. Please try again.',
-        [{ text: 'OK' }]
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Retry', 
+            onPress: () => setInputText(messageToSend) 
+          },
+        ]
       );
-      setInputText(messageToSend); // Restore the message
-    } finally {
-      setSending(false);
     }
   };
 
@@ -126,8 +122,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
   };
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
-    const isUserMessage = item.senderType === 'user';
-    const isSystemMessage = item.senderId === 'cdrrmo_system';
+    const isUserMessage = item.senderRole === 'user';
+    const isSystemMessage = item.senderId === 'system';
 
     return (
       <View style={[
@@ -139,7 +135,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
             <View style={styles.cdrrmoAvatar}>
               <Ionicons name="shield-checkmark" size={14} color="#fff" />
             </View>
-            <Text style={styles.senderName}>{item.senderName}</Text>
+            <Text style={styles.senderName}>CDRRMO</Text>
           </View>
         )}
         
@@ -153,22 +149,54 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
             isUserMessage ? styles.userMessageText : styles.cdrrmoMessageText,
             isSystemMessage && styles.systemMessageText
           ]}>
-            {item.message}
+            {item.content}
           </Text>
           
           <Text style={[
             styles.messageTime,
             isUserMessage ? styles.userMessageTime : styles.cdrrmoMessageTime
           ]}>
-            {formatTime(item.timestamp)}
-            {isUserMessage && (
-              <Text style={styles.messageStatus}>
-                {item.status === 'read' ? ' ✓✓' : ' ✓'}
-              </Text>
-            )}
+            {formatTime(item.createdAt)}
           </Text>
         </View>
       </View>
+    );
+  };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <View style={styles.emptyIcon}>
+        <Ionicons name="chatbubbles-outline" size={60} color="#ccc" />
+      </View>
+      <Text style={styles.emptyTitle}>Start the conversation</Text>
+      <Text style={styles.emptySubtitle}>
+        Send a message to begin chatting with our support team
+      </Text>
+    </View>
+  );
+
+  const renderContent = () => {
+    if (loading && messages.length === 0) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#e74c3c" />
+          <Text style={styles.loadingText}>Loading messages...</Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        keyExtractor={(item) => item.id || Math.random().toString()}
+        renderItem={renderMessage}
+        style={styles.messagesList}
+        contentContainerStyle={styles.messagesContent}
+        ListEmptyComponent={renderEmptyState}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        showsVerticalScrollIndicator={false}
+      />
     );
   };
 
@@ -188,16 +216,16 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
           
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle}>CDRRMO Support</Text>
-            <Text style={styles.headerSubtitle}>
-              {isConnected ? (
+            <View style={styles.headerSubtitle}>
+              {connected ? (
                 <>
                   <View style={styles.onlineIndicator} />
-                  Available for support
+                  <Text style={styles.headerSubtitleText}>Available for support</Text>
                 </>
               ) : (
-                'Connecting...'
+                <Text style={styles.headerSubtitleText}>Connecting...</Text>
               )}
-            </Text>
+            </View>
           </View>
           
           <TouchableOpacity style={styles.infoButton}>
@@ -211,23 +239,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#e74c3c" />
-              <Text style={styles.loadingText}>Loading messages...</Text>
-            </View>
-          ) : (
-            <FlatList
-              ref={flatListRef}
-              data={messages}
-              keyExtractor={(item) => item.id || Math.random().toString()}
-              renderItem={renderMessage}
-              style={styles.messagesList}
-              contentContainerStyle={styles.messagesContent}
-              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
+          {renderContent()}
 
           {/* Message Input */}
           <View style={styles.inputContainer}>
@@ -239,17 +251,17 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
                 value={inputText}
                 onChangeText={setInputText}
                 multiline={true}
-                maxLength={500}
-                editable={!sending}
+                maxLength={1000}
+                editable={!sending && connected}
               />
               
               <TouchableOpacity
                 style={[
                   styles.sendButton,
-                  (!inputText.trim() || sending) && styles.sendButtonDisabled
+                  (!inputText.trim() || sending || !connected) && styles.sendButtonDisabled
                 ]}
                 onPress={handleSendMessage}
-                disabled={!inputText.trim() || sending}
+                disabled={!inputText.trim() || sending || !connected}
               >
                 {sending ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -257,15 +269,20 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
                   <Ionicons 
                     name="send" 
                     size={18} 
-                    color={inputText.trim() ? "#fff" : "#999"} 
+                    color={inputText.trim() && connected ? "#fff" : "#999"} 
                   />
                 )}
               </TouchableOpacity>
             </View>
             
-            <Text style={styles.charCount}>
-              {inputText.length}/500
-            </Text>
+            <View style={styles.inputFooter}>
+              <Text style={styles.charCount}>
+                {inputText.length}/1000
+              </Text>
+              <Text style={styles.connectionStatus}>
+                {connected ? 'Connected' : 'Connecting...'}
+              </Text>
+            </View>
           </View>
         </KeyboardAvoidingView>
 
@@ -313,11 +330,13 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   headerSubtitle: {
-    fontSize: 13,
-    color: '#666',
     marginTop: 2,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  headerSubtitleText: {
+    fontSize: 13,
+    color: '#666',
   },
   onlineIndicator: {
     width: 8,
@@ -347,6 +366,28 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     paddingVertical: 16,
+    flexGrow: 1,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1a202c',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
   },
   messageContainer: {
     marginBottom: 16,
@@ -419,15 +460,13 @@ const styles = StyleSheet.create({
   cdrrmoMessageTime: {
     color: '#999',
   },
-  messageStatus: {
-    fontSize: 10,
-  },
   inputContainer: {
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#e1e8ed',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -458,11 +497,19 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     backgroundColor: '#ddd',
   },
+  inputFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   charCount: {
     fontSize: 11,
     color: '#999',
-    textAlign: 'right',
-    marginTop: 4,
+  },
+  connectionStatus: {
+    fontSize: 11,
+    color: '#999',
   },
   footer: {
     flexDirection: 'row',

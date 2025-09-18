@@ -1,244 +1,501 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { db } from '../../../services/firebase';
 
-export default function WeatherDetailed() {
+interface WeatherAlert {
+  id: string;
+  title: string;
+  description: string;
+  severity: 'info' | 'watch' | 'warning' | 'danger';
+  type: 'weather' | 'disaster';
+  approved: boolean;
+  isActive: boolean;
+  createdAt: Timestamp;
+  createdBy: string;
+  imageUrl?: string;
+}
+
+const WeatherAlertDetailScreen = () => {
+  const [alert, setAlert] = useState<WeatherAlert | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const { alertId } = useLocalSearchParams<{ alertId: string }>();
 
-  // Get the detailed content based on alert type
-  const getDetailedContent = (alertType: string) => {
-    switch(alertType) {
-      case "Yellow Warning":
-        return {
-          fullDescription: `Heavy rainfall is expected in your area within the next 24 hours. The Philippine Atmospheric, Geophysical and Astronomical Services Administration (PAGASA) has issued this yellow warning to alert residents of potentially hazardous weather conditions.
+  useEffect(() => {
+    const fetchAlert = async () => {
+      if (!alertId) {
+        Alert.alert('Error', 'No alert ID provided');
+        router.back();
+        return;
+      }
 
-Expected rainfall amounts range from 50-100mm within a 24-hour period. This may cause:
-• Flash floods in low-lying and flood-prone areas
-• Traffic congestion and road closures
-• Possible landslides in mountainous regions
-• Disruption to outdoor activities
+      try {
+        const alertDoc = await getDoc(doc(db, 'weather_alerts', alertId));
+        
+        if (alertDoc.exists()) {
+          const alertData = {
+            id: alertDoc.id,
+            ...alertDoc.data(),
+          } as WeatherAlert;
+          
+          // Check if alert is approved and active
+          if (!alertData.approved || !alertData.isActive) {
+            Alert.alert('Alert Not Available', 'This alert is no longer active.');
+            router.back();
+            return;
+          }
+          
+          setAlert(alertData);
+        } else {
+          Alert.alert('Alert Not Found', 'The requested alert could not be found.');
+          router.back();
+        }
+      } catch (error) {
+        console.error('Error fetching alert:', error);
+        Alert.alert('Error', 'Failed to fetch alert details');
+        router.back();
+      } finally {
+        setLoading(false);
+      }
+    };
 
-SAFETY RECOMMENDATIONS:
-• Stay indoors when possible
-• Avoid unnecessary travel, especially in flood-prone areas
-• Monitor local news and weather updates regularly
-• Prepare emergency supplies (flashlight, battery-powered radio, first aid kit)
-• Keep important documents in waterproof containers
-• Ensure proper drainage around your home
+    fetchAlert();
+  }, [alertId]);
 
-If you must go outside:
-• Wear appropriate rain gear
-• Avoid walking or driving through flooded areas
-• Stay away from electrical installations that may be affected by water
-• Be extra cautious when driving - reduce speed and maintain safe distance
-
-This warning will remain in effect until conditions improve. Continue monitoring official weather bulletins for updates.`,
-          backgroundColor: "#fbbf24",
-          textColor: "#92400e"
-        };
-      case "Earthquake Alert":
-        return {
-          fullDescription: `EARTHQUAKE INFORMATION:
-Magnitude: 6.2
-Location: 45km southeast of Batangas City
-Depth: 15km
-Time: Today, 3:42 PM PHT
-
-A significant earthquake with a magnitude of 6.2 has been recorded in the Batangas region. The Philippine Institute of Volcanology and Seismology (PHIVOLCS) is closely monitoring the situation for potential aftershocks.
-
-AFFECTED AREAS:
-• Batangas City and surrounding municipalities
-• Parts of Laguna province
-• Southern Metro Manila areas
-• Cavite coastal areas
-
-INTENSITY SCALE (PHIVOLCS):
-• Intensity VI (Strong) - Batangas City
-• Intensity V (Moderately Strong) - Lipa City
-• Intensity IV (Moderately Strong) - Calamba, Laguna
-• Intensity III (Weak) - Southern Metro Manila
-
-AFTERSHOCK ADVISORY:
-Minor to moderate aftershocks are expected in the coming hours to days. The strongest aftershocks typically occur within the first 24 hours following the main earthquake.
-
-SAFETY REMINDERS:
-• Check for injuries and provide first aid if necessary
-• Inspect your home for structural damage before re-entering
-• Be prepared for aftershocks - Drop, Cover, and Hold On
-• Stay away from damaged buildings and power lines
-• Listen to battery-powered radio for emergency information
-• Do not use elevators
-• If you smell gas, turn off the main gas valve and leave immediately
-
-TSUNAMI ADVISORY:
-No tsunami threat has been detected at this time. Coastal monitoring continues.
-
-Emergency hotlines remain active. Report significant damage to local authorities immediately.`,
-          backgroundColor: "#dc2626",
-          textColor: "#ffffff"
-        };
-      case "Red Warning":
-        return {
-          fullDescription: `SEVERE WEATHER WARNING - RED ALERT
-
-The Philippine Atmospheric, Geophysical and Astronomical Services Administration (PAGASA) has issued a RED WARNING for severe flooding in the following areas:
-
-SEVERELY AFFECTED AREAS:
-• Lipa City - All barangays
-• Batangas City - Coastal and low-lying areas
-• Tanauan City - Riverside communities
-• Santo Tomas - Agricultural areas
-• Malvar - Industrial zones
-
-CURRENT SITUATION:
-Continuous heavy rainfall over the past 12 hours has caused river levels to rise dangerously. The Pansipit River and its tributaries have exceeded critical levels. Several roads are now impassable due to flooding.
-
-FLOOD LEVELS:
-• 0.5 to 1.5 meters in residential areas
-• Up to 2 meters in low-lying commercial districts
-• Knee to waist-deep water on major roads
-
-IMMEDIATE ACTIONS REQUIRED:
-
-FOR RESIDENTS IN EVACUATION AREAS:
-• Evacuate immediately when advised by local authorities
-• Proceed to designated evacuation centers
-• Bring essential items: medications, important documents, change of clothes
-• Follow evacuation routes provided by barangay officials
-
-GENERAL SAFETY MEASURES:
-• Do not attempt to cross flooded streets on foot or by vehicle
-• Stay away from manholes, canals, and drainage areas
-• Avoid electrical appliances if flooding reaches your home
-• If trapped in a building, move to higher floors
-• Signal for help using bright colored cloth or flashlight
-
-EVACUATION CENTERS:
-• Lipa City Sports Complex
-• Batangas State University Gymnasium
-• Covered Courts in affected barangays
-
-EMERGENCY CONTACTS:
-• CDRRMO: 043-XXX-XXXX
-• Philippine Red Cross: 143
-• Emergency Services: 911
-
-This red warning will remain in effect until water levels recede to safe levels. Continue monitoring official announcements for updates.`,
-          backgroundColor: "#dc2626",
-          textColor: "#ffffff"
-        };
-      default:
-        return {
-          fullDescription: params.alertDescription || "No detailed information available.",
-          backgroundColor: "#6b7280",
-          textColor: "#ffffff"
-        };
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'info': return '#3498db';
+      case 'watch': return '#f39c12';
+      case 'warning': return '#e67e22';
+      case 'danger': return '#e74c3c';
+      default: return '#95a5a6';
     }
   };
 
-  const content = getDetailedContent(Array.isArray(params.alertType) ? params.alertType[0] : params.alertType || "");
+  const getSeverityIcon = (severity: string) => {
+    switch (severity) {
+      case 'info': return 'information-circle';
+      case 'watch': return 'eye';
+      case 'warning': return 'warning';
+      case 'danger': return 'alert-circle';
+      default: return 'help-circle';
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    return type === 'weather' ? 'cloud' : 'warning';
+  };
+
+  const formatDate = (timestamp: Timestamp) => {
+    const date = timestamp.toDate();
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } else {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    }
+  };
+
+  const getSeverityTextColor = (severity: string) => {
+    switch (severity) {
+      case 'danger': return '#ffffff';
+      case 'warning': return '#ffffff';
+      default: return '#ffffff';
+    }
+  };
+
+  const handleShare = async () => {
+    if (!alert) return;
+    
+    try {
+      const message = `🚨 ${alert.severity.toUpperCase()} ALERT\n\n${alert.title}\n\n${alert.description}\n\nIssued: ${formatDate(alert.createdAt)}\n\nStay safe! - LipaAlertHub`;
+      
+      await Share.share({
+        message,
+        title: `${alert.severity.toUpperCase()} Alert: ${alert.title}`,
+      });
+    } catch (error) {
+      console.error('Error sharing alert:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingHeader}>
+          <View style={styles.headerLeft}>
+            <View style={styles.logoContainer}>
+              <Ionicons name="shield" size={24} color="#D32F2F" />
+            </View>
+            <Text style={styles.appName}>LipaAlertHub</Text>
+          </View>
+          <Text style={styles.headerTitle}>Alert Details</Text>
+          <View style={styles.shareButton} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#D32F2F" />
+          <Text style={styles.loadingText}>Loading alert details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!alert) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorHeader}>
+          <View style={styles.headerLeft}>
+            <View style={styles.logoContainer}>
+              <Ionicons name="shield" size={24} color="#D32F2F" />
+            </View>
+            <Text style={styles.appName}>LipaAlertHub</Text>
+          </View>
+          <Text style={styles.headerTitle}>Alert Details</Text>
+          <View style={styles.shareButton} />
+        </View>
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning-outline" size={80} color="#e74c3c" />
+          <Text style={styles.errorTitle}>Alert Not Found</Text>
+          <Text style={styles.errorSubtitle}>
+            The requested alert could not be loaded.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backArrow}>‹</Text>
-        </TouchableOpacity>
-        <View style={styles.logoContainer}>
-          <Image 
-           source={require('../../../assets/images/logo.png')} 
-            style={styles.logoImage}
-          />
-          <Text style={styles.logoTitle}>LipoAlertHub</Text>
+        <View style={styles.headerLeft}>
+          <View style={styles.logoContainer}>
+            <Ionicons name="shield" size={24} color="#D32F2F" />
+          </View>
+          <Text style={styles.appName}>LipaAlertHub</Text>
         </View>
+        <Text style={styles.headerTitle}>Alert Details</Text>
+        <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
+          <Ionicons name="share-outline" size={24} color="#333" />
+        </TouchableOpacity>
       </View>
 
-      {/* Alert Title */}
-      <View style={[styles.alertHeader, { backgroundColor: content.backgroundColor }]}>
-        <Text style={[styles.alertTitle, { color: content.textColor }]}>
-          {(Array.isArray(params.alertTitle) ? params.alertTitle[0] : params.alertTitle) || 
-           (Array.isArray(params.alertType) ? params.alertType[0] : params.alertType)}
-        </Text>
-      </View>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Alert Header */}
+        <View style={[styles.alertHeaderSection, { backgroundColor: getSeverityColor(alert.severity) }]}>
+          <View style={styles.alertHeaderContent}>
+            <View style={styles.severityContainer}>
+              <Text style={styles.severityLabel}>
+                {alert.severity === 'info' ? 'Blue Information' : 
+                 alert.severity === 'watch' ? 'Yellow Warning' :
+                 alert.severity === 'warning' ? 'Orange Warning' :
+                 'Red Warning'}
+              </Text>
+            </View>
+            <Text style={styles.alertMainTitle}>{alert.title.toUpperCase()}</Text>
+          </View>
+        </View>
 
-      {/* Detailed Content */}
-      <ScrollView 
-        style={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentWrapper}
-      >
-        <Text style={styles.detailedText}>
-          {content.fullDescription}
-        </Text>
+        {/* Alert Image */}
+        {alert.imageUrl && (
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: alert.imageUrl }}
+              style={styles.alertImage}
+              resizeMode="cover"
+            />
+          </View>
+        )}
+
+        {/* Alert Content */}
+        <View style={styles.alertContent}>
+          <View style={styles.descriptionContainer}>
+            <Text style={styles.alertDescription}>{alert.description}</Text>
+          </View>
+
+          <View style={styles.metaContainer}>
+            <Text style={styles.metaText}>
+              Issued: {formatDate(alert.createdAt)}
+            </Text>
+            <Text style={styles.metaText}>
+              Type: {alert.type.charAt(0).toUpperCase() + alert.type.slice(1)} Alert
+            </Text>
+          </View>
+
+          {/* Safety Instructions */}
+          <View style={styles.safetyContainer}>
+            <View style={styles.safetyHeader}>
+              <Ionicons name="shield-checkmark" size={20} color="#27ae60" />
+              <Text style={styles.safetyTitle}>Safety Guidelines</Text>
+            </View>
+            <View style={styles.safetyTips}>
+              <Text style={styles.safetyTip}>
+                • Stay informed through official channels
+              </Text>
+              <Text style={styles.safetyTip}>
+                • Follow instructions from local authorities
+              </Text>
+              <Text style={styles.safetyTip}>
+                • Keep emergency contacts readily available
+              </Text>
+              <Text style={styles.safetyTip}>
+                • Prepare emergency supplies if necessary
+              </Text>
+            </View>
+          </View>
+
+          {/* Emergency Contact */}
+          <View style={styles.contactContainer}>
+            <View style={styles.contactHeader}>
+              <Ionicons name="call" size={20} color="#e74c3c" />
+              <Text style={styles.contactTitle}>Emergency Contact</Text>
+            </View>
+            <TouchableOpacity style={styles.emergencyButton}>
+              <Ionicons name="call" size={18} color="white" />
+              <Text style={styles.emergencyButtonText}>CDRRMO Hotline</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: "#ffffff",
+    paddingVertical: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e8ed',
   },
-  backButton: {
-    marginRight: 15,
-    padding: 5,
-  },
-  backArrow: {
-    fontSize: 24,
-    color: "#1f2937",
-    fontWeight: "bold",
-  },
-  logoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  logoImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    marginRight: 10,
-    resizeMode: 'contain',
-  },
-  logoTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1f2937",
-  },
-  alertHeader: {
+  loadingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e8ed',
   },
-  alertTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    textAlign: 'center',
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e8ed',
   },
-  contentContainer: {
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  contentWrapper: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 100,
+  logoContainer: {
+    width: 32,
+    height: 32,
+    backgroundColor: 'rgba(211, 47, 47, 0.1)',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
-  detailedText: {
+  appName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#D32F2F',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    flex: 1,
+  },
+  shareButton: {
+    padding: 4,
+  },
+  content: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  errorSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 24,
+  },
+  alertHeaderSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 25,
+  },
+  alertHeaderContent: {
+    alignItems: 'flex-start',
+  },
+  severityContainer: {
+    marginBottom: 10,
+  },
+  severityLabel: {
+    color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 14,
-    lineHeight: 22,
-    color: "#374151",
-    textAlign: 'justify',
+    fontWeight: '600',
+  },
+  alertMainTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    letterSpacing: 0.5,
+    lineHeight: 26,
+  },
+  imageContainer: {
+    backgroundColor: 'white',
+  },
+  alertImage: {
+    width: '100%',
+    height: 200,
+  },
+  alertContent: {
+    backgroundColor: 'white',
+    padding: 20,
+  },
+  descriptionContainer: {
+    marginBottom: 20,
+  },
+  alertDescription: {
+    fontSize: 16,
+    color: '#444',
+    lineHeight: 24,
+  },
+  metaContainer: {
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  metaText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+    fontWeight: '500',
+  },
+  safetyContainer: {
+    backgroundColor: '#f8fff9',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#d5f4e6',
+  },
+  safetyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  safetyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#27ae60',
+    marginLeft: 8,
+  },
+  safetyTips: {
+    gap: 8,
+  },
+  safetyTip: {
+    fontSize: 14,
+    color: '#2d5016',
+    lineHeight: 20,
+  },
+  contactContainer: {
+    backgroundColor: '#fdf2f2',
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#f5c6cb',
+  },
+  contactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  contactTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#e74c3c',
+    marginLeft: 8,
+  },
+  emergencyButton: {
+    backgroundColor: '#e74c3c',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  emergencyButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
+
+export default WeatherAlertDetailScreen;

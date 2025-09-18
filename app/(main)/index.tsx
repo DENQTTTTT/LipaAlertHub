@@ -4,7 +4,9 @@ import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { FloatingChatButton } from "../../components/FloatingChatButton";
+import { useAnnouncements } from "../../hooks/useAnnouncements";
 import { useAuth } from "../../hooks/useAuth"; // Adjust path as needed
+import { announcementService } from "../../services/announcements";
 import { db } from "../../services/firebase"; // Adjust path as needed
 import { ChatModal } from "./chat";
 
@@ -22,6 +24,9 @@ export default function HomeScreen() {
   const [userName, setUserName] = useState<string>("User"); // Default fallback
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  
+  // Use the announcements hook for dashboard (limited to 2)
+  const { announcements, loading: announcementsLoading } = useAnnouncements(true);
 
   // Fetch user data from Firestore
   useEffect(() => {
@@ -72,8 +77,12 @@ export default function HomeScreen() {
     router.push("/(main)/forum/");
   };
 
-  const handleNotificationClick = () => {
-    router.push("/(main)/notifications/index");
+  const handleAnnouncementClick = (announcementId: string) => {
+    router.push(`/(main)/announcements/details?id=${announcementId}`);
+  };
+
+  const handleViewAllAnnouncements = () => {
+    router.push("/(main)/announcements/index");
   };
 
   // Show loading state if still fetching user data
@@ -140,35 +149,49 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Notifications Section */}
-      <View style={styles.notificationsSection}>
-        <Text style={styles.notificationsTitle}>Notifications</Text>
+      {/* Announcements Section */}
+      <View style={styles.announcementsSection}>
+        <View style={styles.announcementHeader}>
+          <Text style={styles.announcementsTitle}>Announcements</Text>
+          {announcements.length > 0 && (
+            <TouchableOpacity onPress={handleViewAllAnnouncements}>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         
-        <TouchableOpacity style={styles.notificationCard} onPress={handleNotificationClick}>
-          <View style={styles.notificationIcon}>
-            <Text style={styles.warningIcon}>⚠️</Text>
+        {announcementsLoading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading announcements...</Text>
           </View>
-          <View style={styles.notificationContent}>
-            <Text style={styles.notificationTitle}>Alerts & Announcements</Text>
-            <Text style={styles.notificationText}>
-              Road closure in Brgy. Sabang due to a collapsed bridge
-            </Text>
+        ) : announcements.length > 0 ? (
+          announcements.map((announcement) => (
+            <TouchableOpacity 
+              key={announcement.id}
+              style={styles.announcementCard} 
+              onPress={() => handleAnnouncementClick(announcement.id)}
+            >
+              <View style={styles.announcementIcon}>
+                <Ionicons name="megaphone" size={24} color="#FFA500" />
+              </View>
+              <View style={styles.announcementContent}>
+                <Text style={styles.announcementTitle}>{announcement.title}</Text>
+                <Text style={styles.announcementText}>
+                  {announcement.excerpt}
+                </Text>
+                <Text style={styles.announcementDate}>
+                  {announcementService.formatDate(announcement.createdAt)}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#999" />
+            </TouchableOpacity>
+          ))
+        ) : (
+          <View style={styles.noAnnouncementsContainer}>
+            <Ionicons name="megaphone-outline" size={48} color="#ccc" />
+            <Text style={styles.noAnnouncementsText}>No announcements at this time</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.notificationCard} onPress={handleNotificationClick}>
-          <View style={styles.notificationIcon}>
-            <Text style={styles.warningIcon}>⚠️</Text>
-          </View>
-          <View style={styles.notificationContent}>
-            <Text style={styles.notificationTitle}>Alerts & Announcements</Text>
-            <Text style={styles.notificationText}>
-              Road closure in Brgy. Pinagkawitan due to an event
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
-        </TouchableOpacity>
+        )}
       </View>
 
       {/* Floating Chat Button */}
@@ -192,6 +215,7 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
   },
   loadingText: {
     fontSize: 16,
@@ -302,17 +326,27 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 12,
   },
-  notificationsSection: {
+  announcementsSection: {
     paddingHorizontal: 20,
     paddingBottom: 100,
   },
-  notificationsTitle: {
+  announcementHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  announcementsTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: "#333",
-    marginBottom: 15,
   },
-  notificationCard: {
+  viewAllText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#D32F2F",
+  },
+  announcementCard: {
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
@@ -330,24 +364,38 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: "#FFA500",
   },
-  notificationIcon: {
+  announcementIcon: {
     marginRight: 12,
   },
-  warningIcon: {
-    fontSize: 24,
-  },
-  notificationContent: {
+  announcementContent: {
     flex: 1,
   },
-  notificationTitle: {
+  announcementTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
     marginBottom: 4,
   },
-  notificationText: {
+  announcementText: {
     fontSize: 14,
     color: "#666",
     lineHeight: 18,
+    marginBottom: 6,
+  },
+  announcementDate: {
+    fontSize: 12,
+    color: "#999",
+    fontStyle: "italic",
+  },
+  noAnnouncementsContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  noAnnouncementsText: {
+    fontSize: 16,
+    color: "#ccc",
+    marginTop: 10,
+    textAlign: "center",
   },
 });

@@ -8,6 +8,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Platform,
   ScrollView,
   StatusBar,
@@ -68,6 +69,10 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleChangePassword = () => {
+    router.push("/(main)/profile/change-password");
+  };
+
   const handleLogout = async () => {
     Alert.alert(
       "Logout",
@@ -109,20 +114,23 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <View style={styles.logoCircle}>
-            <Ionicons name="shield-checkmark" size={20} color="#fff" />
-          </View>
+          <Image 
+                 source={require('../../../assets/images/logo.png')} 
+            style={styles.logoImage} 
+            resizeMode="contain"
+          />
           <Text style={styles.logoText}>LipaAlertHub</Text>
         </View>
       </View>
 
+      {/* Main Content Container */}
       <ScrollView 
         style={styles.scrollContainer} 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* Profile Avatar */}
+        {/* Profile Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatarCircle}>
@@ -132,7 +140,7 @@ export default function ProfileScreen() {
           <Text style={styles.userName}>{profile?.name || "User"}</Text>
         </View>
 
-        {/* Form Fields */}
+        {/* Form Fields Container */}
         <View style={styles.formContainer}>
           {/* Name Field */}
           <View style={styles.fieldContainer}>
@@ -183,7 +191,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* Barangay Field */}
-          <View style={styles.fieldContainer}>
+          <View style={[styles.fieldContainer, styles.lastField]}>
             <Text style={styles.fieldLabel}>BARANGAY</Text>
             <TextInput
               style={styles.textInput}
@@ -195,7 +203,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Action Buttons */}
+        {/* Action Buttons Container */}
         <View style={styles.buttonContainer}>
           {/* Save Changes Button */}
           <TouchableOpacity
@@ -209,6 +217,16 @@ export default function ProfileScreen() {
             ) : (
               <Text style={styles.buttonText}>Save Changes</Text>
             )}
+          </TouchableOpacity>
+
+          {/* Change Password Button */}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.changePasswordButton]}
+            onPress={handleChangePassword}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="lock-closed-outline" size={20} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>Change Password</Text>
           </TouchableOpacity>
 
           {/* Logout Button */}
@@ -261,13 +279,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoCircle: {
+  logoImage: {
     width: 30,
     height: 30,
-    borderRadius: 15,
-    backgroundColor: "#e74c3c",
-    justifyContent: 'center',
-    alignItems: 'center',
     marginRight: 10,
   },
   logoText: {
@@ -282,11 +296,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 140 : 120,
   },
   avatarSection: {
     alignItems: 'center',
-    paddingVertical: 25,
+    paddingVertical: 20,
   },
   avatarContainer: {
     marginBottom: 15,
@@ -327,6 +341,9 @@ const styles = StyleSheet.create({
   fieldContainer: {
     marginBottom: 18,
   },
+  lastField: {
+    marginBottom: 0,
+  },
   fieldLabel: {
     fontSize: 12,
     fontWeight: "600",
@@ -352,9 +369,9 @@ const styles = StyleSheet.create({
     color: "#999",
   },
   buttonContainer: {
-    marginTop: 20,
+    marginTop: 25,
     gap: 15,
-    marginBottom: 30,
+    marginBottom: 40,
   },
   actionButton: {
     flexDirection: 'row',
@@ -362,9 +379,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 8,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   saveButton: {
     backgroundColor: "#e74c3c",
+  },
+  changePasswordButton: {
+    backgroundColor: "#3498db",
   },
   logoutButton: {
     backgroundColor: "#dc3545",

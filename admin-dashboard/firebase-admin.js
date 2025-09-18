@@ -1,46 +1,38 @@
-// firebase-admin.js - Script to manually approve forum posts
-// Run this with Node.js to manage posts from your computer
+// firebase-admin.js - Admin CLI for Forum Posts + Emergency Tips
+// Run with Node.js
 
 const { initializeApp } = require('firebase/app');
 const { 
-  getFirestore, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  updateDoc, 
-  doc,
-  orderBy 
+  getFirestore, collection, query, where, orderBy, getDocs,
+  addDoc, updateDoc, deleteDoc, doc
 } = require('firebase/firestore');
 
-// Your Firebase config - replace with your actual config
+// ========= Firebase Config =========
+// Replace with your actual config
 const firebaseConfig = {
-  // Copy your Firebase config here
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "your-app-id"
+  apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+  authDomain: "lipaalerthub.firebaseapp.com",
+  projectId: "lipaalerthub",
+  storageBucket: "lipaalerthub.firebasestorage.app",
+  messagingSenderId: "991310233066",
+  appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+  measurementId: "G-PCEYY3PFWW"
 };
 
-// Initialize Firebase
+
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+export const db = getFirestore(app);
 
-// Colors for console output
+  // ========= Colors =========
 const colors = {
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m',
-  white: '\x1b[37m',
-  reset: '\x1b[0m'
+  red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m',
+  blue: '\x1b[34m', magenta: '\x1b[35m', cyan: '\x1b[36m',
+  white: '\x1b[37m', reset: '\x1b[0m'
 };
 
-// Get pending posts
+// =====================================================
+// ============== Forum Post Management ================
+// =====================================================
 async function getPendingPosts() {
   try {
     const q = query(
@@ -48,57 +40,40 @@ async function getPendingPosts() {
       where('status', '==', 'pending'),
       orderBy('createdAt', 'desc')
     );
-
-    const querySnapshot = await getDocs(q);
-    const posts = [];
-
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      posts.push({
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate() || new Date(),
-      });
-    });
-
-    return posts;
-  } catch (error) {
-    console.error('Error fetching posts:', error);
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate() || new Date(),
+    }));
+  } catch (err) {
+    console.error(colors.red, 'Error fetching posts:', err, colors.reset);
     return [];
   }
 }
 
-// Approve a post
-async function approvePost(postId, adminNotes = '') {
+async function approvePost(postId, notes = '') {
   try {
-    const postRef = doc(db, 'forumPosts', postId);
-    await updateDoc(postRef, {
-      status: 'approved',
-      adminNotes: adminNotes,
-      reviewedAt: new Date(),
+    await updateDoc(doc(db, 'forumPosts', postId), {
+      status: 'approved', adminNotes: notes, reviewedAt: new Date(),
     });
-    console.log(`${colors.green}✅ Post approved successfully!${colors.reset}`);
-  } catch (error) {
-    console.error('Error approving post:', error);
+    console.log(`${colors.green}✅ Post approved!${colors.reset}`);
+  } catch (err) {
+    console.error(colors.red, 'Error approving post:', err, colors.reset);
   }
 }
 
-// Reject a post
-async function rejectPost(postId, adminNotes = '') {
+async function rejectPost(postId, notes = '') {
   try {
-    const postRef = doc(db, 'forumPosts', postId);
-    await updateDoc(postRef, {
-      status: 'rejected',
-      adminNotes: adminNotes,
-      reviewedAt: new Date(),
+    await updateDoc(doc(db, 'forumPosts', postId), {
+      status: 'rejected', adminNotes: notes, reviewedAt: new Date(),
     });
     console.log(`${colors.red}❌ Post rejected.${colors.reset}`);
-  } catch (error) {
-    console.error('Error rejecting post:', error);
+  } catch (err) {
+    console.error(colors.red, 'Error rejecting post:', err, colors.reset);
   }
 }
 
-// Display a post
 function displayPost(post, index) {
   console.log(`\n${colors.cyan}========== POST #${index + 1} ==========${colors.reset}`);
   console.log(`${colors.yellow}ID:${colors.reset} ${post.id}`);
@@ -112,21 +87,72 @@ function displayPost(post, index) {
   console.log(`${colors.cyan}================================${colors.reset}\n`);
 }
 
-// Main interactive function
+// =====================================================
+// ============ Emergency Tips Management ==============
+// =====================================================
+async function getTips() {
+  try {
+    const q = query(collection(db, 'emergency_tips'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate() || new Date(),
+    }));
+  } catch (err) {
+    console.error(colors.red, 'Error fetching tips:', err, colors.reset);
+    return [];
+  }
+}
+
+async function addTip(category, title, description, createdBy = "adminUID") {
+  try {
+    await addDoc(collection(db, 'emergency_tips'), {
+      category, title, description,
+      createdBy, createdAt: new Date()
+    });
+    console.log(`${colors.green}✅ Tip added!${colors.reset}`);
+  } catch (err) {
+    console.error(colors.red, 'Error adding tip:', err, colors.reset);
+  }
+}
+
+async function updateTip(tipId, updates) {
+  try {
+    await updateDoc(doc(db, 'emergency_tips', tipId), {
+      ...updates,
+      updatedAt: new Date()
+    });
+    console.log(`${colors.green}✅ Tip updated!${colors.reset}`);
+  } catch (err) {
+    console.error(colors.red, 'Error updating tip:', err, colors.reset);
+  }
+}
+
+async function deleteTip(tipId) {
+  try {
+    await deleteDoc(doc(db, 'emergency_tips', tipId));
+    console.log(`${colors.green}✅ Tip deleted!${colors.reset}`);
+  } catch (err) {
+    console.error(colors.red, 'Error deleting tip:', err, colors.reset);
+  }
+}
+
+// =====================================================
+// ============== Main CLI for Forum Posts =============
+// =====================================================
 async function main() {
   console.log(`${colors.blue}🔥 Firebase Forum Admin Tool${colors.reset}`);
   console.log(`${colors.blue}==============================${colors.reset}\n`);
 
   const posts = await getPendingPosts();
-
   if (posts.length === 0) {
     console.log(`${colors.green}✨ No pending posts to review!${colors.reset}`);
     return;
   }
 
-  console.log(`${colors.yellow}Found ${posts.length} pending post(s) for review:${colors.reset}\n`);
+  console.log(`${colors.yellow}Found ${posts.length} pending post(s):${colors.reset}\n`);
 
-  // Simple command line interface
   const readline = require('readline').createInterface({
     input: process.stdin,
     output: process.stdout
@@ -181,12 +207,15 @@ async function main() {
   readline.close();
 }
 
-// Run the admin tool
+// Run the forum review CLI
 main().catch(console.error);
 
-// Export functions for other uses
+// =====================================================
+// ============== Module Exports =======================
+// =====================================================
 module.exports = {
-  getPendingPosts,
-  approvePost,
-  rejectPost
+  // Forum
+  getPendingPosts, approvePost, rejectPost,
+  // Emergency Tips
+  getTips, addTip, updateTip, deleteTip
 };

@@ -1,5 +1,5 @@
-// hooks/useChat.ts - Chat Hook for Managing Chat State
-import { useCallback, useEffect, useState } from 'react';
+// hooks/useChat.tsx - Fixed Chat Hook (No More Infinite Loop)
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChatMessage, ChatRoom, chatService } from '../services/chat';
 import { useAuth } from './useAuth';
 
@@ -9,151 +9,188 @@ export const useChat = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [sending, setSending] = useState(false);
   const { user } = useAuth();
+  
+  // Use refs to prevent unnecessary re-initializations
+  const initializingRef = useRef(false);
+  const hasInitializedRef = useRef(false);
 
-  // Initialize chat when user is authenticated
-  useEffect(() => {
-    if (user) {
-      initializeChat();
-      setupUnreadCountListener();
-    } else {
-      resetChatState();
-    }
-  }, [user]);
-
+  // Reset chat state when user changes
   const resetChatState = useCallback(() => {
     setMessages([]);
     setChatRoom(null);
     setUnreadCount(0);
     setConnected(false);
     setLoading(false);
+    setSending(false);
+    hasInitializedRef.current = false;
+    initializingRef.current = false;
   }, []);
 
+  // Initialize chat ONLY when user changes and hasn't been initialized
+  useEffect(() => {
+    if (!user) {
+      resetChatState();
+      return;
+    }
+
+    // Prevent multiple initializations
+    if (hasInitializedRef.current || initializingRef.current) {
+      return;
+    }
+
+    const doInitialize = async () => {
+      initializingRef.current = true;
+      setLoading(true);
+
+      try {
+        // Get or create chat room
+        const roomId = await chatService.getOrCreateChatRoom();
+        const roomInfo = await chatService.getChatRoomInfo();
+        
+        setChatRoom(roomInfo);
+        setConnected(true);
+        hasInitializedRef.current = true;
+        
+        console.log('Chat initialized successfully:', roomId);
+      } catch (error) {
+        console.error('Error initializing chat:', error);
+        setConnected(false);
+      } finally {
+        setLoading(false);
+        initializingRef.current = false;
+      }
+    };
+
+    doInitialize();
+  }, [user?.uid]); // Only depend on user ID
+
+  // Set up messages listener only after successful initialization
+  useEffect(() => {
+    if (!user || !connected || !hasInitializedRef.current) return;
+
+    let unsubscribe: (() => void) | null = null;
+
+    const setupListener = async () => {
+      try {
+        const unsubscribePromise = chatService.subscribeToMessages((newMessages) => {
+          setMessages(newMessages);
+          setUnreadCount(0); // Reset since user is viewing messages
+        });
+
+        if (unsubscribePromise instanceof Promise) {
+          unsubscribe = await unsubscribePromise;
+        } else if (typeof unsubscribePromise === 'function') {
+          unsubscribe = unsubscribePromise;
+        }
+      } catch (error) {
+        console.error('Error setting up messages listener:', error);
+      }
+    };
+
+    setupListener();
+
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, [user?.uid, connected]);
+
+  // Manual initialize function for components that need it
   const initializeChat = useCallback(async () => {
-    if (!user) return;
+    if (!user || hasInitializedRef.current || initializingRef.current) {
+      return;
+    }
+
+    initializingRef.current = true;
+    setLoading(true);
 
     try {
-      setLoading(true);
-      
-      // Get or create chat room
       const roomId = await chatService.getOrCreateChatRoom();
       const roomInfo = await chatService.getChatRoomInfo();
       
       setChatRoom(roomInfo);
       setConnected(true);
+      hasInitializedRef.current = true;
+      
+      console.log('Chat manually initialized:', roomId);
     } catch (error) {
-      console.error('Error initializing chat:', error);
+      console.error('Error manually initializing chat:', error);
       setConnected(false);
+    } finally {
+      setLoading(false);
+      initializingRef.current = false;
+    }
+  }, [user?.uid]);
+
+  const sendMessage = useCallback(async (content: string, attachments?: any[]) => {
+    if (!user || !content.trim() || sending || !connected) return false;
+
+    try {
+      setSending(true);
+      await chatService.sendUserMessage(content.trim(), attachments);
+      
+      console.log('Message sent successfully');
+      return true;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    } finally {
+      setSending(false);
+    }
+  }, [user, sending, connected]);
+
+  const markMessagesAsRead = useCallback(async () => {
+    if (!chatRoom?.id || !user) return;
+
+    try {
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  }, [chatRoom, user]);
+
+  const refreshChat = useCallback(async () => {
+    if (!user || initializingRef.current) return;
+
+    try {
+      setLoading(true);
+      const roomInfo = await chatService.getChatRoomInfo();
+      setChatRoom(roomInfo);
+      
+      const count = await chatService.getUnreadMessageCount();
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error refreshing chat:', error);
     } finally {
       setLoading(false);
     }
   }, [user]);
 
-  const setupUnreadCountListener = useCallback(() => {
-    if (!user) return;
+  const getLastMessage = useCallback(() => {
+    if (messages.length === 0) return null;
+    return messages[messages.length - 1];
+  }, [messages]);
 
-    // Check unread count periodically
-    const checkUnreadCount = async () => {
-      try {
-        const count = await chatService.getUnreadMessageCount();
-        setUnreadCount(count);
-      } catch (error) {
-        console.error('Error checking unread count:', error);
-      }
-    };
-
-    // Initial check
-    checkUnreadCount();
-
-    // Set up periodic checks
-    const interval = setInterval(checkUnreadCount, 10000); // Every 10 seconds
+  const formatLastMessageTime = useCallback((timestamp: any) => {
+    if (!timestamp) return '';
     
-    return () => clearInterval(interval);
-  }, [user]);
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-  const sendMessage = useCallback(async (message: string) => {
-    if (!user || !message.trim()) return;
-
-    try {
-      await chatService.sendMessage(message.trim());
-      
-      // Update unread count might change after sending
-      const count = await chatService.getUnreadMessageCount();
-      setUnreadCount(count);
-      
-      return true;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      throw error;
-    }
-  }, [user]);
-
-  const markMessagesAsRead = useCallback(async () => {
-    if (!chatRoom?.id) return;
-
-    try {
-      // The chat service automatically marks messages as read when viewed
-      // This is just to update the local unread count
-      setUnreadCount(0);
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-    }
-  }, [chatRoom]);
-
-  const setChatPriority = useCallback(async (priority: 'low' | 'normal' | 'high' | 'urgent') => {
-    try {
-      await chatService.setChatPriority(priority);
-      
-      // Update local chat room info
-      if (chatRoom) {
-        setChatRoom({
-          ...chatRoom,
-          priority,
-        });
-      }
-    } catch (error) {
-      console.error('Error setting chat priority:', error);
-      throw error;
-    }
-  }, [chatRoom]);
-
-  const closeChat = useCallback(async () => {
-    try {
-      await chatService.closeChatRoom();
-      
-      // Update local chat room status
-      if (chatRoom) {
-        setChatRoom({
-          ...chatRoom,
-          status: 'closed',
-        });
-      }
-    } catch (error) {
-      console.error('Error closing chat:', error);
-      throw error;
-    }
-  }, [chatRoom]);
-
-  const setupMessagesListener = useCallback((callback: (messages: ChatMessage[]) => void) => {
-    if (!user) {
-      callback([]);
-      return () => {};
-    }
-
-    return chatService.getChatMessages((newMessages) => {
-      setMessages(newMessages);
-      callback(newMessages);
-      
-      // Update unread count when messages change
-      if (newMessages.length > 0) {
-        const count = newMessages.filter(msg => 
-          msg.senderType === 'cdrrmo' && 
-          msg.status !== 'read'
-        ).length;
-        setUnreadCount(count);
-      }
-    });
-  }, [user]);
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    
+    return date.toLocaleDateString();
+  }, []);
 
   return {
     // State
@@ -162,19 +199,23 @@ export const useChat = () => {
     unreadCount,
     loading,
     connected,
+    sending,
     
     // Actions
     sendMessage,
     markMessagesAsRead,
-    setChatPriority,
-    closeChat,
-    setupMessagesListener,
-    initializeChat,
+    initializeChat, // Only call this manually if needed
+    refreshChat,
     
     // Utils
     hasUnreadMessages: unreadCount > 0,
-    isActive: chatRoom?.status === 'active',
     isChatAvailable: connected && user !== null,
+    getLastMessage,
+    formatLastMessageTime,
+    
+    // Chat room info
+    chatRoomId: user?.uid || null,
+    hasMessages: messages.length > 0,
   };
 };
 

@@ -35,7 +35,7 @@ export interface IncidentReport {
   photoTakenAt: string;
   timestamp: any; // Firestore timestamp
   createdAt: any; // Firestore timestamp
-  status: 'pending' | 'verified' | 'approved' | 'rejected' | 'failed' | 'resolved';
+  status: 'pending' | 'verified' | 'accepted' | 'approved' | 'rejected' | 'failed' | 'resolved';
   updatedAt?: any;
   updatedBy?: string;
   adminNote?: string;
@@ -163,22 +163,23 @@ export const submitIncidentReport = async ({
     const user: User | null = auth.currentUser;
     if (!user) throw new Error("You must be logged in to submit a report.");
 
-    const docRef = await addDoc(collection(db, "incident_reports"), {
-      reporterId: user.uid,
-      name,
-      barangay,
-      addressLine,
-      emergencyType,
-      subCategory,
-      notes,
-      location,
-      fullAddress,
-      photoURL: photoURL ?? null,
-      photoTakenAt: timestamp.toISOString(),
-      timestamp: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      status: "pending",
-    });
+   const docRef = await addDoc(collection(db, "incident_reports"), {
+  reporterId: user.uid,
+  email: user.email, // Add this line ✅
+  name,
+  barangay,
+  addressLine,
+  emergencyType,
+  subCategory,
+  notes,
+  location,
+  fullAddress,
+  photoURL: photoURL ?? null,
+  photoTakenAt: timestamp.toISOString(),
+  timestamp: serverTimestamp(),
+  createdAt: serverTimestamp(),
+  status: "pending",
+});
 
     // Create notification for successful submission
     try {
@@ -294,6 +295,11 @@ export const updateReportStatus = async (
 
         // Send appropriate notification based on new status
         switch (newStatus) {
+          case 'accepted':
+            await notificationService.createReportAcceptedNotification(
+              userId, reportId, location, reportType
+            );
+            break;
           case 'verified':
             await notificationService.createReportVerifiedNotification(
               userId, reportId, location, reportType
@@ -337,6 +343,7 @@ export const getReportStats = async () => {
     return {
       total: 0,
       pending: 0,
+      accepted: 0,
       verified: 0,
       rejected: 0,
       failed: 0,
@@ -386,6 +393,8 @@ export const getStatusDisplayText = (status: string) => {
   switch (status) {
     case 'pending':
       return 'Pending Review';
+    case 'accepted':
+      return 'Report Accepted';
     case 'verified':
       return 'Verified & In Progress';
     case 'approved':
@@ -406,6 +415,8 @@ export const getStatusColor = (status: string) => {
   switch (status) {
     case 'pending':
       return '#3b82f6'; // blue
+    case 'accepted':
+      return '#22c55e'; // green
     case 'verified':
       return '#22c55e'; // 
     case 'approved':

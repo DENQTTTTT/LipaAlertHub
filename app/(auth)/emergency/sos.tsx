@@ -1,3 +1,4 @@
+// app/emergency/sos.tsx - SOS Slide to Confirm with Navigation Fix
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -120,7 +121,7 @@ export default function SOSSlideToConfirm() {
         const { dx } = gestureState;
         
         if (dx >= maxSlide * 0.85) {
-          // Slide completed
+          // Slide completed - ensure proper navigation
           setButtonPosition(maxSlide);
           setProgressWidth(SLIDER_WIDTH);
           setTextOpacity(0.3);
@@ -129,9 +130,16 @@ export default function SOSSlideToConfirm() {
           // Strong vibration feedback
           Vibration.vibrate([150, 80, 150]);
           
-          // Navigate to main SOS services
+          // Navigate to SOS services with proper error handling
           setTimeout(() => {
-            router.replace('/(main)/emergency/sos-services');
+            try {
+              console.log("Navigating to SOS services...");
+              router.replace('/emergency/sos-services');
+            } catch (error) {
+              console.error("Navigation error:", error);
+              // Fallback navigation
+              router.push('/emergency/sos-services');
+            }
           }, 200);
         } else {
           // Reset slider
@@ -149,7 +157,7 @@ export default function SOSSlideToConfirm() {
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Image 
-             source={require('../../../assets/images/logo.png')} 
+            source={require('../../../assets/images/logo.png')} 
             style={styles.logoImage}
           />
           <Text style={styles.logoTitle}>LipaAlertHub</Text>
@@ -163,6 +171,12 @@ export default function SOSSlideToConfirm() {
           SOS
         </Animated.Text>
 
+        {/* Emergency Instructions */}
+        <View style={styles.instructionsContainer}>
+          <Text style={styles.instructionText}>Emergency assistance needed</Text>
+          <Text style={styles.instructionSubtext}>Slide to access emergency services</Text>
+        </View>
+
         {/* Slide to Confirm Button */}
         <View style={styles.sliderContainer}>
           {/* Progress Background */}
@@ -170,7 +184,7 @@ export default function SOSSlideToConfirm() {
           
           {/* Slide Text */}
           <View style={[styles.textContainer, { opacity: textOpacity }]}>
-            <Text style={styles.slideIcon}>🔥</Text>
+            <Text style={styles.slideIcon}>🚨</Text>
             <Text style={styles.slideText}>SLIDE TO CONFIRM</Text>
           </View>
 
@@ -235,7 +249,25 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     letterSpacing: width * 0.04,
     textAlign: 'center',
-    marginBottom: height * 0.08, // 8% of screen height
+    marginBottom: height * 0.04, // 4% of screen height
+  },
+  instructionsContainer: {
+    alignItems: 'center',
+    marginBottom: height * 0.06, // 6% of screen height
+  },
+  instructionText: {
+    fontSize: width * 0.042, // Responsive font size
+    color: "#ffffff",
+    textAlign: 'center',
+    fontWeight: "500",
+    marginBottom: height * 0.01,
+  },
+  instructionSubtext: {
+    fontSize: width * 0.035, // Responsive font size
+    color: "#ffffff",
+    textAlign: 'center',
+    fontWeight: "400",
+    opacity: 0.9,
   },
   sliderContainer: {
     width: SLIDER_WIDTH,

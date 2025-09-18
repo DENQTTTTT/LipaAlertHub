@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Picker } from "@react-native-picker/picker";
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Location from "expo-location";
@@ -13,7 +12,6 @@ import {
   Dimensions,
   Image,
   Linking,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -24,6 +22,7 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { useAuth } from "../../../hooks/useAuth";
+import { AddressComponents, useGeocode } from "../../../hooks/useGeocode";
 import { auth, db } from "../../../services/firebase";
 import { submitIncidentReport } from "../../../services/reports";
 
@@ -136,143 +135,86 @@ const uploadImage = async (uri: string, user: any, timestamp: Date) => {
   }
 };
 
-// Google Maps API Keys
-const GOOGLE_MAPS_API_KEYS = {
-  android: 'AIzaSyDHNKCfdb_Ae0sMaSmdDf88xjOvj2hJM68',
-  ios: 'AIzaSyB2MdahsHMIyhDjBTTVwgAm1i-zVx4OD5U',
-  geocoding: 'AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo'
-};
-
-const getGoogleMapsApiKey = (): string => {
-  return GOOGLE_MAPS_API_KEYS.geocoding;
-};
-
-// Enhanced Barangay options for Lipa City, Batangas with variations
-const barangayOptions = [
-  { label: "Select Barangay", value: "" },
-  { label: "Anilao", value: "Anilao", variations: ["anilao"] },
-  { label: "Anilao-Labac", value: "Anilao-Labac", variations: ["anilao-labac", "anilao labac"] },
-  { label: "Antipolo del Norte", value: "Antipolo del Norte", variations: ["antipolo del norte", "antipolo norte"] },
-  { label: "Antipolo del Sur", value: "Antipolo del Sur", variations: ["antipolo del sur", "antipolo sur"] },
-  { label: "Bagong Pook", value: "Bagong Pook", variations: ["bagong pook"] },
-  { label: "Balintawak", value: "Balintawak", variations: ["balintawak"] },
-  { label: "Banaybanay", value: "Banaybanay", variations: ["banaybanay"] },
-  { label: "Bolbok", value: "Bolbok", variations: ["bolbok"] },
-  { label: "Bugtong na Pulo", value: "Bugtong na Pulo", variations: ["bugtong na pulo", "bugtong pulo"] },
-  { label: "Bulacnin", value: "Bulacnin", variations: ["bulacnin"] },
-  { label: "Bulaklakan", value: "Bulaklakan", variations: ["bulaklakan"] },
-  { label: "Calamias", value: "Calamias", variations: ["calamias"] },
-  { label: "Cumba", value: "Cumba", variations: ["cumba"] },
-  { label: "Dagatan", value: "Dagatan", variations: ["dagatan"] },
-  { label: "Duhatan", value: "Duhatan", variations: ["duhatan"] },
-  { label: "Halang", value: "Halang", variations: ["halang"] },
-  { label: "Inosloban", value: "Inosloban", variations: ["inosloban"] },
-  { label: "Kayumanggi", value: "Kayumanggi", variations: ["kayumanggi"] },
-  { label: "Latag", value: "Latag", variations: ["latag"] },
-  { label: "Lodlod", value: "Lodlod", variations: ["lodlod"] },
-  { label: "Lumbang", value: "Lumbang", variations: ["lumbang"] },
-  { label: "Mabini", value: "Mabini", variations: ["mabini"] },
-  { label: "Malvar", value: "Malvar", variations: ["malvar"] },
-  { label: "Marawoy", value: "Marawoy", variations: ["marawoy"] },
-  { label: "Mataas na Lupa", value: "Mataas na Lupa", variations: ["mataas na lupa", "mataas lupa"] },
-  { label: "Munting Pulo", value: "Munting Pulo", variations: ["munting pulo"] },
-  { label: "Pagolingin Bata", value: "Pagolingin Bata", variations: ["pagolingin bata"] },
-  { label: "Pagolingin East", value: "Pagolingin East", variations: ["pagolingin east"] },
-  { label: "Pagolingin West", value: "Pagolingin West", variations: ["pagolingin west"] },
-  { label: "Pangao", value: "Pangao", variations: ["pangao"] },
-  { label: "Pinagkawitan", value: "Pinagkawitan", variations: ["pinagkawitan"] },
-  { label: "Pinagtongulan", value: "Pinagtongulan", variations: ["pinagtongulan"] },
-  { label: "Plaridel", value: "Plaridel", variations: ["plaridel"] },
-  { label: "Poblacion Barangay 1", value: "Poblacion Barangay 1", variations: ["poblacion barangay 1", "poblacion 1", "barangay 1"] },
-  { label: "Poblacion Barangay 2", value: "Poblacion Barangay 2", variations: ["poblacion barangay 2", "poblacion 2", "barangay 2"] },
-  { label: "Poblacion Barangay 3", value: "Poblacion Barangay 3", variations: ["poblacion barangay 3", "poblacion 3", "barangay 3"] },
-  { label: "Poblacion Barangay 4", value: "Poblacion Barangay 4", variations: ["poblacion barangay 4", "poblacion 4", "barangay 4"] },
-  { label: "Poblacion Barangay 5", value: "Poblacion Barangay 5", variations: ["poblacion barangay 5", "poblacion 5", "barangay 5"] },
-  { label: "Poblacion Barangay 6", value: "Poblacion Barangay 6", variations: ["poblacion barangay 6", "poblacion 6", "barangay 6"] },
-  { label: "Poblacion Barangay 7", value: "Poblacion Barangay 7", variations: ["poblacion barangay 7", "poblacion 7", "barangay 7"] },
-  { label: "Poblacion Barangay 8", value: "Poblacion Barangay 8", variations: ["poblacion barangay 8", "poblacion 8", "barangay 8"] },
-  { label: "Poblacion Barangay 9", value: "Poblacion Barangay 9", variations: ["poblacion barangay 9", "poblacion 9", "barangay 9"] },
-  { label: "Poblacion Barangay 10", value: "Poblacion Barangay 10", variations: ["poblacion barangay 10", "poblacion 10", "barangay 10"] },
-  { label: "Poblacion Barangay 11", value: "Poblacion Barangay 11", variations: ["poblacion barangay 11", "poblacion 11", "barangay 11"] },
-  { label: "Poblacion Barangay 12", value: "Poblacion Barangay 12", variations: ["poblacion barangay 12", "poblacion 12", "barangay 12"] },
-  { label: "Pusil", value: "Pusil", variations: ["pusil"] },
-  { label: "Quezon", value: "Quezon", variations: ["quezon"] },
-  { label: "Rizal", value: "Rizal", variations: ["rizal"] },
-  { label: "Sabang", value: "Sabang", variations: ["sabang"] },
-  { label: "Sampaguita", value: "Sampaguita", variations: ["sampaguita"] },
-  { label: "San Benito", value: "San Benito", variations: ["san benito"] },
-  { label: "San Carlos", value: "San Carlos", variations: ["san carlos"] },
-  { label: "San Celestino", value: "San Celestino", variations: ["san celestino"] },
-  { label: "San Francisco", value: "San Francisco", variations: ["san francisco"] },
-  { label: "San Guillermo", value: "San Guillermo", variations: ["san guillermo"] },
-  { label: "San Jose", value: "San Jose", variations: ["san jose"] },
-  { label: "San Lucas", value: "San Lucas", variations: ["san lucas"] },
-  { label: "San Salvador", value: "San Salvador", variations: ["san salvador"] },
-  { label: "San Sebastian", value: "San Sebastian", variations: ["san sebastian"] },
-  { label: "Santo Niño", value: "Santo Niño", variations: ["santo niño", "santo nino"] },
-  { label: "Santo Toribio", value: "Santo Toribio", variations: ["santo toribio"] },
-  { label: "Sapac", value: "Sapac", variations: ["sapac"] },
-  { label: "Sico", value: "Sico", variations: ["sico"] },
-  { label: "Talisay", value: "Talisay", variations: ["talisay"] },
-  { label: "Tambo", value: "Tambo", variations: ["tambo"] },
-  { label: "Tangob", value: "Tangob", variations: ["tangob"] },
-  { label: "Tanguay", value: "Tanguay", variations: ["tanguay"] },
-  { label: "Tibig", value: "Tibig", variations: ["tibig"] },
-  { label: "Tipacan", value: "Tipacan", variations: ["tipacan"] }
-];
-
-// Emergency type options
+// Emergency type options with icons
 const emergencyTypes = [
-  { label: "Select Emergency Type", value: "" },
-  { label: "Accident", value: "accident" },
-  { label: "Fire", value: "fire" },
-  { label: "Medical Emergency", value: "medical" },
-  { label: "Natural Disaster", value: "disaster" },
-  { label: "Crime", value: "crime" },
-  { label: "Infrastructure", value: "infrastructure" }
+  { 
+    label: "Fire", 
+    value: "fire", 
+    icon: "flame" as keyof typeof Ionicons.glyphMap,
+    color: "#e74c3c",
+    bgColor: "#ffebee"
+  },
+  { 
+    label: "Crime", 
+    value: "crime", 
+    icon: "shield-outline" as keyof typeof Ionicons.glyphMap,
+    color: "#8e24aa",
+    bgColor: "#f3e5f5"
+  },
+  { 
+    label: "Flood", 
+    value: "flood", 
+    icon: "water" as keyof typeof Ionicons.glyphMap,
+    color: "#2196f3",
+    bgColor: "#e3f2fd"
+  },
+  { 
+    label: "Accident", 
+    value: "accident", 
+    icon: "car" as keyof typeof Ionicons.glyphMap,
+    color: "#ff9800",
+    bgColor: "#fff3e0"
+  },
+  { 
+    label: "Medical", 
+    value: "medical", 
+    icon: "medical" as keyof typeof Ionicons.glyphMap,
+    color: "#f44336",
+    bgColor: "#ffebee"
+  },
+  { 
+    label: "Infrastructure", 
+    value: "infrastructure", 
+    icon: "construct" as keyof typeof Ionicons.glyphMap,
+    color: "#607d8b",
+    bgColor: "#f5f5f5"
+  }
 ];
 
 // Subcategory options based on emergency type
 const subCategoryOptions: Record<string, { label: string; value: string }[]> = {
   accident: [
-    { label: "Select Subcategory", value: "" },
     { label: "Vehicular Accident", value: "Vehicular Accident" },
     { label: "Slip and Fall", value: "Slip and Fall" },
     { label: "Work-related Accident", value: "Work-related Accident" },
     { label: "Road Accident", value: "Road Accident" }
   ],
   fire: [
-    { label: "Select Subcategory", value: "" },
     { label: "House Fire", value: "House Fire" },
     { label: "Vehicle Fire", value: "Vehicle Fire" },
     { label: "Wildfire", value: "Wildfire" },
     { label: "Electrical Fire", value: "Electrical Fire" }
   ],
   medical: [
-    { label: "Select Subcategory", value: "" },
     { label: "Heart Attack", value: "Heart Attack" },
     { label: "Stroke", value: "Stroke" },
     { label: "Accident Injury", value: "Accident Injury" },
     { label: "Drug Overdose", value: "Drug Overdose" },
     { label: "Other Medical", value: "Other Medical" }
   ],
-  disaster: [
-    { label: "Select Subcategory", value: "" },
-    { label: "Flood", value: "Flood" },
-    { label: "Earthquake", value: "Earthquake" },
-    { label: "Landslide", value: "Landslide" },
-    { label: "Storm", value: "Storm" },
-    { label: "Typhoon", value: "Typhoon" }
+  flood: [
+    { label: "Street Flooding", value: "Street Flooding" },
+    { label: "House Flooding", value: "House Flooding" },
+    { label: "Flash Flood", value: "Flash Flood" },
+    { label: "Storm Surge", value: "Storm Surge" }
   ],
   crime: [
-    { label: "Select Subcategory", value: "" },
     { label: "Theft", value: "Theft" },
     { label: "Assault", value: "Assault" },
     { label: "Vandalism", value: "Vandalism" },
     { label: "Robbery", value: "Robbery" }
   ],
   infrastructure: [
-    { label: "Select Subcategory", value: "" },
     { label: "Power Outage", value: "Power Outage" },
     { label: "Water Issue", value: "Water Issue" },
     { label: "Road Damage", value: "Road Damage" },
@@ -280,101 +222,9 @@ const subCategoryOptions: Record<string, { label: string; value: string }[]> = {
   ]
 };
 
-// Enhanced Google Maps Geocoding API function
-const reverseGeocode = async (latitude: number, longitude: number): Promise<string> => {
-  try {
-    const API_KEY = getGoogleMapsApiKey();
-    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${API_KEY}&language=en&region=PH`;
-    
-    const response = await fetch(geocodeUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.status === 'OK' && data.results.length > 0) {
-      const result = data.results[0];
-      return result.formatted_address;
-    }
-    return `${latitude.toFixed(6)}, ${longitude.toFixed(6)} (No address found)`;
-  } catch (error) {
-    return `${latitude.toFixed(6)}, ${longitude.toFixed(6)} (Network error)`;
-  }
-};
-
-// Function to extract address line from full address
-const extractAddressLine = (fullAddress: string): string => {
-  try {
-    const parts = fullAddress.split(',');
-    if (parts.length > 0) {
-      return parts[0].trim();
-    }
-    return '';
-  } catch (error) {
-    return '';
-  }
-};
-
-// Enhanced function to auto-detect barangay from address
-const detectBarangayFromAddress = (fullAddress: string): string => {
-  try {
-    const addressLower = fullAddress.toLowerCase();
-    console.log('Detecting barangay from address:', addressLower);
-    
-    for (const barangayItem of barangayOptions) {
-      if (!barangayItem.value) continue;
-      
-      const mainName = barangayItem.value.toLowerCase();
-      if (addressLower.includes(mainName)) {
-        console.log('Found barangay by main name:', barangayItem.value);
-        return barangayItem.value;
-      }
-      
-      if (barangayItem.variations) {
-        for (const variation of barangayItem.variations) {
-          if (addressLower.includes(variation.toLowerCase())) {
-            console.log('Found barangay by variation:', barangayItem.value);
-            return barangayItem.value;
-          }
-        }
-      }
-      
-      const words = addressLower.split(/[\s,.-]+/);
-      const barangayWords = mainName.split(/[\s-]+/);
-      
-      for (const barangayWord of barangayWords) {
-        if (barangayWord.length > 3) {
-          for (const word of words) {
-            if (word.includes(barangayWord) || barangayWord.includes(word)) {
-              console.log('Found barangay by fuzzy matching:', barangayItem.value);
-              return barangayItem.value;
-            }
-          }
-        }
-      }
-    }
-    
-    console.log('No barangay detected from address');
-    return '';
-  } catch (error) {
-    console.error('Error detecting barangay:', error);
-    return '';
-  }
-};
-
 const IncidentReportForm = () => {
-  // Form and map states
+  // Form states
   const [name, setName] = useState("");
-  const [barangay, setBarangay] = useState("");
-  const [addressLine, setAddressLine] = useState("");
   const [emergencyType, setEmergencyType] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [notes, setNotes] = useState("");
@@ -385,14 +235,16 @@ const IncidentReportForm = () => {
   const [isLoadingUserData, setIsLoadingUserData] = useState(true);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   
+  // Camera states
   const [showCamera, setShowCamera] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   
+  // Location states
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [fullAddress, setFullAddress] = useState<string>("");
+  const [addressComponents, setAddressComponents] = useState<AddressComponents | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
@@ -402,8 +254,9 @@ const IncidentReportForm = () => {
   // Map reference for animating to location
   const mapRef = useRef<MapView>(null);
   
-  // Auth hook
+  // Hooks
   const { user } = useAuth();
+  const { getAddressFromCoords, isGeocoding, error: geocodingError } = useGeocode();
 
   // Default location for Lipa City, Batangas
   const defaultLocation = { latitude: 13.9411, longitude: 121.1624 };
@@ -488,9 +341,8 @@ const IncidentReportForm = () => {
   const setDefaultLocationAndAddress = async () => {
     setCurrentLocation(defaultLocation);
     setSelectedLocation(defaultLocation);
-    const address = await reverseGeocode(defaultLocation.latitude, defaultLocation.longitude);
-    setFullAddress(address);
-    updateAddressFields(address);
+    const address = await getAddressFromCoords(defaultLocation.latitude, defaultLocation.longitude);
+    setAddressComponents(address);
   };
 
   const getCurrentLocationWithFallback = async () => {
@@ -507,25 +359,11 @@ const IncidentReportForm = () => {
       setCurrentLocation(coords);
       setSelectedLocation(coords);
       
-      const address = await reverseGeocode(coords.latitude, coords.longitude);
-      setFullAddress(address);
-      updateAddressFields(address);
+      const address = await getAddressFromCoords(coords.latitude, coords.longitude);
+      setAddressComponents(address);
     } catch (error) {
       console.error('Error getting current location:', error);
       await setDefaultLocationAndAddress();
-    }
-  };
-
-  const updateAddressFields = (address: string) => {
-    console.log('Updating address fields with:', address);
-    
-    const extractedAddressLine = extractAddressLine(address);
-    setAddressLine(extractedAddressLine);
-    
-    const detectedBarangay = detectBarangayFromAddress(address);
-    if (detectedBarangay) {
-      console.log('Setting barangay to:', detectedBarangay);
-      setBarangay(detectedBarangay);
     }
   };
 
@@ -586,14 +424,12 @@ const IncidentReportForm = () => {
         }, 1000);
       }
       
-      const address = await reverseGeocode(coords.latitude, coords.longitude);
-      setFullAddress(address);
-      updateAddressFields(address);
+      const address = await getAddressFromCoords(coords.latitude, coords.longitude);
+      setAddressComponents(address);
       
-      const detectedBarangay = detectBarangayFromAddress(address);
       Alert.alert(
         'Location Pinned Successfully!', 
-        `Your current location has been set as the incident location.\n\nAddress: ${extractAddressLine(address)}\n${detectedBarangay ? `Barangay: ${detectedBarangay}` : 'Barangay: Please select manually'}`,
+        `Your current location has been set as the incident location.\n\nAddress: ${address?.formattedAddress || 'Address not found'}`,
         [{ text: 'OK' }]
       );
     } catch (error: any) {
@@ -619,12 +455,10 @@ const IncidentReportForm = () => {
     setSelectedLocation(coordinate);
 
     try {
-      const address = await reverseGeocode(coordinate.latitude, coordinate.longitude);
-      setFullAddress(address);
-      updateAddressFields(address);
+      const address = await getAddressFromCoords(coordinate.latitude, coordinate.longitude);
+      setAddressComponents(address);
     } catch (error) {
-      const fallbackAddress = `${coordinate.latitude.toFixed(6)}, ${coordinate.longitude.toFixed(6)} (Address lookup failed)`;
-      setFullAddress(fallbackAddress);
+      console.error('Error getting address:', error);
     }
   };
 
@@ -692,14 +526,6 @@ const IncidentReportForm = () => {
         Alert.alert("Validation Error", "Please enter your name.");
         return;
       }
-      if (!barangay) {
-        Alert.alert("Validation Error", "Please select a barangay.");
-        return;
-      }
-      if (!addressLine.trim()) {
-        Alert.alert("Validation Error", "Please enter the address line.");
-        return;
-      }
       if (!emergencyType) {
         Alert.alert("Validation Error", "Please select the type of emergency.");
         return;
@@ -710,6 +536,10 @@ const IncidentReportForm = () => {
       }
       if (!selectedLocation) {
         Alert.alert("Validation Error", "Please select a location on the map.");
+        return;
+      }
+      if (!addressComponents) {
+        Alert.alert("Validation Error", "Please wait for the address to load or select a location.");
         return;
       }
       if (!processedPhotoUri || !photoTimestamp) {
@@ -729,21 +559,21 @@ const IncidentReportForm = () => {
 
       const report = await submitIncidentReport({
         name,
-        barangay,
-        addressLine,
+        barangay: addressComponents.barangay || 'Unknown Barangay',
+        addressLine: addressComponents.formattedAddress,
         emergencyType,
         subCategory,
         notes,
         location: selectedLocation,
         photoURL: photoUrl,
         timestamp: photoTimestamp,
-        fullAddress,
+        fullAddress: addressComponents.formattedAddress
       });
 
       if (report.success && report.id) {
         Alert.alert(
           "Report Submitted Successfully!",
-          "Your incident report has been submitted with timestamped photo evidence. You will receive notifications about its status.",
+          "Your incident report has been submitted and is pending review. You will receive notifications about its status.",
           [
             {
               text: "View Status",
@@ -777,150 +607,63 @@ const IncidentReportForm = () => {
   };
 
   const resetForm = () => {
-    setBarangay("");
-    setAddressLine("");
     setEmergencyType("");
     setSubCategory("");
     setNotes("");
     setPhotoUri(null);
     setProcessedPhotoUri(null);
     setPhotoTimestamp(null);
+    setAddressComponents(null);
     initializeLocation();
   };
 
-  // Helper function to get display label
-  const getDisplayLabel = (options: any[], value: string) => {
-    const option = options.find(opt => opt.value === value);
-    return option ? option.label : options[0]?.label || "Select";
-  };
+  // Emergency Type Icon Button Component
+  const EmergencyTypeButton = ({ type, isSelected, onPress }: { 
+    type: typeof emergencyTypes[0], 
+    isSelected: boolean, 
+    onPress: () => void 
+  }) => (
+    <TouchableOpacity
+      style={[
+        styles.emergencyTypeButton,
+        { backgroundColor: isSelected ? type.color : type.bgColor },
+        isSelected && styles.emergencyTypeButtonSelected
+      ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <Ionicons 
+        name={type.icon} 
+        size={28} 
+        color={isSelected ? '#fff' : type.color} 
+      />
+      <Text style={[
+        styles.emergencyTypeText,
+        { color: isSelected ? '#fff' : type.color }
+      ]}>
+        {type.label}
+      </Text>
+    </TouchableOpacity>
+  );
 
-  // Enhanced Cross-platform Picker Component
-  const CrossPlatformPicker = ({ 
-    label,
-    options,
-    selectedValue,
-    onValueChange,
-    placeholder,
-    disabled = false
-  }: {
+  // Radio Button Component for Subcategories
+  const RadioButton = ({ label, value, isSelected, onPress }: {
     label: string;
-    options: any[];
-    selectedValue: string;
-    onValueChange: (value: string) => void;
-    placeholder: string;
-    disabled?: boolean;
-  }) => {
-    const [showModal, setShowModal] = useState(false);
-    const [tempValue, setTempValue] = useState(selectedValue);
-
-    useEffect(() => {
-      setTempValue(selectedValue);
-    }, [selectedValue]);
-
-    const handleDone = () => {
-      onValueChange(tempValue);
-      setShowModal(false);
-    };
-
-    const handleCancel = () => {
-      setTempValue(selectedValue);
-      setShowModal(false);
-    };
-
-    if (Platform.OS === 'ios') {
-      return (
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>{label}</Text>
-          <TouchableOpacity
-            style={[styles.pickerButton, disabled && styles.pickerDisabled]}
-            onPress={() => !disabled && setShowModal(true)}
-            disabled={disabled}
-            activeOpacity={0.7}
-          >
-            <Text style={selectedValue ? styles.pickerButtonText : styles.pickerButtonPlaceholder}>
-              {getDisplayLabel(options, selectedValue)}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color="#666" />
-          </TouchableOpacity>
-
-          <Modal
-            visible={showModal}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={handleCancel}
-          >
-            <TouchableOpacity 
-              style={styles.pickerModalOverlay} 
-              activeOpacity={1} 
-              onPress={handleCancel}
-            >
-              <View style={styles.pickerModalContent} onStartShouldSetResponder={() => true}>
-                <View style={styles.pickerModalHeader}>
-                  <TouchableOpacity
-                    style={styles.pickerModalButton}
-                    onPress={handleCancel}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Text style={styles.pickerModalCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.pickerModalTitle}>{label}</Text>
-                  <TouchableOpacity
-                    style={styles.pickerModalButton}
-                    onPress={handleDone}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Text style={styles.pickerModalDoneText}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={tempValue}
-                    onValueChange={(value) => setTempValue(value)}
-                    style={styles.iosPicker}
-                    itemStyle={styles.iosPickerItem}
-                  >
-                    {options.map((option, index) => (
-                      <Picker.Item 
-                        key={`${option.value}-${index}`} 
-                        label={option.label} 
-                        value={option.value}
-                      />
-                    ))}
-                  </Picker>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </Modal>
-        </View>
-      );
-    }
-
-    // Android version
-    return (
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>{label}</Text>
-        <View style={[styles.androidPickerContainer, disabled && styles.pickerDisabled]}>
-          <Picker
-            selectedValue={selectedValue}
-            style={styles.androidPicker}
-            onValueChange={onValueChange}
-            enabled={!disabled}
-            mode="dropdown"
-            dropdownIconColor="#666"
-          >
-            {options.map((option, index) => (
-              <Picker.Item 
-                key={`${option.value}-${index}`} 
-                label={option.label} 
-                value={option.value}
-                color="#333"
-              />
-            ))}
-          </Picker>
-        </View>
+    value: string;
+    isSelected: boolean;
+    onPress: () => void;
+  }) => (
+    <TouchableOpacity
+      style={styles.radioButtonContainer}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.radioButton, isSelected && styles.radioButtonSelected]}>
+        {isSelected && <View style={styles.radioButtonInner} />}
       </View>
-    );
-  };
+      <Text style={styles.radioButtonLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
 
   // Camera permission check
   if (!permission) {
@@ -1030,11 +773,11 @@ const IncidentReportForm = () => {
       </View>
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Incident Form</Text>
+        <Text style={styles.title}>Report Incident</Text>
         
         {/* Name Input */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Name</Text>
+          <Text style={styles.label}>Reporter Name</Text>
           <TextInput
             style={styles.input}
             placeholder="Enter your name"
@@ -1044,9 +787,45 @@ const IncidentReportForm = () => {
           />
         </View>
 
-        {/* Location Map */}
+        {/* Emergency Type Selection with Icons */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Location</Text>
+          <Text style={styles.label}>Type of Emergency</Text>
+          <View style={styles.emergencyTypesGrid}>
+            {emergencyTypes.map((type) => (
+              <EmergencyTypeButton
+                key={type.value}
+                type={type}
+                isSelected={emergencyType === type.value}
+                onPress={() => {
+                  setEmergencyType(type.value);
+                  setSubCategory(""); // Reset subcategory when type changes
+                }}
+              />
+            ))}
+          </View>
+        </View>
+
+        {/* Subcategory Selection with Radio Buttons */}
+        {emergencyType && subCategoryOptions[emergencyType] && (
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Subcategory</Text>
+            <View style={styles.radioButtonGroup}>
+              {subCategoryOptions[emergencyType].map((option) => (
+                <RadioButton
+                  key={option.value}
+                  label={option.label}
+                  value={option.value}
+                  isSelected={subCategory === option.value}
+                  onPress={() => setSubCategory(option.value)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Location Map with Auto Address */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Incident Location</Text>
           
           {selectedLocation ? (
             <View style={styles.mapContainer}>
@@ -1096,63 +875,50 @@ const IncidentReportForm = () => {
             </View>
           )}
           
-          {fullAddress && (
+          {/* Address Display */}
+          {addressComponents && (
             <View style={styles.addressContainer}>
-              <Text style={styles.addressText}>{fullAddress}</Text>
+              <View style={styles.addressHeader}>
+                <Ionicons name="location" size={16} color="#e74c3c" />
+                <Text style={styles.addressHeaderText}>Detected Address</Text>
+                {isGeocoding && <ActivityIndicator size="small" color="#e74c3c" />}
+              </View>
+              <Text style={styles.addressText}>{addressComponents.formattedAddress}</Text>
+              <View style={styles.addressDetails}>
+                <Text style={styles.addressDetailText}>
+                  Barangay: {addressComponents.barangay}
+                </Text>
+                <Text style={styles.addressDetailText}>
+                  City: {addressComponents.city}
+                </Text>
+                <Text style={styles.addressDetailText}>
+                  Province: {addressComponents.province}
+                </Text>
+              </View>
+            </View>
+          )}
+          
+          <Text style={styles.helperText}>
+            Tap on the map to select incident location or use "Pin My Location" button
+          </Text>
+          
+          {geocodingError && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>Address lookup failed: {geocodingError}</Text>
             </View>
           )}
         </View>
 
-        <CrossPlatformPicker
-          label={`Barangay ${barangay ? '' : '(Will auto-fill from location)'}`}
-          options={barangayOptions}
-          selectedValue={barangay}
-          onValueChange={setBarangay}
-          placeholder="Select Barangay"
-        />
-
+        {/* Photo Section */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Address Line</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Street address will be auto-filled from location"
-            value={addressLine}
-            onChangeText={setAddressLine}
-            placeholderTextColor="#999"
-          />
-          <Text style={styles.helperText}>
-            Tip: Use "Pin My Location" button above to auto-fill this field and barangay
-          </Text>
-        </View>
-
-        <CrossPlatformPicker
-          label="Type of Emergency"
-          options={emergencyTypes}
-          selectedValue={emergencyType}
-          onValueChange={(value) => {
-            setEmergencyType(value);
-            setSubCategory("");
-          }}
-          placeholder="Select Emergency Type"
-        />
-
-        <CrossPlatformPicker
-          label="Subcategory"
-          options={emergencyType && subCategoryOptions[emergencyType] ? subCategoryOptions[emergencyType] : [{ label: "Select Subcategory", value: "" }]}
-          selectedValue={subCategory}
-          onValueChange={setSubCategory}
-          placeholder="Select Subcategory"
-          disabled={!emergencyType}
-        />
-
-        {/* Enhanced Photo Section */}
-        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Evidence Photo</Text>
           <View style={styles.photoContainer}>
             <TouchableOpacity
               style={styles.takePhotoButton}
               onPress={() => setShowCamera(true)}
             >
-              <Text style={styles.takePhotoButtonText}>TAKE A PICTURE</Text>
+              <Ionicons name="camera" size={20} color="#fff" />
+              <Text style={styles.takePhotoButtonText}>TAKE PHOTO</Text>
               {processedPhotoUri && (
                 <View style={styles.cameraIcon}>
                   <Ionicons name="checkmark" size={16} color="#fff" />
@@ -1169,9 +935,9 @@ const IncidentReportForm = () => {
           )}
         </View>
 
-        {/* Notes Input */}
+        {/* Additional Notes */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Additional Notes</Text>
+          <Text style={styles.label}>Additional Details</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Provide additional details about the incident..."
@@ -1191,7 +957,10 @@ const IncidentReportForm = () => {
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <View style={styles.submitButtonContent}>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.submitButtonText}>Submitting...</Text>
+            </View>
           ) : (
             <Text style={styles.submitButtonText}>Submit Report</Text>
           )}
@@ -1288,13 +1057,13 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 25,
   },
   label: {
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
-    marginBottom: 8,
+    marginBottom: 12,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   input: {
@@ -1314,114 +1083,104 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 12,
     color: "#666",
-    marginTop: 5,
+    marginTop: 8,
     fontStyle: 'italic',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  // iOS Picker Styles
-  pickerButton: {
-    backgroundColor: "#fff",
+  errorContainer: {
+    backgroundColor: '#ffebee',
     borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-    padding: 15,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    minHeight: 50,
+    borderColor: '#ffcdd2',
   },
-  pickerDisabled: {
-    opacity: 0.6,
-    backgroundColor: '#f5f5f5',
-  },
-  pickerButtonText: {
-    fontSize: 16,
-    color: "#333",
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    flex: 1,
-  },
-  pickerButtonPlaceholder: {
-    fontSize: 16,
-    color: "#999",
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    flex: 1,
-  },
-  pickerModalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  pickerModalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    maxHeight: height * 0.5,
-  },
-  pickerModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    backgroundColor: '#f8f9fa',
-  },
-  pickerModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    flex: 1,
-    textAlign: 'center',
-  },
-  pickerModalButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    minWidth: 60,
-  },
-  pickerModalCancelText: {
-    fontSize: 16,
-    color: '#666',
+  errorText: {
+    color: '#d32f2f',
+    fontSize: 12,
     fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  pickerModalDoneText: {
-    fontSize: 16,
-    color: '#e74c3c',
+  // Emergency Type Grid Styles
+  emergencyTypesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  emergencyTypeButton: {
+    width: (width - 60) / 2, // Two columns with margin
+    minHeight: 90,
+    borderRadius: 12,
+    padding: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  emergencyTypeButtonSelected: {
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+  },
+  emergencyTypeText: {
+    fontSize: 12,
     fontWeight: '600',
+    marginTop: 8,
+    textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  pickerContainer: {
+  // Radio Button Styles
+  radioButtonGroup: {
+    marginTop: 8,
+  },
+  radioButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     backgroundColor: '#fff',
-  },
-  iosPicker: {
-    height: 200,
-    width: '100%',
-  },
-  iosPickerItem: {
-    fontSize: 16,
-    color: '#333',
-    height: 200,
-  },
-  // Android Picker Styles
-  androidPickerContainer: {
-    backgroundColor: "#fff",
     borderRadius: 8,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-    overflow: 'hidden',
-    minHeight: 50,
+    borderColor: '#e0e0e0',
   },
-  androidPicker: {
-    height: 50,
-    color: "#333",
+  radioButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  radioButtonSelected: {
+    borderColor: '#e74c3c',
+  },
+  radioButtonInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#e74c3c',
+  },
+  radioButtonLabel: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    flex: 1,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   // Map Styles
   mapContainer: {
-    height: 200,
-    borderRadius: 8,
+    height: 250,
+    borderRadius: 12,
     overflow: "hidden",
     marginBottom: 0,
     borderWidth: 1,
@@ -1433,22 +1192,22 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   loadingMapContainer: {
-    height: 200,
+    height: 250,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: "#fff",
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#e0e0e0",
   },
   pinLocationButton: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 44,
-    height: 44,
+    top: 15,
+    right: 15,
+    width: 48,
+    height: 48,
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -1462,21 +1221,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
+  // Address Display Styles
   addressContainer: {
     backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
+  addressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addressHeaderText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 6,
+    flex: 1,
+  },
   addressText: {
     fontSize: 14,
-    color: '#666',
+    color: '#333',
     lineHeight: 20,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    marginBottom: 8,
   },
-  // Enhanced Photo Styles
+  addressDetails: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  addressDetailText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  // Photo Styles
   photoContainer: {
     position: 'relative',
   },
@@ -1484,7 +1268,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e74c3c",
     paddingVertical: 15,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     flexDirection: 'row',
     justifyContent: 'center',
@@ -1494,6 +1278,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+    marginLeft: 8,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   cameraIcon: {
@@ -1506,16 +1291,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Enhanced Preview Styles
+  // Image Preview Styles
   imagePreviewContainer: {
     alignItems: 'center',
     marginTop: 15,
   },
   imageWithOverlay: {
     position: 'relative',
-    width: 250,
-    height: 188,
-    borderRadius: 8,
+    width: 280,
+    height: 210,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: "#e0e0e0",
@@ -1527,12 +1312,12 @@ const styles = StyleSheet.create({
   },
   timestampOverlayPreview: {
     position: 'absolute',
-    bottom: 8,
-    right: 8,
+    bottom: 10,
+    right: 10,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     shadowColor: '#000',
@@ -1561,14 +1346,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   timestampInfoContainer: {
-    marginTop: 10,
+    marginTop: 12,
     alignItems: 'center',
     backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    minWidth: 250,
+    minWidth: 280,
   },
   timestampLabel: {
     fontSize: 12,
@@ -1581,7 +1366,7 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '600',
     fontFamily: 'monospace',
-    marginBottom: 6,
+    marginBottom: 8,
     textAlign: 'center',
   },
   timestampNote: {
@@ -1594,26 +1379,39 @@ const styles = StyleSheet.create({
   // Submit Button
   submitButton: {
     backgroundColor: "#e74c3c",
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     marginTop: 30,
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   submitButtonDisabled: {
     opacity: 0.7,
+  },
+  submitButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   submitButtonText: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    marginLeft: 8,
   },
   bottomSpacer: {
     height: 100,
   },
-  // Enhanced Camera Styles
+  // Camera Styles
   cameraContainer: {
     flex: 1,
     backgroundColor: '#000',
@@ -1621,18 +1419,17 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
-  // Live timestamp overlay for camera
   timestampOverlayLive: {
     position: 'absolute',
-    bottom: 100,
-    right: 15,
+    bottom: 120,
+    right: 20,
     zIndex: 1000,
   },
   timestampBadgeLive: {
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     shadowColor: '#000',
@@ -1643,12 +1440,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 4,
     elevation: 8,
-    minWidth: 160,
+    minWidth: 180,
     alignItems: 'center',
   },
   timestampTextLive: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     textAlign: 'center',
@@ -1656,7 +1453,7 @@ const styles = StyleSheet.create({
   },
   timestampSubTextLive: {
     color: '#e74c3c',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     textAlign: 'center',
@@ -1673,9 +1470,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   cameraHeaderButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',

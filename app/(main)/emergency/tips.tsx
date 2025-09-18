@@ -1,17 +1,23 @@
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View
 } from "react-native";
 import { useEmergencyTips } from "../../../hooks/useEmergencyTips";
 
+const { width } = Dimensions.get('window');
+
 export default function EmergencyTips() {
-  const { tips, loading, error, refetch } = useEmergencyTips();
+  const { categories, loading, error, refetch } = useEmergencyTips();
   const [refreshing, setRefreshing] = React.useState(false);
 
   const onRefresh = React.useCallback(async () => {
@@ -19,6 +25,46 @@ export default function EmergencyTips() {
     refetch();
     setTimeout(() => setRefreshing(false), 1000);
   }, [refetch]);
+
+  const navigateToCategory = (categoryName: string) => {
+    router.push(`/(main)/emergency/tips-category?category=${encodeURIComponent(categoryName)}`);
+  };
+
+  const renderCategoryCard = (category: any, index: number) => {
+    return (
+      <TouchableOpacity
+        key={category.name}
+        style={styles.categoryCardContainer}
+        onPress={() => navigateToCategory(category.name)}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={category.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.categoryCard}
+        >
+          {/* Category Icon */}
+          <View style={styles.categoryIconContainer}>
+            <Text style={styles.categoryIcon}>{category.icon}</Text>
+          </View>
+
+          {/* Category Info */}
+          <View style={styles.categoryInfo}>
+            <Text style={styles.categoryName}>{category.name}</Text>
+            <Text style={styles.categoryCount}>
+              {category.count} tip{category.count !== 1 ? 's' : ''}
+            </Text>
+          </View>
+
+          {/* Arrow Icon */}
+          <View style={styles.categoryArrow}>
+            <Text style={styles.arrowText}>→</Text>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <ScrollView 
@@ -28,12 +74,12 @@ export default function EmergencyTips() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          colors={['#dc2626']}
-          tintColor={'#dc2626'}
+          colors={['#D32F2F']}
+          tintColor={'#D32F2F'}
         />
       }
     >
-      {/* Header */}
+      {/* Header - Matching Dashboard Style */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Image 
@@ -48,41 +94,37 @@ export default function EmergencyTips() {
       {/* Loading State */}
       {loading && !refreshing && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#dc2626" />
-          <Text style={styles.loadingText}>Loading emergency tips...</Text>
+          <ActivityIndicator size="large" color="#D32F2F" />
+          <Text style={styles.loadingText}>Loading categories...</Text>
         </View>
       )}
 
       {/* Error State */}
       {error && !loading && (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>⚠️ Unable to load tips</Text>
+          <Text style={styles.errorText}>⚠️ Unable to load categories</Text>
           <Text style={styles.errorSubText}>
             Pull down to refresh or check your connection
           </Text>
         </View>
       )}
 
-      {/* Tips Cards */}
-      {!loading && !error && tips.length > 0 && (
-        <View style={styles.tipsContainer}>
-          {tips.map((tip) => (
-            <View key={tip.id} style={styles.tipCard}>
-              <Text style={styles.tipTitle}>{tip.title}</Text>
-              <Text style={styles.tipDescription}>
-                {tip.description}
-              </Text>
-            </View>
-          ))}
+      {/* Categories Grid */}
+      {!loading && !error && categories.length > 0 && (
+        <View style={styles.categoriesContainer}>
+          <Text style={styles.sectionTitle}>Safety Categories</Text>
+          <View style={styles.categoriesGrid}>
+            {categories.map((category, index) => renderCategoryCard(category, index))}
+          </View>
         </View>
       )}
 
       {/* Empty State */}
-      {!loading && !error && tips.length === 0 && (
+      {!loading && !error && categories.length === 0 && (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>📋 No emergency tips available</Text>
           <Text style={styles.emptySubText}>
-            Tips will appear here when added by administrators
+            Categories will appear here when tips are added by administrators
           </Text>
         </View>
       )}
@@ -97,63 +139,109 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 30,
+    paddingTop: 50,
+    paddingBottom:15 ,
     backgroundColor: "#ffffff",
   },
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 15,
   },
   logoImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    resizeMode: "contain",
     marginRight: 10,
-    resizeMode: 'contain',
   },
   logoTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1f2937",
+    color: "#D32F2F",
   },
   pageTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#1f2937",
-    marginTop: 10,
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 8,
   },
-  tipsContainer: {
+  pageSubtitle: {
+    fontSize: 16,
+    color: "#666",
+    fontWeight: "400",
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 15,
+  },
+  categoriesContainer: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 25,
     paddingBottom: 100,
   },
-  tipCard: {
-    backgroundColor: "#dc2626",
+  categoriesGrid: {
+    flexDirection: 'column',
+    gap: 15,
+  },
+  categoryCardContainer: {
+    width: '100%',
+    marginBottom: 4,
+  },
+  categoryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
     elevation: 3,
   },
-  tipTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#ffffff",
-    marginBottom: 12,
+  categoryIconContainer: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
-  tipDescription: {
+  categoryIcon: {
+    fontSize: 24,
+  },
+  categoryInfo: {
+    flex: 1,
+  },
+  categoryName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  categoryCount: {
     fontSize: 14,
-    lineHeight: 20,
-    color: "#ffffff",
-    opacity: 0.95,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '600',
+  },
+  categoryArrow: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  arrowText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: 'bold',
   },
   // Loading States
   loadingContainer: {
@@ -165,7 +253,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6b7280',
+    color: '#666',
     fontWeight: '500',
   },
   // Error States
@@ -176,14 +264,14 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 18,
-    color: '#dc2626',
+    color: '#D32F2F',
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 8,
   },
   errorSubText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#666',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -195,14 +283,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: '#6b7280',
+    color: '#666',
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 8,
   },
   emptySubText: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#999',
     textAlign: 'center',
     lineHeight: 20,
   },

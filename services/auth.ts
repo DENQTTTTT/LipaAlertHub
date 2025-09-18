@@ -2,13 +2,15 @@
 import {
   createUserWithEmailAndPassword,
   updatePassword as firebaseUpdatePassword,
-  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
+/**
+ * Register new mobile user (default role: resident)
+ */
 export const register = async (
   email: string,
   password: string,
@@ -24,29 +26,45 @@ export const register = async (
     email,
     number,
     role: "resident", // Default role for mobile users
-    status: "active", // Active by default for residents
+    status: "active",
     createdAt: new Date(),
     updatedAt: new Date(),
-    // Optional: Add device type to distinguish mobile users
-    deviceType: "mobile"
+    deviceType: "mobile" // Tag as mobile
   });
 
   return userCredential;
 };
 
+/**
+ * Login user
+ */
 export const login = (email: string, password: string) => {
   return signInWithEmailAndPassword(auth, email, password);
 };
 
+/**
+ * Logout user
+ */
 export const logout = () => {
   return signOut(auth);
 };
 
-export const resetPassword = (email: string) => {
-  return sendPasswordResetEmail(auth, email);
-};
+/**
+ * 🚨 Phase 2 update:
+ * Remove sendPasswordResetEmail
+ * → Use OTP flow in services/otp.ts instead
+ *
+ * Example:
+ *   import { requestOtp, verifyOtp, setNewPassword } from "./otp";
+ *   await requestOtp(email);
+ *   await verifyOtp(sessionId, otpCode);
+ *   await setNewPassword(sessionId, newPassword);
+ */
+// No resetPassword here anymore ✅
 
-// Update password
+/**
+ * Update password for logged-in users (not reset)
+ */
 export const updatePassword = async (newPassword: string) => {
   const user = auth.currentUser;
   if (user) {
@@ -62,7 +80,9 @@ export const updatePassword = async (newPassword: string) => {
   }
 };
 
-// Function to get user role and profile data
+/**
+ * Get user profile by UID
+ */
 export const getUserProfile = async (uid: string) => {
   try {
     const userDoc = await getDoc(doc(db, "users", uid));
@@ -76,7 +96,9 @@ export const getUserProfile = async (uid: string) => {
   }
 };
 
-// Function to check if user has required role for a feature
+/**
+ * Role-based access check
+ */
 export const hasRole = async (requiredRoles: string[]) => {
   const user = auth.currentUser;
   if (!user) return false;
@@ -87,29 +109,30 @@ export const hasRole = async (requiredRoles: string[]) => {
   return requiredRoles.includes(profile.role);
 };
 
-// Simple auth check for mobile features
+/**
+ * Mobile-only authentication guard
+ */
 export const requireMobileAuth = (): Promise<{ user: any, profile: any }> => {
   return new Promise(async (resolve, reject) => {
     const user = auth.currentUser;
     if (!user) {
-      reject(new Error('User not authenticated'));
+      reject(new Error("User not authenticated"));
       return;
     }
     
     try {
-      // Get user profile
       const profile = await getUserProfile(user.uid);
       
-      // If no profile exists, create a basic one for existing users
+      // If no profile exists, create a basic one
       if (!profile) {
         const basicProfile = {
-          name: user.displayName || 'User',
+          name: user.displayName || "User",
           email: user.email,
-          role: 'resident',
-          status: 'active',
+          role: "resident",
+          status: "active",
           createdAt: new Date(),
           updatedAt: new Date(),
-          deviceType: 'mobile'
+          deviceType: "mobile"
         };
         
         await setDoc(doc(db, "users", user.uid), basicProfile);
@@ -118,7 +141,7 @@ export const requireMobileAuth = (): Promise<{ user: any, profile: any }> => {
         resolve({ user, profile });
       }
     } catch (error) {
-      console.error('Error in mobile auth check:', error);
+      console.error("Error in mobile auth check:", error);
       reject(error);
     }
   });

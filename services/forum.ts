@@ -16,10 +16,10 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
+import { notificationService } from 'services/notifications';
 import { auth, db } from './firebase';
-import { notificationService } from './notifications';
 
-// Updated interfaces with approval system
+// Updated interfa  ces with approval system
 export interface ForumPost {
   id?: string;
   userId: string;

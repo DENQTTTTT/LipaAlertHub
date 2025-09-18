@@ -1,9 +1,21 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import { Tabs, useRouter, useSegments } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { notificationService } from '../../services/notifications';
+
+// Configure notification behavior
+Notifications.setNotificationHandler({
+  handleNotification: async (notification: Notifications.Notification) => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 // Notification badge component
 const NotificationBadge = ({ count }: { count: number }) => {
@@ -47,6 +59,8 @@ export default function MainLayout() {
   const router = useRouter();
   const segments = useSegments();
   const [unreadCount, setUnreadCount] = useState(0);
+  const notificationListener = useRef<Notifications.Subscription | null>(null);
+  const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
     if (loading) return; // Wait for auth to load
@@ -61,7 +75,7 @@ export default function MainLayout() {
     }
   }, [user, loading, segments]);
 
-  // Subscribe to notifications for badge count
+  // Subscribe to notifications for badge count and push notification handling
   useEffect(() => {
     if (!user?.uid) {
       setUnreadCount(0);
@@ -89,12 +103,135 @@ export default function MainLayout() {
       }
     });
 
+    // Handle incoming notifications while app is running
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification received:', notification);
+      
+      // Handle weather alert notifications
+      const data = notification.request.content.data;
+      if (data?.type === 'weather_alert' && data?.alertId) {
+        // Update badge count immediately for weather alerts
+        setUnreadCount(prev => prev + 1);
+      }
+    });
+
+    // Handle notification responses (when user taps notification)
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('Notification response:', response);
+      
+      const data = response.notification.request.content.data;
+      
+      // Handle weather alert navigation
+      if (data?.type === 'weather_alert' && data?.alertId && typeof data.alertId === 'string') {
+        router.push({
+          pathname: '/(main)/weather/detailed',
+          params: { alertId: data.alertId }
+        });
+        return;
+      }
+
+      // Handle report update notifications
+      if (data?.type === 'report_update' && data?.reportId && typeof data.reportId === 'string') {
+        router.push({
+          pathname: '/(main)/report/status',
+          params: { reportId: data.reportId }
+        });
+        return;
+      }
+
+      // Handle forum notifications
+      if (data?.type === 'forum_reply' && data?.forumPostId && typeof data.forumPostId === 'string') {
+        router.push({
+          pathname: '/(main)/forum/post',
+          params: { postId: data.forumPostId }
+        });
+        return;
+      }
+
+      if (data?.type === 'forum_like_post' && data?.forumPostId && typeof data.forumPostId === 'string') {
+        router.push({
+          pathname: '/(main)/forum/post',
+          params: { postId: data.forumPostId }
+        });
+        return;
+      }
+
+      if (data?.type === 'forum_like_reply' && data?.forumPostId && typeof data.forumPostId === 'string') {
+        router.push({
+          pathname: '/(main)/forum/post',
+          params: { postId: data.forumPostId }
+        });
+        return;
+      }
+
+      // Default to notifications screen for other types
+      router.push('/(main)/notifications/index');
+    });
+
     return () => {
       if (unsubscribe && typeof unsubscribe === 'function') {
         unsubscribe();
       }
+      
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
     };
-  }, [user?.uid]);
+  }, [user?.uid, router]);
+
+  // Handle deep linking for notifications that launched the app
+  useEffect(() => {
+    const getInitialNotification = async () => {
+      try {
+        const response = await Notifications.getLastNotificationResponseAsync();
+        if (response?.notification.request.content.data) {
+          const data = response.notification.request.content.data;
+          
+          // Handle weather alert deep link
+          if (data.type === 'weather_alert' && data.alertId && typeof data.alertId === 'string') {
+            setTimeout(() => {
+              router.push({
+                pathname: '/(main)/weather/detailed',
+                params: { alertId: data.alertId as string }
+              });
+            }, 1000);
+            return;
+          }
+
+          // Handle other notification types
+          if (data.type === 'report_update' && data.reportId && typeof data.reportId === 'string') {
+            setTimeout(() => {
+              router.push({
+                pathname: '/(main)/report/status',
+                params: { reportId: data.reportId as string }
+              });
+            }, 1000);
+            return;
+          }
+
+          if (data.type === 'forum_reply' && data.forumPostId && typeof data.forumPostId === 'string') {
+            setTimeout(() => {
+              router.push({
+                pathname: '/(main)/forum/post',
+                params: { postId: data.forumPostId as string }
+              });
+            }, 1000);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error getting initial notification:', error);
+      }
+    };
+
+    if (user?.uid && !loading) {
+      getInitialNotification();
+    }
+  }, [user?.uid, loading, router]);
 
   // Show loading screen with proper component
   if (loading) {
@@ -221,6 +358,7 @@ export default function MainLayout() {
 
       <Tabs.Screen name="emergency/sos" options={{ href: null }} />
       <Tabs.Screen name="emergency/tips" options={{ href: null }} />
+      <Tabs.Screen name="emergency/tips-category" options={{ href: null }} />
       <Tabs.Screen name="emergency/sos-services" options={{ href: null }} />
 
       <Tabs.Screen name="profile/edit" options={{ href: null }} />
@@ -228,6 +366,10 @@ export default function MainLayout() {
       <Tabs.Screen name="profile/change-password/step2" options={{ href: null }} />
       <Tabs.Screen name="profile/change-password/success" options={{ href: null }} />
       <Tabs.Screen name="profile/strikes" options={{ href: null }} />
+
+      {/* ANNOUNCEMENTS ROUTES - HIDDEN FROM TAB BAR */}
+      <Tabs.Screen name="announcements/index" options={{ href: null }} />
+      <Tabs.Screen name="announcements/details" options={{ href: null }} />
     </Tabs>
   );
 }
