@@ -28,6 +28,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.reden.lipaalerthub",
+      "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyDHNKCfdb_Ae0sMaSmdDf88xjOvj2hJM68"
