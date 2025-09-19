@@ -27,6 +27,6 @@
     "utils",
     "**/*.ts",
     "**/*.tsx"
-  ],
+, "api/email.js"  ],
   "extends": "expo/tsconfig.base"
 }

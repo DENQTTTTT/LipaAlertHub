@@ -12,11 +12,6 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "extra": {
-      "eas": {
-        "projectId": "0fb2ea21-efe5-4080-852e-51613e8be20d"
-      }
-    },
     "ios": {
       "supportsTablet": true,
       "config": {
@@ -49,6 +44,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "@react-native-firebase/app",
       [
         "expo-location",
         {
@@ -69,7 +65,8 @@
           "icon": "./assets/notification-icon.png",
           "color": "#ffffff"
         }
-      ]
+      ],
+      "expo-router"
     ]
   }
 }

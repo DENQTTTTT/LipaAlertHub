@@ -1,7 +1,7 @@
 // api/email.js
 const { Resend } = require("resend");
 
-const resend = new Resend(process.env.RESEND_API_KEY || "");
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -9,43 +9,31 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { type, email, otp } = req.body || {};
+    const { to, subject, html, otp } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
+    // ✅ Fallback: log OTP for testing (no email sending yet)
+    console.log("⚡ OTP Email Log:", { to, subject, otp });
 
-    let result;
+    // --- Uncomment this once your domain or sender is verified ---
+    /*
+    const data = await resend.emails.send({
+      from: "alerts@lipaalerthub.com", // must be a verified sender/domain
+      to,
+      subject,
+      html,
+    });
 
-    // 🔹 Send OTP Email
-    if (type === "otp") {
-      if (!otp) {
-        return res.status(400).json({ error: "OTP is required for type=otp" });
-      }
-      result = await resend.emails.send({
-        from: "Acme <onboarding@resend.dev>", // ✅ safe default until domain is verified
-        to: [email],
-        subject: "Your OTP Code",
-        html: `<h1>Password Reset</h1><p>Your code is <b>${otp}</b></p>`,
-      });
-    }
-    // 🔹 Send Password Changed Email
-    else if (type === "passwordChanged") {
-      result = await resend.emails.send({
-        from: "Acme <onboarding@resend.dev>",
-        to: [email],
-        subject: "Password Changed",
-        html: `<p>Your password was successfully updated. If this wasn’t you, please contact support immediately.</p>`,
-      });
-    }
-    // ❌ Invalid type
-    else {
-      return res.status(400).json({ error: "Invalid email type" });
-    }
+    return res.status(200).json({ success: true, data });
+    */
 
-    return res.status(200).json({ success: true, result });
+    // Temporary success response while only logging
+    return res.status(200).json({
+      success: true,
+      message: "OTP logged (email not sent in dev mode)",
+    });
+
   } catch (error) {
-    console.error("Email send failed:", error);
-    return res.status(500).json({ error: error.message || "Internal Server Error" });
+    console.error("Email API error:", error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
