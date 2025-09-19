@@ -27,7 +27,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.reden.lipaalerthub",
+              "package": "com.lipa.alerthub",
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {

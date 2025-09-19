@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "991310233066",
+    "project_id": "lipaalerthub",
+    "storage_bucket": "lipaalerthub.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:991310233066:android:e6ffb417145b4ee7de0693",
+        "android_client_info": {
+          "package_name": "com.lipa.alerthub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHNKCfdb_Ae0sMaSmdDf88xjOvj2hJM68"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
