@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.reden.lipaalerthub'
+    namespace 'com.lipa.alerthub'
     defaultConfig {
-        applicationId 'com.reden.lipaalerthub'
+        applicationId 'com.lipa.alerthub'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

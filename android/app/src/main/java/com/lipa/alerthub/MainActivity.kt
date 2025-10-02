@@ -1,4 +1,4 @@
-package com.reden.lipaalerthub
+package com.lipa.alerthub
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

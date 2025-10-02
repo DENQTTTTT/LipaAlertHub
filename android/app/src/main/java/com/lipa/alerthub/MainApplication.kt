@@ -1,4 +1,4 @@
-package com.reden.lipaalerthub
+package com.lipa.alerthub
 
 import android.app.Application
 import android.content.res.Configuration
