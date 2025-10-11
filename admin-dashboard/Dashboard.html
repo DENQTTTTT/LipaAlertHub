@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LipaAlertHub - Admin Dashboard</title>
+    <title>LipaAlertHub - Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
     
     <style>
         * {
@@ -26,7 +27,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            background: linear-gradient(135deg, #d73527, #b92e20);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -62,10 +63,16 @@
             top: 0;
             width: 250px;
             height: 100vh;
-            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            background: linear-gradient(180deg, #d73527 0%, #b92e20 100%);
             z-index: 1000;
             overflow-y: auto;
             box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.show {
+            transform: translateX(0);
         }
 
         .sidebar-header {
@@ -131,9 +138,10 @@
         }
 
         .main-content {
-            margin-left: 250px;
+            margin-left: 0;
             min-height: 100vh;
             background: #f8f9fa;
+            transition: margin-left 0.3s ease;
         }
 
         .header {
@@ -144,6 +152,27 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #dee2e6;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .mobile-menu-toggle {
+            background: none;
+            border: none;
+            color: #d73527;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .mobile-menu-toggle:hover {
+            background-color: rgba(215, 53, 39, 0.1);
         }
 
         .page-title {
@@ -183,11 +212,19 @@
         }
 
         .role-badge.admin {
-            background: linear-gradient(135deg, #dc3545, #c82333);
+            background: linear-gradient(135deg, #d73527, #b92e20);
         }
 
         .role-badge.monitor {
             background: linear-gradient(135deg, #17a2b8, #138496);
+        }
+
+        .role-badge.rescuer {
+            background: linear-gradient(135deg, #28a745, #218838);
+        }
+
+        .role-badge.agency {
+            background: linear-gradient(135deg, #6f42c1, #5a2d91);
         }
 
         .dashboard-content {
@@ -228,7 +265,7 @@
         }
 
         .card-title i {
-            color: #d53b2c;
+            color: #d73527;
         }
 
         .reports-container {
@@ -244,7 +281,7 @@
             margin-bottom: 15px;
             background: #f8f9fa;
             border-radius: 10px;
-            border-left: 4px solid #d53b2c;
+            border-left: 4px solid #d73527;
             transition: all 0.3s ease;
         }
 
@@ -254,7 +291,7 @@
         }
 
         .report-info h6 {
-            color: #d53b2c;
+            color: #d73527;
             font-weight: 600;
             margin-bottom: 8px;
         }
@@ -279,7 +316,7 @@
             border: 1px solid #ffeaa7;
         }
 
-        .status-badge.verified {
+        .status-badge.accepted, .status-badge.approved {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
@@ -291,7 +328,7 @@
             border: 1px solid #b3d7ff;
         }
 
-        .status-badge.dismissed {
+        .status-badge.dismissed, .status-badge.rejected {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
@@ -376,7 +413,7 @@
         .chart-count {
             font-size: 14px;
             font-weight: bold;
-            color: #d53b2c;
+            color: #d73527;
         }
 
         .forum-container {
@@ -437,7 +474,7 @@
             width: 20px;
             height: 20px;
             border: 2px solid #f3f3f3;
-            border-top: 2px solid #d53b2c;
+            border-top: 2px solid #d73527;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             margin: 0 auto 15px;
@@ -460,7 +497,7 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            z-index: 1000;
+            z-index: 1500;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -505,20 +542,40 @@
             }
         }
 
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-            }
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
 
-            .sidebar.show {
+        .sidebar-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Mobile responsiveness */
+        @media (min-width: 769px) {
+            .sidebar {
                 transform: translateX(0);
             }
-
+            
             .main-content {
-                margin-left: 0;
+                margin-left: 250px;
             }
+            
+            .mobile-menu-toggle {
+                display: none;
+            }
+        }
 
+        @media (max-width: 768px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
                 gap: 20px;
@@ -546,6 +603,10 @@
                 width: 100%;
                 justify-content: flex-start;
             }
+
+            .user-details {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -557,13 +618,16 @@
                 Loading LipaAlertHub Dashboard...
             </div>
             <small style="opacity: 0.8;">
-                Verifying permissions & initializing RBAC system
+                Verifying permissions & initializing system
             </small>
         </div>
     </div>
 
+    <!-- Sidebar Overlay -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
     <div id="dashboardContainer" class="dashboard-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
                 <div class="brand-title">LipaAlertHub</div>
@@ -571,14 +635,14 @@
             </div>
             
             <nav class="sidebar-nav">
-                <div class="nav-item" data-role="admin,monitor">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="#" class="nav-link active" onclick="showDashboard()">
                         <i class="fas fa-tachometer-alt"></i>
                         Dashboard
                     </a>
                 </div>
                 
-                <div class="nav-item" data-role="admin,monitor,rescuer">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="IncidentReportList.html" class="nav-link">
                         <i class="fas fa-exclamation-triangle"></i>
                         Reports
@@ -592,12 +656,19 @@
                     </a>
                 </div>
                 
-                   <div class="nav-item" data-role="admin,monitor">
-                   <a href="EmergencyTips.html" class="nav-link">
-                    <i class="fas fa-lightbulb"></i>
-                     Emergency Tips
-                   </a>
-                  </div>
+                <div class="nav-item" data-role="admin">
+                    <a href="EmergencyTips.html" class="nav-link">
+                        <i class="fas fa-lightbulb"></i>
+                        Emergency Tips
+                    </a>
+                </div>
+
+                <div class="nav-item" data-role="admin">
+                    <a href="evacuation-centers.html" class="nav-link">
+                        <i class="fa-solid fa-tents"></i>
+                        Evacuation Centers
+                    </a>
+                </div>
 
                 <div class="nav-item" data-role="admin,monitor">
                     <a href="Forums.html" class="nav-link">
@@ -609,19 +680,19 @@
                 <div class="nav-item" data-role="admin">
                     <a href="Maps.html" class="nav-link">
                         <i class="fas fa-map"></i>
-                        Map
+                        Hazard Map
                     </a>
                 </div>
                 
-                <div class="nav-item">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="Chats.html" class="nav-link">
-                        <i class="fas fa-comment-dots"></i>
-                        CHATS
+                        <i class="fas fa-comment-dots"></i>  
+                        Chats
                     </a>
                 </div>
                 
-                <div class="nav-item" data-role="admin">
-                    <a href="AccountVerification.html" class="nav-link">
+                <div class="nav-item" data-role="admin,monitor">
+                    <a href="Accounts.html" class="nav-link">
                         <i class="fas fa-users"></i>
                         Accounts
                     </a>
@@ -633,8 +704,15 @@
                         Analytics
                     </a>
                 </div>
+
+                <div class="nav-item" data-role="admin">
+                    <a href="WeatherDisasters.html" class="nav-link">
+                        <i class="fa-solid fa-cloud"></i>
+                        Weather & Disasters
+                    </a>
+                </div>
                 
-                <div class="nav-item">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="Contacts.html" class="nav-link">
                         <i class="fas fa-phone"></i>
                         Contacts
@@ -645,7 +723,12 @@
 
         <div class="main-content">
             <div class="header">
-                <h1 class="page-title">Dashboard</h1>
+                <div class="header-left">
+                    <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">Dashboard</h1>
+                </div>
                 
                 <div class="user-info">
                     <div class="user-details">
@@ -655,7 +738,7 @@
                     <div class="role-badge" data-user-info="role">Loading...</div>
                     <div class="dropdown">
                         <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle fa-2x" style="color: #d53b2c;"></i>
+                            <i class="fas fa-user-circle fa-2x" style="color: #d73527;"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#" onclick="logoutUser()">
@@ -672,7 +755,7 @@
                         <div class="card-header">
                             <h3 class="card-title">
                                 <i class="fas fa-clock"></i>
-                                Real-Time Incoming Reports
+                                <span id="reportsTitle">Recent Reports</span>
                             </h3>
                         </div>
                         
@@ -691,7 +774,7 @@
                                     <i class="fas fa-chart-line"></i>
                                     Analytics
                                 </h3>
-                                <small class="text-muted">Number of incidents this week</small>
+                                <small class="text-muted">Reports this week</small>
                             </div>
                             
                             <div class="analytics-chart" id="analyticsChart">
@@ -706,7 +789,7 @@
                             <div class="card-header">
                                 <h3 class="card-title">
                                     <i class="fas fa-comments"></i>
-                                    Forum
+                                    Forum Moderation
                                 </h3>
                                 <span class="badge bg-warning" id="pendingPostsBadge">0</span>
                             </div>
@@ -729,8 +812,21 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-        import { getStorage } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+        import { 
+            getFirestore,
+            collection, 
+            query, 
+            orderBy, 
+            onSnapshot, 
+            updateDoc, 
+            doc, 
+            where,
+            getDocs,
+            Timestamp,
+            limit,
+            getDoc,
+             setDoc
+        } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
@@ -744,21 +840,6 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app);
-
-        import { 
-            collection, 
-            query, 
-            orderBy, 
-            onSnapshot, 
-            updateDoc, 
-            doc, 
-            where,
-            getDocs,
-            Timestamp,
-            limit,
-            getDoc
-        } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
         const USER_ROLES = {
             ADMIN: 'admin',
@@ -771,108 +852,228 @@
         const USER_STATUS = {
             ACTIVE: 'active',
             PENDING: 'pending',
+            DECLINED: 'declined',
             SUSPENDED: 'suspended',
             INACTIVE: 'inactive'
         };
+
+        const ALLOWED_ADMIN_ROLES = [
+            USER_ROLES.ADMIN,
+            USER_ROLES.MONITOR,
+            USER_ROLES.RESCUER,
+            USER_ROLES.AGENCY
+        ];
 
         let currentUserInfo = null;
         let reportsListener = null;
         let forumListener = null;
 
+        // Role-based navigation visibility
+        function updateNavigationVisibility(userRole) {
+            const navItems = document.querySelectorAll('.nav-item[data-role]');
+            
+            navItems.forEach(item => {
+                const allowedRoles = item.getAttribute('data-role').split(',').map(r => r.trim());
+                if (allowedRoles.includes(userRole)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Sidebar toggle functions
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+        };
+
+        window.closeSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        };
+
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                console.log('🚀 Initializing LipaAlertHub Dashboard...');
+                console.log('Initializing LipaAlertHub Dashboard...');
                 await checkAuthentication();
             } catch (error) {
-                console.error('❌ Dashboard initialization failed:', error);
-                showNotification('Failed to load dashboard. Please try again.', 'error');
+                console.error('Dashboard initialization failed:', error);
+                showNotification('Failed to load dashboard. Redirecting to login...', 'error');
                 setTimeout(() => {
                     window.location.href = 'index.html';
-                }, 3000);
+                }, 2000);
             }
         });
 
-        async function checkAuthentication() {
-            return new Promise((resolve, reject) => {
-                onAuthStateChanged(auth, async (user) => {
-                    if (!user) {
-                        window.location.href = "index.html";
-                        reject(new Error('User not authenticated'));
-                        return;
-                    }
+     
 
-                    try {
-                        const userDocRef = doc(db, 'users', user.uid);
-                        const userDoc = await getDoc(userDocRef);
+       // Enhanced authentication check with proper user document linking
+async function checkAuthentication() {
+    return new Promise((resolve, reject) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            unsubscribe();
+            
+            if (!user) {
+                console.log('No authenticated user');
+                window.location.href = "index.html?error=not-authenticated";
+                reject(new Error('Not authenticated'));
+                return;
+            }
+
+            try {
+                console.log('Verifying user access for:', user.email, 'UID:', user.uid);
+                
+                let userData = null;
+                let userDocId = user.uid;
+                let needsLinking = false;
+                
+                // Method 1: Check by Firebase UID first
+                const userDocByUID = await getDoc(doc(db, 'users', user.uid));
+                if (userDocByUID.exists()) {
+                    userData = userDocByUID.data();
+                    console.log('Found user by Firebase UID');
+                } else {
+                    // Method 2: Search by email if UID document doesn't exist
+                    console.log('User not found by UID, searching by email...');
+                    const emailQuery = query(collection(db, "users"), where("email", "==", user.email));
+                    const emailSnapshot = await getDocs(emailQuery);
+                    
+                    if (!emailSnapshot.empty) {
+                        const userDoc = emailSnapshot.docs[0];
+                        userData = userDoc.data();
+                        userDocId = userDoc.id;
+                        needsLinking = true;
+                        console.log('Found user by email search, needs linking');
                         
-                        if (!userDoc.exists()) {
-                            alert("User profile not found. Please contact administrator.");
-                            await signOut(auth);
-                            window.location.href = "index.html?error=no-profile";
-                            reject(new Error('User profile not found'));
-                            return;
+                        // AUTOMATIC LINKING: Update the user document with Firebase UID
+                        try {
+                            await updateDoc(doc(db, "users", userDocId), {
+                                firebaseUID: user.uid,
+                                linkedAt: new Date(),
+                                lastLoginAt: new Date()
+                            });
+                            console.log('Successfully linked Firebase UID to existing document');
+                            
+                            // Now create a copy with the correct UID as document ID
+                            const newUserData = {
+                                ...userData,
+                                firebaseUID: user.uid,
+                                linkedAt: new Date(),
+                                lastLoginAt: new Date(),
+                                originalDocId: userDocId
+                            };
+                            
+                            await setDoc(doc(db, "users", user.uid), newUserData);
+                            console.log('Created properly linked user document');
+                            
+                            // Update our variables to use the new document
+                            userDocId = user.uid;
+                            userData = newUserData;
+                            
+                        } catch (linkingError) {
+                            console.error('Error linking user document:', linkingError);
+                            // Continue with the found user data even if linking fails
                         }
-
-                        const userData = userDoc.data();
-                        const userRole = userData.role;
-                        const userStatus = userData.status || USER_STATUS.ACTIVE;
-
-                        console.log('User auth check:', {
-                            uid: user.uid,
-                            email: user.email,
-                            role: userRole,
-                            status: userStatus
-                        });
-
-                        if (userStatus === USER_STATUS.PENDING) {
-                            alert("Your account is pending approval. Please contact administrator.");
-                            await signOut(auth);
-                            window.location.href = "index.html?error=pending-approval";
-                            reject(new Error('Account pending approval'));
-                            return;
-                        }
-
-                        if (userStatus === USER_STATUS.SUSPENDED || userStatus === USER_STATUS.INACTIVE) {
-                            alert("Your account has been suspended. Please contact administrator.");
-                            await signOut(auth);
-                            window.location.href = "index.html?error=account-suspended";
-                            reject(new Error('Account suspended'));
-                            return;
-                        }
-
-                        if (userRole !== USER_ROLES.ADMIN && userRole !== USER_ROLES.MONITOR) {
-                            alert(`Access denied. Dashboard requires Admin or Monitor role. Your role: ${userRole}`);
-                            await signOut(auth);
-                            window.location.href = "index.html?error=insufficient-permissions";
-                            reject(new Error('Insufficient permissions'));
-                            return;
-                        }
-
-                        currentUserInfo = {
-                            user,
-                            role: userRole,
-                            status: userStatus,
-                            userData
-                        };
-
-                        console.log('✅ Dashboard access granted:', {
-                            email: user.email,
-                            role: userRole
-                        });
-
-                        await initializeDashboard();
-                        resolve(currentUserInfo);
-
-                    } catch (error) {
-                        console.error('Error checking user role:', error);
-                        alert("Error verifying permissions. Please try again.");
-                        await signOut(auth);
-                        window.location.href = "index.html?error=auth-error";
-                        reject(error);
                     }
+                }
+                
+                if (!userData) {
+                    console.log('User profile not found in database');
+                    alert("User profile not found. Please contact administrator.");
+                    await signOut(auth);
+                    window.location.href = "index.html?error=no-profile";
+                    reject(new Error('User profile not found'));
+                    return;
+                }
+
+                const userRole = userData.role?.toLowerCase();
+                const userStatus = userData.status?.toLowerCase() || 'active';
+
+                console.log('User verification:', {
+                    uid: user.uid,
+                    email: user.email,
+                    role: userRole,
+                    status: userStatus,
+                    needsLinking: needsLinking
                 });
-            });
-        }
+
+                // RBAC validation - Allow monitor/moderator role
+                const allowedRoles = ['admin', 'monitor', 'rescuer', 'agency'];
+                if (!allowedRoles.includes(userRole)) {
+                    console.log('Access denied - invalid role:', userRole);
+                    alert(`Access denied. Dashboard requires staff role. Your role: ${userRole || 'unknown'}`);
+                    await signOut(auth);
+                    window.location.href = "index.html?error=insufficient-permissions";
+                    reject(new Error('Insufficient permissions'));
+                    return;
+                }
+
+                // Status validation
+                if (userStatus !== 'active') {
+                    console.log('Account not active:', userStatus);
+                    let errorMessage = 'Your account is not active.';
+                    if (userStatus === 'pending') {
+                        errorMessage = 'Your account is pending approval.';
+                    } else if (userStatus === 'suspended') {
+                        errorMessage = 'Your account has been suspended.';
+                    } else if (userStatus === 'declined') {
+                        errorMessage = 'Your account has been declined.';
+                    }
+                    alert(errorMessage + ' Please contact administrator.');
+                    await signOut(auth);
+                    window.location.href = "index.html?error=account-inactive";
+                    reject(new Error('Account not active'));
+                    return;
+                }
+
+                currentUserInfo = {
+                    user,
+                    role: userRole,
+                    status: userStatus,
+                    userData,
+                    userDocId,
+                    wasLinked: needsLinking
+                };
+
+                console.log('Dashboard access granted:', {
+                    email: user.email,
+                    role: userRole,
+                    linkedProperly: !needsLinking
+                });
+
+                await initializeDashboard();
+                resolve(currentUserInfo);
+
+            } catch (error) {
+                console.error('Authentication check failed:', error);
+                
+                // More specific error handling
+                if (error.code === 'permission-denied') {
+                    alert("Permission denied. Your account may not be properly configured. Please contact administrator.");
+                } else if (error.code === 'unavailable') {
+                    alert("Service temporarily unavailable. Please try again later.");
+                } else {
+                    alert("Error verifying permissions. Please try logging in again.");
+                }
+                
+                try {
+                    await signOut(auth);
+                } catch (signOutError) {
+                    console.error('Error signing out:', signOutError);
+                }
+                window.location.href = "index.html?error=auth-check-failed";
+                reject(error);
+            }
+        });
+    });
+}
 
         async function initializeDashboard() {
             try {
@@ -881,8 +1082,10 @@
                 document.getElementById('loadingOverlay').style.display = 'none';
                 document.getElementById('dashboardContainer').style.display = 'block';
                 await loadDashboardData();
+                
                 const welcomeMessage = `Welcome back, ${currentUserInfo.userData?.name || currentUserInfo.user.email}!`;
                 showNotification(welcomeMessage, 'success');
+                
             } catch (error) {
                 console.error('Error initializing dashboard:', error);
                 showNotification('Error loading dashboard data', 'warning');
@@ -892,11 +1095,14 @@
         function applyRoleBasedUI() {
             const roleElements = document.querySelectorAll('[data-role]');
             roleElements.forEach(element => {
-                const allowedRoles = element.getAttribute('data-role').split(',');
+                const allowedRoles = element.getAttribute('data-role').split(',').map(r => r.trim());
                 if (!allowedRoles.includes(currentUserInfo.role)) {
                     element.style.display = 'none';
                 }
             });
+
+            // Update navigation visibility
+            updateNavigationVisibility(currentUserInfo.role);
         }
 
         function updateUserInfo() {
@@ -917,7 +1123,9 @@
             if (roleElement) {
                 const roleDisplayName = {
                     [USER_ROLES.ADMIN]: 'Administrator',
-                    [USER_ROLES.MONITOR]: 'Monitor'
+                    [USER_ROLES.MONITOR]: 'Moderator',
+                    [USER_ROLES.RESCUER]: 'Rescuer',
+                    [USER_ROLES.AGENCY]: 'Agency'
                 }[currentUserInfo.role] || currentUserInfo.role.toUpperCase();
                 
                 roleElement.textContent = roleDisplayName;
@@ -927,14 +1135,14 @@
 
         async function loadDashboardData() {
             try {
-                console.log('📊 Loading dashboard data...');
+                console.log('Loading dashboard data...');
                 await loadRecentReports();
                 
                 if (currentUserInfo.role === USER_ROLES.ADMIN) {
                     await loadAnalytics();
                 }
                 
-                if (currentUserInfo.role === USER_ROLES.ADMIN || currentUserInfo.role === USER_ROLES.MONITOR) {
+                if ([USER_ROLES.ADMIN, USER_ROLES.MONITOR].includes(currentUserInfo.role)) {
                     await loadForumPosts();
                 }
             } catch (error) {
@@ -943,91 +1151,188 @@
             }
         }
 
+      function createReportQuery(userRole, userId) {
+    const baseCollection = collection(db, "incident_reports");
+    
+    if (userRole === USER_ROLES.ADMIN || userRole === USER_ROLES.MONITOR) {
+        console.log(`Creating dashboard query for ${userRole}: All reports (no restrictions)`);
+        return query(baseCollection, orderBy("createdAt", "desc"), limit(10));
+    } else if (userRole === USER_ROLES.RESCUER) {
+        console.log(`Creating dashboard query for rescuer: Reports where assignedRescuer == ${userId}`);
+        return query(
+            baseCollection, 
+            where("assignedRescuer", "==", userId),
+            orderBy("createdAt", "desc"),
+            limit(10)
+        );
+    } else if (userRole === USER_ROLES.AGENCY) {
+        console.log(`Creating dashboard query for agency: Reports where assignedAgency == ${userId}`);
+        return query(
+            baseCollection, 
+            where("assignedAgency", "==", userId),
+            orderBy("createdAt", "desc"),
+            limit(10)
+        );
+    } else {
+        console.log(`Creating fallback query for role: ${userRole}`);
+        return query(
+            baseCollection, 
+            where("reporterId", "==", userId),
+            orderBy("createdAt", "desc"),
+            limit(10)
+        );
+    }
+}
+
         async function loadRecentReports() {
             const container = document.getElementById('reportsContainer');
+            const titleElement = document.getElementById('reportsTitle');
             
             try {
-                const q = query(
-                    collection(db, "incident_reports"),
-                    orderBy("timestamp", "desc"),
-                    limit(10)
-                );
+                // Update title based on role
+                if (currentUserInfo.role === USER_ROLES.RESCUER) {
+                    titleElement.textContent = 'Your Assigned Reports';
+                } else if (currentUserInfo.role === USER_ROLES.AGENCY) {
+                    titleElement.textContent = 'Reports Assigned to Your Agency';
+                } else {
+                    titleElement.textContent = 'Recent Reports';
+                }
+
+                const q = createReportQuery(currentUserInfo.role, currentUserInfo.user.uid);
 
                 if (reportsListener) {
                     reportsListener();
                 }
 
-                reportsListener = onSnapshot(q, (snapshot) => {
-                    container.innerHTML = '';
-                    
-                    if (snapshot.empty) {
-                        container.innerHTML = `
-                            <div class="no-data">
-                                <i class="fas fa-inbox fa-2x mb-3"></i>
-                                <p>No emergency reports found</p>
-                            </div>
-                        `;
-                        return;
-                    }
+       reportsListener = onSnapshot(q, (snapshot) => {
+    container.innerHTML = '';
+    
+    if (snapshot.empty) {
+        let noDataMessage = 'No emergency reports found';
+        if (currentUserInfo.role === USER_ROLES.RESCUER) {
+            noDataMessage = 'No reports have been assigned to you yet';
+        } else if (currentUserInfo.role === USER_ROLES.AGENCY) {
+            noDataMessage = 'No reports have been assigned to your agency yet';
+        }
+        
+        container.innerHTML = `
+            <div class="no-data">
+                <i class="fas fa-inbox fa-2x mb-3"></i>
+                <p>${noDataMessage}</p>
+            </div>
+        `;
+        return;
+    }
 
-                    snapshot.forEach((docSnap) => {
-                        const data = docSnap.data();
-                        const reportElement = createReportElement(docSnap.id, data);
-                        container.appendChild(reportElement);
-                    });
-                    
-                    console.log(`📋 Loaded ${snapshot.size} reports`);
-                }, (error) => {
-                    console.error('Error loading reports:', error);
-                    container.innerHTML = `
-                        <div class="error-content">
-                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                            <p>Error loading reports</p>
-                        </div>
-                    `;
-                });
+    snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const reportElement = createReportElement(docSnap.id, data);
+        container.appendChild(reportElement);
+    });
+    
+    console.log(`Loaded ${snapshot.size} reports for role: ${currentUserInfo.role}`);
+}, (error) => {
+    console.error('Error loading reports:', error);
+    
+    // ENHANCED ERROR HANDLING
+    let errorMessage = "Failed to load emergency reports";
+    let errorDetails = error.message;
+    
+    if (error.code === 'permission-denied') {
+        errorMessage = "Access denied. You don't have permission to view these reports.";
+        errorDetails = "This could be due to missing composite indexes or security rule restrictions.";
+        
+        if (error.message.includes('index')) {
+            errorDetails = "Missing Firestore composite index. Please check the console for index creation links.";
+        }
+    } else if (error.code === 'failed-precondition') {
+        errorMessage = "Database index required for this query.";
+        errorDetails = "Please check the Firestore console for required index creation.";
+    }
+    
+    container.innerHTML = `
+        <div class="error-content">
+            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+            <p>${errorMessage}</p>
+            <p><small>Error Code: ${error.code}</small></p>
+            <p><small>Details: ${errorDetails}</small></p>
+            <button class="btn btn-primary mt-3" onclick="window.location.reload()">Reload Dashboard</button>
+        </div>
+    `;
+});
 
             } catch (error) {
                 console.error('Error setting up reports listener:', error);
                 container.innerHTML = `
                     <div class="error-content">
                         <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                        <p>Error loading emergency reports</p>
+                        <p>Failed to load emergency reports</p>
                     </div>
                 `;
             }
         }
 
-        // Create Report Element - Shows both View and Verify buttons as appropriate
         function createReportElement(id, data) {
             const reportDiv = document.createElement('div');
             reportDiv.className = 'report-item';
             
             let actionButtons = '';
             
-            // Always show View button
+            // View button for all authorized roles
             actionButtons += `
                 <button class="btn-action" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white;" onclick="viewReport('${id}')">
                     <i class="fas fa-eye"></i> View
                 </button>
             `;
             
-            // Show verify button only for pending reports
+            // Role-based action buttons
             if (data.status === 'pending' || !data.status) {
-                actionButtons += `
-                    <button class="btn-action btn-verify" onclick="verifyReport('${id}')">
-                        <i class="fas fa-check"></i> Verify
-                    </button>
-                `;
+                if (currentUserInfo.role === USER_ROLES.ADMIN || currentUserInfo.role === USER_ROLES.MONITOR) {
+                    actionButtons += `
+                        <button class="btn-action btn-verify" onclick="verifyReport('${id}')">
+                            <i class="fas fa-check"></i> Accept
+                        </button>
+                    `;
+                }
+            } else if (data.status === 'assigned') {
+                if (currentUserInfo.role === USER_ROLES.RESCUER && data.assignedRescuer === currentUserInfo.user.uid) {
+                    actionButtons += `
+                        <button class="btn-action" style="background: linear-gradient(135deg, #17a2b8, #138496); color: white;" onclick="updateStatus('${id}')">
+                            <i class="fas fa-tasks"></i> Update Status
+                        </button>
+                    `;
+                } else if (currentUserInfo.role === USER_ROLES.AGENCY && data.assignedAgency === currentUserInfo.user.uid) {
+                    actionButtons += `
+                        <button class="btn-action" style="background: linear-gradient(135deg, #28a745, #218838); color: white;" onclick="markResolved('${id}')">
+                            <i class="fas fa-check-double"></i> Mark Resolved
+                        </button>
+                    `;
+                }
             }
             
+            // Format location
+            let location = 'Unknown Location';
+            if (data.barangay) {
+                location = data.barangay;
+            } else if (data.fullAddress) {
+                location = data.fullAddress.length > 30 ? data.fullAddress.substring(0, 30) + '...' : data.fullAddress;
+            } else if (data.location?.barangay) {
+                location = data.location.barangay;
+            }
+
+            // Format reporter name
+            let reporterName = 'Anonymous';
+            if (data.reporterName || data.name) {
+                reporterName = data.reporterName || data.name;
+            }
+
             reportDiv.innerHTML = `
                 <div class="report-info flex-grow-1">
                     <h6>${data.emergencyType || 'Unknown Emergency'}</h6>
                     <div class="report-meta">
-                        <i class="fas fa-map-marker-alt me-1"></i>${data.barangay || 'Unknown Location'} • 
-                        <i class="fas fa-user me-1"></i>${data.name || 'Anonymous'} • 
-                        <i class="fas fa-clock me-1"></i>${formatTimestamp(data.timestamp)}
+                        <i class="fas fa-map-marker-alt me-1"></i>${location} • 
+                        <i class="fas fa-user me-1"></i>${reporterName} • 
+                        <i class="fas fa-clock me-1"></i>${formatTimestamp(data.createdAt || data.timestamp)}
                     </div>
                     <span class="status-badge ${data.status || 'pending'}">${(data.status || 'pending').toUpperCase()}</span>
                 </div>
@@ -1040,6 +1345,7 @@
             return reportDiv;
         }
 
+        // FIXED: Role-based analytics query
         async function loadAnalytics() {
             try {
                 const analyticsContainer = document.getElementById("analyticsChart");
@@ -1047,10 +1353,21 @@
                 const weekAgo = new Date();
                 weekAgo.setDate(weekAgo.getDate() - 7);
                 
+                // Only admin can access all reports for analytics
+                if (currentUserInfo.role !== USER_ROLES.ADMIN) {
+                    analyticsContainer.innerHTML = `
+                        <div class="loading-content text-white">
+                            <i class="fas fa-lock fa-2x mb-3"></i>
+                            <p>Analytics available for administrators only</p>
+                        </div>
+                    `;
+                    return;
+                }
+
                 const q = query(
                     collection(db, "incident_reports"),
-                    where("timestamp", ">=", Timestamp.fromDate(weekAgo)),
-                    orderBy("timestamp", "desc")
+                    where("createdAt", ">=", Timestamp.fromDate(weekAgo)),
+                    orderBy("createdAt", "desc")
                 );
 
                 const snapshot = await getDocs(q);
@@ -1058,6 +1375,7 @@
                 const dailyCounts = {};
                 const today = new Date();
                 
+                // Initialize past 7 days
                 for (let i = 6; i >= 0; i--) {
                     const date = new Date(today);
                     date.setDate(date.getDate() - i);
@@ -1065,11 +1383,16 @@
                     dailyCounts[dateKey] = 0;
                 }
                 
+                // Count incidents per day
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     let incidentDate = new Date();
                     
-                    if (data.timestamp?.seconds) {
+                    if (data.createdAt?.seconds) {
+                        incidentDate = new Date(data.createdAt.seconds * 1000);
+                    } else if (data.createdAt?.toDate) {
+                        incidentDate = data.createdAt.toDate();
+                    } else if (data.timestamp?.seconds) {
                         incidentDate = new Date(data.timestamp.seconds * 1000);
                     } else if (data.timestamp?.toDate) {
                         incidentDate = data.timestamp.toDate();
@@ -1096,11 +1419,14 @@
                     analyticsContainer.appendChild(bar);
                 });
                 
+                console.log('Analytics loaded successfully');
+                
             } catch (error) {
                 console.error("Error loading analytics:", error);
                 document.getElementById("analyticsChart").innerHTML = `
                     <div class="loading-content text-white">
-                        Error loading analytics
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Error loading analytics</p>
                     </div>
                 `;
             }
@@ -1131,7 +1457,7 @@
                         container.innerHTML = `
                             <div class="no-data">
                                 <i class="fas fa-check-circle fa-2x mb-3 text-success"></i>
-                                <p>No pending posts</p>
+                                <p>No pending posts to review</p>
                             </div>
                         `;
                         return;
@@ -1142,12 +1468,14 @@
                         const postElement = createForumPostElement(docSnap.id, data);
                         container.appendChild(postElement);
                     });
+                    
+                    console.log(`Loaded ${pendingCount} pending forum posts`);
                 }, (error) => {
                     console.error('Error loading forum posts:', error);
                     container.innerHTML = `
                         <div class="error-content">
                             <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                            <p>Error loading posts</p>
+                            <p>Error loading forum posts</p>
                         </div>
                     `;
                     document.getElementById('pendingPostsBadge').textContent = '0';
@@ -1158,7 +1486,7 @@
                 container.innerHTML = `
                     <div class="error-content">
                         <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                        <p>Error loading posts</p>
+                        <p>Failed to load forum posts</p>
                     </div>
                 `;
                 document.getElementById('pendingPostsBadge').textContent = '0';
@@ -1173,7 +1501,7 @@
                 <div class="post-header">
                     <div>
                         <div class="post-title">${data.title || 'Untitled Post'}</div>
-                        <div class="post-author">by ${data.userName || data.authorName || 'Anonymous'}</div>
+                        <div class="post-author">by ${data.userName || data.authorName || data.author || 'Anonymous'}</div>
                     </div>
                 </div>
                 <div class="post-content">${(data.content || '').substring(0, 150)}${data.content?.length > 150 ? '...' : ''}</div>
@@ -1194,32 +1522,99 @@
             if (!timestamp) return 'Unknown time';
             
             let date;
-            if (timestamp.seconds) {
-                date = new Date(timestamp.seconds * 1000);
-            } else if (timestamp.toDate) {
-                date = timestamp.toDate();
-            } else {
-                date = new Date(timestamp);
-            }
             
-            return date.toLocaleString();
+            try {
+                if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+                    date = new Date(timestamp.seconds * 1000);
+                    if (timestamp.nanoseconds) {
+                        date.setMilliseconds(date.getMilliseconds() + Math.floor(timestamp.nanoseconds / 1000000));
+                    }
+                } 
+                else if (timestamp && typeof timestamp === 'object' && typeof timestamp.toDate === 'function') {
+                    date = timestamp.toDate();
+                }
+                else if (timestamp && typeof timestamp === 'object' && timestamp._seconds) {
+                    date = new Date(timestamp._seconds * 1000);
+                }
+                else if (timestamp instanceof Date) {
+                    date = timestamp;
+                }
+                else if (typeof timestamp === 'string') {
+                    date = new Date(timestamp);
+                }
+                else if (typeof timestamp === 'number') {
+                    if (timestamp < 1000000000000) {
+                        date = new Date(timestamp * 1000);
+                    } else {
+                        date = new Date(timestamp);
+                    }
+                }
+                else {
+                    return 'Unknown format';
+                }
+                
+                if (isNaN(date.getTime())) {
+                    return 'Invalid date';
+                }
+                
+                const now = new Date();
+                const diffMs = now.getTime() - date.getTime();
+                const diffMins = Math.floor(diffMs / (1000 * 60));
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                
+                if (Math.abs(diffMins) < 1) {
+                    return 'Just now';
+                } else if (Math.abs(diffMins) < 60) {
+                    return diffMins > 0 ? `${diffMins} min ago` : `In ${Math.abs(diffMins)} min`;
+                } else if (Math.abs(diffHours) < 24) {
+                    return diffHours > 0 ? `${diffHours}h ago` : `In ${Math.abs(diffHours)}h`;
+                } else if (Math.abs(diffDays) < 7) {
+                    return diffDays > 0 ? `${diffDays} days ago` : `In ${Math.abs(diffDays)} days`;
+                } else {
+                    return date.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error formatting timestamp:', error);
+                return 'Error formatting';
+            }
         }
 
+        // Global functions for onClick events
         window.showDashboard = function() {
             console.log('Already on dashboard');
         };
 
-        // Verify button redirects to report.html with report ID for full verification workflow
         window.verifyReport = function(id) {
             window.location.href = `report.html?id=${id}`;
         };
 
-        // View button also redirects to report.html but for read-only viewing
         window.viewReport = function(id) {
             window.location.href = `report.html?id=${id}`;
         };
 
+        window.updateStatus = function(id) {
+            window.location.href = `report.html?id=${id}`;
+        };
+
+        window.markResolved = function(id) {
+            window.location.href = `report.html?id=${id}`;
+        };
+
         window.approvePost = async function(postId) {
+            if (!currentUserInfo || ![USER_ROLES.ADMIN, USER_ROLES.MONITOR].includes(currentUserInfo.role)) {
+                showNotification('Access denied. Only admins and moderators can approve posts.', 'error');
+                return;
+            }
+            
             try {
                 await updateDoc(doc(db, "forumPosts", postId), {
                     status: "approved",
@@ -1235,6 +1630,11 @@
         };
 
         window.rejectPost = async function(postId) {
+            if (!currentUserInfo || ![USER_ROLES.ADMIN, USER_ROLES.MONITOR].includes(currentUserInfo.role)) {
+                showNotification('Access denied. Only admins and moderators can reject posts.', 'error');
+                return;
+            }
+            
             const reason = prompt("Reason for rejection (optional):");
             if (reason === null) return;
             
@@ -1294,6 +1694,7 @@
             });
         }
 
+        // Cleanup listeners on page unload
         window.addEventListener('beforeunload', () => {
             if (reportsListener) reportsListener();
             if (forumListener) forumListener();

@@ -9,6 +9,7 @@ export default function AuthLayout() {
       <Stack.Screen name="reset-password/otp" />
       <Stack.Screen name="reset-password/new-password" />
       <Stack.Screen name="id-verification" />
+      <Stack.Screen name="account-status" />
     </Stack>
   );
 }

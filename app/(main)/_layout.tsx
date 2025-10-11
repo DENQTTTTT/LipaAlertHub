@@ -340,7 +340,6 @@ export default function MainLayout() {
       {/* HIDDEN ROUTES - Not shown in tab bar */}
       <Tabs.Screen name="emergency/index" options={{ href: null }} />
       <Tabs.Screen name="report/create" options={{ href: null }} />
-      <Tabs.Screen name="report/confirm" options={{ href: null }} />
       <Tabs.Screen name="report/status" options={{ href: null }} />
 
       <Tabs.Screen name="forum/index" options={{ href: null }} />
@@ -350,10 +349,10 @@ export default function MainLayout() {
       <Tabs.Screen name="chat/[id]" options={{ href: null }} />
       <Tabs.Screen name="chat/index" options={{ href: null }} />
 
-      <Tabs.Screen name="maps/hazard" options={{ href: null }} />
+      
       <Tabs.Screen name="maps/evacuation" options={{ href: null }} />
 
-      <Tabs.Screen name="weather/alerts" options={{ href: null }} />
+
       <Tabs.Screen name="weather/detailed" options={{ href: null }} />
 
       <Tabs.Screen name="emergency/sos" options={{ href: null }} />
@@ -361,13 +360,9 @@ export default function MainLayout() {
       <Tabs.Screen name="emergency/tips-category" options={{ href: null }} />
       <Tabs.Screen name="emergency/sos-services" options={{ href: null }} />
 
-      <Tabs.Screen name="profile/edit" options={{ href: null }} />
       <Tabs.Screen name="profile/change-password/index" options={{ href: null }} />
-      <Tabs.Screen name="profile/change-password/step2" options={{ href: null }} />
-      <Tabs.Screen name="profile/change-password/success" options={{ href: null }} />
-      <Tabs.Screen name="profile/strikes" options={{ href: null }} />
+  
 
-      {/* ANNOUNCEMENTS ROUTES - HIDDEN FROM TAB BAR */}
       <Tabs.Screen name="announcements/index" options={{ href: null }} />
       <Tabs.Screen name="announcements/details" options={{ href: null }} />
     </Tabs>

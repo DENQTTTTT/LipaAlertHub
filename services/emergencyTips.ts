@@ -1,12 +1,12 @@
 import {
-    collection,
-    DocumentData,
-    getDocs,
-    onSnapshot,
-    orderBy,
-    query,
-    QuerySnapshot,
-    where
+  collection,
+  DocumentData,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  QuerySnapshot,
+  where
 } from 'firebase/firestore';
 import { db } from './firebase';
 

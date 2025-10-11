@@ -11,6 +11,7 @@ import {
   serverTimestamp,
   where
 } from "firebase/firestore";
+import { getFunctions } from "firebase/functions"; // ADD THIS LINE
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -35,6 +36,7 @@ if (getApps().length === 0) {
 const auth: Auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const functions = getFunctions(app, 'asia-southeast1'); // ADD THIS LINE
 
 // Emergency Contact Interface
 export interface EmergencyContact {
@@ -230,4 +232,5 @@ export const formatEmergencyContactForDisplay = (contact: EmergencyContact) => {
   };
 };
 
-export { app, auth, db, serverTimestamp, storage };
+export { app, auth, db, functions, serverTimestamp, storage }; // ADD functions TO EXPORTS
+

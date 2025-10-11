@@ -14,7 +14,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { createForumPost } from "../../../services/forum";
 
@@ -23,10 +23,10 @@ const CreateForumPost = () => {
   const [content, setContent] = useState("");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Camera states
   const [showCamera, setShowCamera] = useState(false);
-  const [facing, setFacing] = useState<CameraType>('back');
+  const [facing, setFacing] = useState<CameraType>("back");
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
 
@@ -39,9 +39,7 @@ const CreateForumPost = () => {
           skipProcessing: true,
         });
 
-        if (!photo.uri) {
-          throw new Error("Failed to capture photo.");
-        }
+        if (!photo.uri) throw new Error("Failed to capture photo.");
 
         setPhotoUri(photo.uri);
         setShowCamera(false);
@@ -57,14 +55,12 @@ const CreateForumPost = () => {
       Alert.alert("Missing Title", "Please enter a title for your post.");
       return;
     }
-
     if (!content.trim()) {
       Alert.alert("Missing Content", "Please enter some content for your post.");
       return;
     }
 
     setIsSubmitting(true);
-    
     try {
       await createForumPost({
         title: title.trim(),
@@ -72,12 +68,11 @@ const CreateForumPost = () => {
         imageUri: photoUri || undefined,
       });
 
-      // Clear form after successful submission
+      // Reset form
       setTitle("");
       setContent("");
       setPhotoUri(null);
 
-      // Success message with navigation
       Alert.alert(
         "Post Submitted Successfully!",
         "Your post has been submitted for review and will appear in the forum once approved by our moderators. This helps us maintain a safe and welcoming community for everyone.",
@@ -91,44 +86,37 @@ const CreateForumPost = () => {
         ]
       );
     } catch (error) {
-      console.error('Error creating post:', error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to submit post. Please try again.";
+      console.error("Error creating post:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to submit post. Please try again.";
       Alert.alert("Submission Failed", errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const removePhoto = () => {
-    setPhotoUri(null);
-  };
+  const removePhoto = () => setPhotoUri(null);
 
   const handleBackPress = () => {
     if (title.trim() || content.trim() || photoUri) {
-      Alert.alert(
-        "Discard Changes?",
-        "You have unsaved changes. Are you sure you want to go back?",
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-          {
-            text: "Discard",
-            onPress: () => router.back(),
-            style: "destructive",
-          },
-        ]
-      );
+      Alert.alert("Discard Changes?", "You have unsaved changes.", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          onPress: () => router.back(),
+          style: "destructive",
+        },
+      ]);
     } else {
       router.back();
     }
   };
 
-  // Check if form is valid
   const isFormValid = title.trim().length > 0 && content.trim().length > 0;
 
-  // Camera permission check
+  // ===== CAMERA PERMISSIONS =====
   if (showCamera) {
     if (!permission) {
       return (
@@ -138,7 +126,6 @@ const CreateForumPost = () => {
         </View>
       );
     }
-
     if (!permission.granted) {
       return (
         <View style={styles.permissionContainer}>
@@ -146,7 +133,10 @@ const CreateForumPost = () => {
           <Text style={styles.permissionText}>
             We need your permission to use the camera for taking photos.
           </Text>
-          <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+          <TouchableOpacity
+            style={styles.permissionButton}
+            onPress={requestPermission}
+          >
             <Text style={styles.permissionButtonText}>Grant Permission</Text>
           </TouchableOpacity>
         </View>
@@ -166,14 +156,19 @@ const CreateForumPost = () => {
             <Text style={styles.cameraTitle}>Take Photo</Text>
             <TouchableOpacity
               style={styles.cameraHeaderButton}
-              onPress={() => setFacing((current) => (current === "back" ? "front" : "back"))}
+              onPress={() =>
+                setFacing((cur) => (cur === "back" ? "front" : "back"))
+              }
             >
               <Ionicons name="camera-reverse" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
           <View style={styles.cameraControls}>
             <View style={styles.captureContainer}>
-              <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
+              <TouchableOpacity
+                style={styles.captureButton}
+                onPress={takePicture}
+              >
                 <View style={styles.captureInner} />
               </TouchableOpacity>
             </View>
@@ -186,39 +181,43 @@ const CreateForumPost = () => {
     );
   }
 
+  // ===== FORM UI =====
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={handleBackPress}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Post</Text>
         <View style={styles.placeholder} />
       </View>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
       >
-        <ScrollView 
-          style={styles.scrollContainer} 
+        <ScrollView
+          style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Community Guidelines Notice */}
+          {/* Community Guidelines */}
           <View style={styles.guidelinesContainer}>
             <View style={styles.guidelinesHeader}>
-              <Ionicons name="information-circle-outline" size={20} color="#D32F2F" />
+              <Ionicons
+                name="information-circle-outline"
+                size={20}
+                color="#D32F2F"
+              />
               <Text style={styles.guidelinesTitle}>Community Guidelines</Text>
             </View>
             <Text style={styles.guidelinesText}>
-              All posts are reviewed by our moderators before being published. Please ensure your content is respectful and follows our community guidelines.
+              All posts are reviewed by moderators before being published.
+              Please ensure your content is respectful and follows our
+              guidelines.
             </Text>
           </View>
 
@@ -231,7 +230,6 @@ const CreateForumPost = () => {
               value={title}
               onChangeText={setTitle}
               placeholderTextColor="#999"
-              multiline={false}
               maxLength={100}
             />
             <Text style={styles.charCount}>{title.length}/100</Text>
@@ -243,7 +241,7 @@ const CreateForumPost = () => {
             <View style={styles.contentInputContainer}>
               <TextInput
                 style={styles.contentInput}
-                placeholder="Share your thoughts with the community..."
+                placeholder="Share your thoughts..."
                 value={content}
                 onChangeText={setContent}
                 placeholderTextColor="#999"
@@ -252,8 +250,6 @@ const CreateForumPost = () => {
                 scrollEnabled={false}
                 maxLength={1000}
               />
-              
-              {/* Toolbar */}
               <View style={styles.toolbar}>
                 <TouchableOpacity
                   style={styles.toolbarButton}
@@ -281,20 +277,21 @@ const CreateForumPost = () => {
             </View>
           )}
 
-          {/* Form Status */}
+          {/* Status */}
           <View style={styles.statusContainer}>
             <Text style={styles.statusText}>
-              Status: {isFormValid ? "Ready to submit" : "Please fill required fields"}
+              Status:{" "}
+              {isFormValid ? "Ready to submit" : "Please fill required fields"}
             </Text>
           </View>
         </ScrollView>
 
-        {/* Fixed Submit Button */}
+        {/* Submit Button */}
         <View style={styles.submitContainer}>
           <TouchableOpacity
             style={[
-              styles.submitButton, 
-              (!isFormValid || isSubmitting) && styles.submitButtonDisabled
+              styles.submitButton,
+              (!isFormValid || isSubmitting) && styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
             disabled={!isFormValid || isSubmitting}
@@ -309,9 +306,7 @@ const CreateForumPost = () => {
             ) : (
               <>
                 <Ionicons name="send" size={18} color="#fff" />
-                <Text style={styles.submitButtonText}>
-                  {isFormValid ? "Submit for Review" : "Fill Required Fields"}
-                </Text>
+                <Text style={styles.submitButtonText}>Submit for Review</Text>
               </>
             )}
           </TouchableOpacity>
@@ -322,308 +317,169 @@ const CreateForumPost = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
   header: {
-    backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    backgroundColor: "#fff",
+    paddingTop: Platform.OS === "ios" ? 50 : 30,
     paddingHorizontal: 20,
     paddingBottom: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: "#e0e0e0",
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#000",
     shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
-  backButton: {
-    padding: 5,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-  },
-  placeholder: {
-    width: 34,
-  },
-  keyboardContainer: {
-    flex: 1,
-  },
+  backButton: { padding: 5 },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: "#333" },
+  placeholder: { width: 34 },
+  keyboardContainer: { flex: 1 },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
   },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
-  },
+  loadingText: { marginTop: 10, fontSize: 16, color: "#666", fontWeight: "500" },
   permissionContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 40,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   permissionText: {
     fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
+    color: "#333",
+    textAlign: "center",
     marginVertical: 20,
-    lineHeight: 24,
-    fontWeight: '500',
   },
   permissionButton: {
-    backgroundColor: '#D32F2F',
+    backgroundColor: "#D32F2F",
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 8,
   },
-  permissionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
+  permissionButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  scrollContainer: { flex: 1 },
+  scrollContent: { paddingBottom: 20 },
   guidelinesContainer: {
-    backgroundColor: '#fff3f3',
+    backgroundColor: "#fff3f3",
     borderLeftWidth: 4,
-    borderLeftColor: '#D32F2F',
+    borderLeftColor: "#D32F2F",
     margin: 15,
     padding: 15,
     borderRadius: 8,
   },
-  guidelinesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  guidelinesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#D32F2F',
-    marginLeft: 6,
-  },
-  guidelinesText: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
-  },
+  guidelinesHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  guidelinesTitle: { fontSize: 14, fontWeight: "600", color: "#D32F2F", marginLeft: 6 },
+  guidelinesText: { fontSize: 13, color: "#666", lineHeight: 18 },
   inputContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     margin: 15,
     borderRadius: 8,
     padding: 15,
     elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
-  },
+  label: { fontSize: 16, fontWeight: "600", color: "#333", marginBottom: 10 },
   titleInput: {
     fontSize: 16,
-    color: '#333',
+    color: "#333",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: "#e0e0e0",
   },
-  contentInputContainer: {
-    position: 'relative',
-  },
+  contentInputContainer: { position: "relative" },
   contentInput: {
     fontSize: 16,
-    color: '#333',
+    color: "#333",
     minHeight: 120,
     maxHeight: 200,
     paddingVertical: 10,
     paddingBottom: 50,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
-  toolbar: {
-    position: 'absolute',
-    bottom: 10,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    paddingVertical: 8,
-  },
-  toolbarButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    marginRight: 10,
-  },
-  toolbarButtonText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 4,
-  },
-  charCount: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'right',
-    marginTop: 5,
-  },
+  toolbar: { position: "absolute", bottom: 10, left: 0, right: 0, flexDirection: "row" },
+  toolbarButton: { flexDirection: "row", alignItems: "center", padding: 8, marginRight: 10 },
+  toolbarButtonText: { fontSize: 12, color: "#666", marginLeft: 4 },
+  charCount: { fontSize: 12, color: "#999", textAlign: "right", marginTop: 5 },
   photoPreviewContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     margin: 15,
     marginTop: 0,
     borderRadius: 8,
     padding: 15,
-    position: 'relative',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    position: "relative",
   },
-  photoLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
-  },
-  photoPreview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-  },
-  removePhotoButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-  },
-  statusContainer: {
-    backgroundColor: '#f0f0f0',
-    margin: 15,
-    padding: 10,
-    borderRadius: 5,
-  },
-  statusText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-  },
+  photoLabel: { fontSize: 14, fontWeight: "600", color: "#333", marginBottom: 10 },
+  photoPreview: { width: "100%", height: 200, borderRadius: 8 },
+  removePhotoButton: { position: "absolute", top: 10, right: 10 },
+  statusContainer: { backgroundColor: "#f0f0f0", margin: 15, padding: 10, borderRadius: 5 },
+  statusText: { fontSize: 12, color: "#666", textAlign: "center" },
   submitContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 15,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 15,
+    paddingBottom: Platform.OS === "ios" ? 30 : 15,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    marginBottom: Platform.OS === 'ios' ? 0 : 90,
+    borderTopColor: "#e0e0e0",
   },
   submitButton: {
-    backgroundColor: '#D32F2F',
+    backgroundColor: "#D32F2F",
     borderRadius: 8,
     paddingVertical: 15,
     paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  submitButtonDisabled: {
-    backgroundColor: '#ccc',
-    opacity: 0.7,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: 8,
-    textAlign: 'center',
-  },
-  // Camera styles
-  cameraContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  camera: {
-    flex: 1,
-  },
+  submitButtonDisabled: { backgroundColor: "#ccc", opacity: 0.7 },
+  submitButtonText: { color: "#fff", fontSize: 16, fontWeight: "700", marginLeft: 8 },
+  // Camera
+  cameraContainer: { flex: 1, backgroundColor: "#000" },
+  camera: { flex: 1 },
   cameraHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   cameraHeaderButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  cameraTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
+  cameraTitle: { color: "#fff", fontSize: 18, fontWeight: "700" },
   cameraControls: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     paddingBottom: 60,
-    paddingHorizontal: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
-  captureContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
+  captureContainer: { alignItems: "center", marginBottom: 20 },
   captureButton: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 4,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: "rgba(255,255,255,0.3)",
   },
-  captureInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#D32F2F',
-  },
-  cameraInstructions: {
-    color: '#fff',
-    fontSize: 14,
-    textAlign: 'center',
-    opacity: 0.8,
-  },
+  captureInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#D32F2F" },
+  cameraInstructions: { color: "#fff", fontSize: 14, textAlign: "center", opacity: 0.8 },
 });
 
 export default CreateForumPost;

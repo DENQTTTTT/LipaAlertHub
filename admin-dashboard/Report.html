@@ -26,7 +26,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            background: linear-gradient(135deg, #d73527, #b92e20);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -57,10 +57,16 @@
             top: 0;
             width: 250px;
             height: 100vh;
-            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            background: linear-gradient(180deg, #d73527 0%, #b92e20 100%);
             z-index: 1000;
             overflow-y: auto;
             box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.show {
+            transform: translateX(0);
         }
 
         .sidebar-header {
@@ -126,40 +132,11 @@
             font-size: 16px;
         }
 
-        .admin-info {
-            padding: 20px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.1);
-            margin-top: auto;
-        }
-
-        .admin-info small {
-            color: rgba(255,255,255,0.8);
-            font-size: 12px;
-            display: block;
-            margin-bottom: 10px;
-        }
-
-        .logout-btn {
-            width: 100%;
-            padding: 8px 16px;
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 6px;
-            color: white;
-            cursor: pointer;
-            font-size: 12px;
-            transition: all 0.3s ease;
-        }
-
-        .logout-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-
         .main-content {
-            margin-left: 250px;
+            margin-left: 0;
             min-height: 100vh;
             background: #f8f9fa;
+            transition: margin-left 0.3s ease;
         }
 
         .header {
@@ -172,10 +149,77 @@
             border-bottom: 1px solid #dee2e6;
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .mobile-menu-toggle {
+            background: none;
+            border: none;
+            color: #d73527;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .mobile-menu-toggle:hover {
+            background-color: rgba(215, 53, 39, 0.1);
+        }
+
         .page-title {
             font-size: 28px;
             font-weight: 600;
             color: #333;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-details {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: white;
+        }
+
+        .role-badge.admin {
+            background: linear-gradient(135deg, #d73527, #b92e20);
+        }
+
+        .role-badge.monitor {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+        }
+
+        .role-badge.agency {
+            background: linear-gradient(135deg, #6f42c1, #5a2d91);
+        }
+
+        .role-badge.rescuer {
+            background: linear-gradient(135deg, #28a745, #218838);
         }
 
         .back-button {
@@ -231,7 +275,7 @@
         }
 
         .card-title i {
-            color: #d53b2c;
+            color: #d73527;
         }
 
         .report-header {
@@ -240,7 +284,7 @@
             padding: 30px;
             margin-bottom: 30px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-            border-left: 5px solid #d53b2c;
+            border-left: 5px solid #d73527;
         }
 
         .account-section {
@@ -254,7 +298,7 @@
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            border: 3px solid #d53b2c;
+            border: 3px solid #d73527;
             object-fit: cover;
         }
 
@@ -266,7 +310,7 @@
         }
 
         .account-name {
-            color: #d53b2c;
+            color: #d73527;
             font-weight: 700;
             font-size: 20px;
         }
@@ -298,7 +342,7 @@
         }
 
         .emergency-type {
-            color: #d53b2c;
+            color: #d73527;
             font-weight: 600;
             font-size: 18px;
         }
@@ -391,6 +435,16 @@
 
         .btn-resolve, .btn-resolved {
             background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+        }
+
+        .btn-update-status {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+        }
+
+        .btn-chat {
+            background: linear-gradient(135deg, #28a745, #218838);
             color: white;
         }
 
@@ -551,42 +605,6 @@
             color: white;
         }
 
-        .audit-trail {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .audit-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            margin-bottom: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #d53b2c;
-        }
-
-        .audit-info {
-            flex: 1;
-        }
-
-        .audit-action {
-            font-weight: 600;
-            color: #d53b2c;
-        }
-
-        .audit-details {
-            font-size: 13px;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .audit-time {
-            font-size: 12px;
-            color: #999;
-        }
-
         .modal {
             display: none;
             position: fixed;
@@ -702,7 +720,7 @@
         }
 
         .assign-rescuer-btn {
-            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            background: linear-gradient(135deg, #d73527, #b92e20);
             color: white;
             border: none;
             padding: 8px 16px;
@@ -736,7 +754,7 @@
             width: 20px;
             height: 20px;
             border: 2px solid #f3f3f3;
-            border-top: 2px solid #d53b2c;
+            border-top: 2px solid #d73527;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             margin: 0 auto 15px;
@@ -792,6 +810,39 @@
             to { opacity: 1; transform: translateX(0); }
         }
 
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .sidebar-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Mobile responsiveness */
+        @media (min-width: 769px) {
+            .sidebar {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 250px;
+            }
+            
+            .mobile-menu-toggle {
+                display: none;
+            }
+        }
+
         @media (max-width: 1200px) {
             .report-grid {
                 grid-template-columns: 1fr;
@@ -803,19 +854,6 @@
         }
 
         @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-            }
-
-            .sidebar.show {
-                transform: translateX(0);
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
             .header {
                 padding: 15px 20px;
             }
@@ -861,6 +899,10 @@
             .content-card {
                 padding: 20px;
             }
+
+            .user-details {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -874,6 +916,10 @@
         </div>
     </div>
 
+    <!-- Sidebar Overlay -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- Modal for assigning rescuers -->
     <div id="assignModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -889,7 +935,31 @@
         </div>
     </div>
 
-    <div class="sidebar">
+    <!-- Modal for rescuer status updates -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-tasks"></i> Update Status</h3>
+                <button class="close" onclick="closeStatusModal()">&times;</button>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <p>Update your status for this emergency report:</p>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-action btn-update-status" onclick="updateRescuerStatus('on_way')">
+                    <i class="fas fa-route"></i> On the Way
+                </button>
+                <button class="btn-action btn-update-status" onclick="updateRescuerStatus('arrived')">
+                    <i class="fas fa-map-marker-alt"></i> Arrived at Scene
+                </button>
+                <button class="btn-action btn-update-status" onclick="updateRescuerStatus('resolved')">
+                    <i class="fas fa-check-circle"></i> Incident Resolved
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
             <div class="brand-title">LipaAlertHub</div>
@@ -898,91 +968,110 @@
         
         <nav class="sidebar-nav">
             <div class="nav-item">
-                <a href="dashboard.html" class="nav-link">
+                <a href="Dashboard.html" class="nav-link">
                     <i class="fas fa-tachometer-alt"></i>
                     Dashboard
                 </a>
             </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                 <a href="IncidentReportList.html" class="nav-link active">
                     <i class="fas fa-exclamation-triangle"></i>
                     Reports
                 </a>
             </div>
+
             
-            <div class="nav-item">
-                <a href="Announcements.html" class="nav-link">
+            <div class="nav-item" data-role="admin">
+                <a href="Analytics.html" class="nav-link">
+                    <i class="fas fa-chart-bar"></i>
+                    Analytics
+                </a>
+            </div>
+
+            <div class="nav-item" data-role="admin">
+                <a href="WeatherDisasters.html" class="nav-link">
+                    <i class="fas fa-cloud-rain"></i>
+                    Weather & Disasters
+                </a>
+            </div>
+              <div class="nav-item" data-role="admin">
+            <a href="Announcements.html" class="nav-link">
                     <i class="fas fa-bullhorn"></i>
                     Announcements
                 </a>
             </div>
             
-             <div class="nav-item" data-role="admin">
-                    <a href="EmergencyTips.html" class="nav-link active">
-                        <i class="fas fa-lightbulb"></i>
-                        Emergency Tips
-                    </a>
-                </div>
-                
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin">
+                <a href="EmergencyTips.html" class="nav-link">
+                    <i class="fas fa-lightbulb"></i>
+                    Emergency Tips
+                </a>
+            </div>
+
+            <div class="nav-item" data-role="admin">
+                <a href="evacuation-centers.html" class="nav-link">
+                    <i class="fa-solid fa-tents"></i>
+                    Evacuation Centers
+                </a>
+            </div>
+
+            <div class="nav-item" data-role="admin,monitor">
                 <a href="Forums.html" class="nav-link">
                     <i class="fas fa-comments"></i>
                     Forums
                 </a>
             </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin">
                 <a href="Maps.html" class="nav-link">
                     <i class="fas fa-map"></i>
-                    Map
+                    Hazard Map
                 </a>
             </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                 <a href="Chats.html" class="nav-link">
                     <i class="fas fa-comment-dots"></i>
-                    CHATS
+                    Chats
                 </a>
             </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin,monitor">
                 <a href="AccountVerification.html" class="nav-link">
                     <i class="fas fa-users"></i>
                     Accounts
                 </a>
             </div>
             
-            <div class="nav-item">
-                <a href="Analytics.html" class="nav-link">
-                    <i class="fas fa-chart-bar"></i>
-                    Analytics
-                </a>
-            </div>
-            
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                 <a href="Contacts.html" class="nav-link">
                     <i class="fas fa-phone"></i>
                     Contacts
                 </a>
             </div>
         </nav>
-
-        <div class="admin-info">
-            <div>Admin: <strong id="adminEmail">Loading...</strong></div>
-            <small>Report Management System</small>
-            <button class="logout-btn" onclick="logoutAdmin()">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </button>
-        </div>
     </div>
 
     <div class="main-content">
         <div class="header">
-            <h1 class="page-title">Report Details</h1>
-            <a href="IncidentReportList.html" class="back-button">
-                <i class="fas fa-arrow-left"></i> Back to Reports
-            </a>
+            <div class="header-left">
+                <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Report Details</h1>
+            </div>
+            
+            <div class="user-info">
+                <div class="user-details">
+                    <div class="user-name" id="userName">Loading...</div>
+                    <div class="user-role" id="userEmail">Loading...</div>
+                </div>
+                <div class="role-badge" id="userRole">Loading...</div>
+                <a href="IncidentReportList.html" class="back-button">
+                    <i class="fas fa-arrow-left"></i> Back to Reports
+                </a>
+            </div>
         </div>
         
         <div class="report-content">
@@ -995,6 +1084,8 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
@@ -1006,13 +1097,12 @@
             collection, 
             query, 
             where, 
-            getDocs, 
+            getDocs,
             onSnapshot,
             arrayUnion,
-            Timestamp 
+            Timestamp
         } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
         import { getStorage, ref as storageRef, getDownloadURL, getMetadata } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
-        import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
@@ -1027,35 +1117,41 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         const storage = getStorage(app);
-        const messaging = getMessaging(app);
 
         const urlParams = new URLSearchParams(window.location.search);
         const reportId = urlParams.get("id");
         let currentReport = null;
         let currentUser = null;
+        let currentUserData = null;
         let reportListener = null;
         let availableRescuers = [];
 
-        // Debug URL parameters
-        console.log('Current URL:', window.location.href);
-        console.log('URL search params:', window.location.search);
-        console.log('Extracted report ID:', reportId);
-
-        // Initial check for report ID
+        // Check for report ID
         if (!reportId) {
             console.error('No report ID found in URL');
             setTimeout(() => {
                 document.getElementById('reportContainer').innerHTML = `
                     <div class="error-content">
                         <h3>Invalid Report ID</h3>
-                        <p>No report ID provided in URL. The URL should include ?id=REPORT_ID</p>
-                        <p>Current URL: ${window.location.href}</p>
+                        <p>No report ID provided in URL.</p>
                         <button class="back-button" onclick="window.location.href='IncidentReportList.html'">← Back to Reports</button>
                     </div>
                 `;
             }, 1000);
-        } else {
-            console.log('Report ID found, proceeding with authentication...');
+        }
+
+        // Role-based navigation visibility
+        function updateNavigationVisibility(userRole) {
+            const navItems = document.querySelectorAll('.nav-item[data-role]');
+            
+            navItems.forEach(item => {
+                const allowedRoles = item.getAttribute('data-role').split(',');
+                if (allowedRoles.includes(userRole)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
         }
 
         function showNotification(message, type = 'info') {
@@ -1086,33 +1182,44 @@
             });
         }
 
-        async function sendPushNotification(userToken, title, body, data = {}) {
-            try {
-                console.log('Sending notification:', { userToken, title, body, data });
-                
-                const response = await fetch('/api/send-notification', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${await auth.currentUser.getIdToken()}`
-                    },
-                    body: JSON.stringify({
-                        token: userToken,
-                        notification: { title, body },
-                        data
-                    })
-                });
-                
-                if (response.ok) {
-                    console.log('Notification sent successfully');
-                } else {
-                    console.warn('Failed to send notification');
-                }
-            } catch (error) {
-                console.warn('Error sending notification:', error);
+        // Access control function that matches security rules exactly
+        function hasReportAccess(userRole, userId, report) {
+            console.log('Checking report access:', {
+                userRole,
+                userId,
+                assignedRescuer: report.assignedRescuer,
+                assignedAgency: report.assignedAgency,
+                assignedTo: report.assignedTo
+            });
+
+            if (userRole === 'admin' || userRole === 'monitor') {
+                return true;
+            } else if (userRole === 'rescuer') {
+                return report.assignedRescuer === userId;
+            } else if (userRole === 'agency') {
+                return report.assignedAgency === userId;
             }
+            return false;
         }
 
+        // NEW FUNCTION: Chat with assigned rescuer
+        window.chatWithAssignedRescuer = function() {
+            if (!currentReport) return;
+
+            // Check if rescuer is assigned
+            if (!currentReport.assignedRescuer || !currentReport.assignedRescuerName) {
+                showNotification('No rescuer assigned yet', 'warning');
+                return;
+            }
+
+            // Redirect to Chats.html with rescuer info
+            const rescuerId = currentReport.assignedRescuer;
+            const rescuerName = currentReport.assignedRescuerName;
+            
+            window.location.href = `Chats.html?userId=${rescuerId}&userName=${encodeURIComponent(rescuerName)}`;
+        };
+
+        // Timestamp verification function
         async function checkPhotoTimestamp(photoURL) {
             try {
                 const photoPath = photoURL.includes('firebasestorage.googleapis.com') 
@@ -1211,6 +1318,8 @@
                     });
                 });
                 
+                console.log(`Loaded ${availableRescuers.length} rescuers for assignment`);
+                
             } catch (error) {
                 console.error("Error loading rescuers:", error);
                 showNotification("Failed to load rescuers", "error");
@@ -1218,73 +1327,81 @@
         }
 
         async function loadReport() {
-            console.log('Starting loadReport function for ID:', reportId);
-            
             try {
+                console.log(`Setting up report listener for reportId: ${reportId}`);
                 const reportRef = doc(db, "incident_reports", reportId);
-                console.log('Created document reference');
                 
                 if (reportListener) {
-                    console.log('Cleaning up existing listener');
                     reportListener();
                 }
 
-                console.log('Setting up onSnapshot listener');
                 reportListener = onSnapshot(reportRef, async (docSnap) => {
-                    console.log('Document snapshot received, exists:', docSnap.exists());
-                    
                     if (docSnap.exists()) {
                         currentReport = { id: docSnap.id, ...docSnap.data() };
-                        console.log('Report data loaded:', {
+                        console.log('Report loaded:', {
                             id: currentReport.id,
-                            emergencyType: currentReport.emergencyType,
-                            status: currentReport.status,
-                            timestamp: currentReport.timestamp
+                            assignedRescuer: currentReport.assignedRescuer,
+                            assignedAgency: currentReport.assignedAgency,
+                            status: currentReport.status
                         });
                         
-                        try {
-                            await renderReport(currentReport);
-                            console.log('Report rendered successfully');
-                        } catch (renderError) {
-                            console.error('Error rendering report:', renderError);
+                        if (!hasReportAccess(currentUserData.role, currentUser.uid, currentReport)) {
+                            console.log('Access denied for this report');
                             document.getElementById('reportContainer').innerHTML = `
                                 <div class="error-content">
-                                    <h3>Error Displaying Report</h3>
-                                    <p>Error: ${renderError.message}</p>
-                                    <button class="back-button" onclick="window.location.reload()">Reload Page</button>
+                                    <h3>Access Denied</h3>
+                                    <p>You don't have permission to view this report.</p>
+                                    <p>This report is not assigned to you.</p>
+                                    <p><small>Role: ${currentUserData.role} | User ID: ${currentUser.uid}</small></p>
+                                    <button class="back-button" onclick="window.location.href='IncidentReportList.html'">← Back to Reports</button>
                                 </div>
                             `;
+                            return;
                         }
+                        
+                        console.log('Access granted, rendering report');
+                        await renderReport(currentReport);
                     } else {
-                        console.log('Document does not exist');
+                        console.error('Report not found');
                         document.getElementById('reportContainer').innerHTML = `
                             <div class="error-content">
                                 <h3>Report Not Found</h3>
-                                <p>The requested report (ID: ${reportId}) does not exist in the database.</p>
+                                <p>The requested report does not exist.</p>
                                 <button class="back-button" onclick="window.location.href='IncidentReportList.html'">← Back to Reports</button>
                             </div>
                         `;
                     }
                 }, (error) => {
                     console.error("Firestore listener error:", error);
+                    
+                    let errorMessage = "Database Connection Error";
+                    let errorDetails = error.message;
+                    
+                    if (error.code === 'permission-denied') {
+                        errorMessage = "Permission Denied";
+                        errorDetails = "You don't have permission to access this report.";
+                    } else if (error.code === 'not-found') {
+                        errorMessage = "Report Not Found";
+                        errorDetails = "The requested report does not exist.";
+                    }
+                    
                     document.getElementById('reportContainer').innerHTML = `
                         <div class="error-content">
-                            <h3>Database Connection Error</h3>
-                            <p>Error: ${error.message}</p>
-                            <p>Please check your internet connection and try again.</p>
+                            <h3>${errorMessage}</h3>
+                            <p>Error: ${errorDetails}</p>
+                            <p><small>Error Code: ${error.code}</small></p>
                             <button class="back-button" onclick="window.location.reload()">Retry</button>
+                            <button class="back-button" onclick="window.location.href='IncidentReportList.html'" style="margin-left: 10px;">← Back to Reports</button>
                         </div>
                     `;
                 });
-
-                console.log('Listener setup complete');
 
             } catch (error) {
                 console.error("Error setting up report listener:", error);
                 document.getElementById('reportContainer').innerHTML = `
                     <div class="error-content">
                         <h3>Error Loading Report</h3>
-                        <p>Setup Error: ${error.message}</p>
+                        <p>Error: ${error.message}</p>
                         <button class="back-button" onclick="window.location.reload()">Try Again</button>
                     </div>
                 `;
@@ -1298,6 +1415,9 @@
             let timestamp = 'Unknown';
             if (report.timestamp) {
                 const date = report.timestamp.toDate ? report.timestamp.toDate() : new Date(report.timestamp);
+                timestamp = date.toLocaleString();
+            } else if (report.createdAt) {
+                const date = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
                 timestamp = date.toLocaleString();
             }
 
@@ -1318,13 +1438,17 @@
             let locationCoords = null;
             let fullAddress = report.fullAddress || report.address || 'Location not provided';
             
-            if (report.location && report.location.latitude && report.location.longitude) {
-                locationCoords = report.location;
+            if ((report.location && report.location.lat && report.location.lng) ||
+            (report.location && report.location.latitude && report.location.longitude)) {
+                locationCoords = {
+                    latitude: report.location.lat || report.location.latitude,
+                    longitude: report.location.lng || report.location.longitude
+                };
                 try {
-                    fullAddress = await getFullAddress(report.location.latitude, report.location.longitude);
+                    fullAddress = await getFullAddress(locationCoords.latitude, locationCoords.longitude);
                 } catch (error) {
                     console.warn("Error getting full address:", error);
-                    fullAddress = `${report.location.latitude.toFixed(6)}°N, ${report.location.longitude.toFixed(6)}°E`;
+                    fullAddress = `${locationCoords.latitude.toFixed(6)}°N, ${locationCoords.longitude.toFixed(6)}°E`;
                 }
             }
 
@@ -1342,7 +1466,6 @@
                     }
                     
                     if (mediaUrl) {
-                        // Check timestamp information
                         const timestampInfo = await checkPhotoTimestamp(report.photoURL || report.photoUrl || report.mediaUrl || report.image || report.photo);
                         
                         const isVideo = /\.(mp4|mov|webm|ogg|avi)$/i.test(mediaUrl);
@@ -1352,7 +1475,6 @@
                             mediaHtml = `<img src="${mediaUrl}" alt="Report Media" class="media-item" onerror="this.parentElement.innerHTML='<div class=\\'no-media\\'><i class=\\'fas fa-exclamation-triangle fa-2x mb-3\\'></i><p>Failed to load media</p></div>'">`;
                         }
 
-                        // Generate timestamp verification badge
                         if (timestampInfo.hasTimestamp) {
                             const statusClass = timestampInfo.processed ? 'verified' : (timestampInfo.needsProcessing ? 'verified' : 'verified');
                             const statusIcon = timestampInfo.processed ? 'fa-shield-alt' : 'fa-clock';
@@ -1415,30 +1537,54 @@
             // Generate action buttons based on current status and user role
             let actionButtons = '';
             const status = report.status || 'pending';
+            const userRole = currentUserData.role;
             
-            if (status === 'pending') {
+            if (userRole === 'admin' || userRole === 'monitor') {
+                if (status === 'pending') {
+                    actionButtons = `
+                        <button class="btn-action btn-approve" onclick="updateReportStatus('accepted')">
+                            <i class="fas fa-check-circle"></i> Accept
+                        </button>
+                        <button class="btn-action btn-reject" onclick="updateReportStatus('rejected')">
+                            <i class="fas fa-times-circle"></i> Reject
+                        </button>
+                    `;
+                } else if (status === 'accepted' || status === 'approved') {
+                    actionButtons = `
+                        <button class="btn-action btn-assign" onclick="showAssignModal()">
+                            <i class="fas fa-user-plus"></i> Assign Rescuer
+                        </button>
+                        <button class="btn-action btn-resolve" onclick="updateReportStatus('resolved')">
+                            <i class="fas fa-check-double"></i> Mark Resolved
+                        </button>
+                    `;
+                } else if (status === 'assigned') {
+                    actionButtons = `
+                        <button class="btn-action btn-assign" onclick="showAssignModal()">
+                            <i class="fas fa-user-edit"></i> Reassign
+                        </button>
+                        <button class="btn-action btn-resolve" onclick="updateReportStatus('resolved')">
+                            <i class="fas fa-check-double"></i> Mark Resolved
+                        </button>
+                    `;
+                }
+                
+                // Add Chat with Rescuer button if rescuer is assigned
+                if (report.assignedRescuer && report.assignedRescuerName) {
+                    actionButtons += `
+                        <button class="btn-action btn-chat" onclick="chatWithAssignedRescuer()">
+                            <i class="fas fa-comments"></i> Chat with Rescuer
+                        </button>
+                    `;
+                }
+            } else if (userRole === 'rescuer' && status === 'assigned') {
                 actionButtons = `
-                    <button class="btn-action btn-approve" onclick="updateReportStatus('accepted')">
-                        <i class="fas fa-check-circle"></i> Accept
-                    </button>
-                    <button class="btn-action btn-reject" onclick="updateReportStatus('dismissed')">
-                        <i class="fas fa-times-circle"></i> Dismiss
+                    <button class="btn-action btn-update-status" onclick="showStatusModal()">
+                        <i class="fas fa-tasks"></i> Update Status
                     </button>
                 `;
-            } else if (status === 'accepted' || status === 'approved') {
+            } else if (userRole === 'agency' && status === 'assigned') {
                 actionButtons = `
-                    <button class="btn-action btn-assign" onclick="showAssignModal()">
-                        <i class="fas fa-user-plus"></i> Assign Rescuer
-                    </button>
-                    <button class="btn-action btn-resolve" onclick="updateReportStatus('resolved')">
-                        <i class="fas fa-check-double"></i> Mark Resolved
-                    </button>
-                `;
-            } else if (status === 'assigned') {
-                actionButtons = `
-                    <button class="btn-action btn-assign" onclick="showAssignModal()">
-                        <i class="fas fa-user-edit"></i> Reassign
-                    </button>
                     <button class="btn-action btn-resolve" onclick="updateReportStatus('resolved')">
                         <i class="fas fa-check-double"></i> Mark Resolved
                     </button>
@@ -1447,7 +1593,7 @@
 
             // Generate rescuer status if assigned
             let rescuerStatusHtml = '';
-            if (report.assignedTo || report.assignedRescuer || report.assignedRescuerName) {
+            if (report.assignedRescuer || report.assignedRescuerName) {
                 const rescuerStatus = report.rescuerStatus || 'assigned';
                 const statusSteps = [
                     { key: 'assigned', label: 'Assigned', icon: 'fa-user-plus' },
@@ -1470,33 +1616,13 @@
 
                 rescuerStatusHtml = `
                     <div class="rescuer-status">
-                        <h6><i class="fas fa-ambulance"></i> Rescuer Progress</h6>
-                        <p><strong>Assigned to:</strong> ${report.assignedRescuerName || report.assignedTo || 'Unknown Rescuer'}</p>
+                        <h6><i class="fas fa-ambulance"></i> Response Progress</h6>
+                        <p><strong>Assigned to:</strong> ${report.assignedRescuerName || 'Unknown Rescuer'}</p>
                         <div class="status-timeline">
                             ${statusStepsHtml}
                         </div>
                     </div>
                 `;
-            }
-
-            // Generate audit trail
-            let auditTrailHtml = '<div class="no-data">No audit trail available</div>';
-            if (report.auditTrail && report.auditTrail.length > 0) {
-                const auditItems = report.auditTrail.map(item => {
-                    const time = item.handledAt ? (item.handledAt.toDate ? item.handledAt.toDate() : new Date(item.handledAt)).toLocaleString() : 'Unknown time';
-                    return `
-                        <div class="audit-item">
-                            <div class="audit-info">
-                                <div class="audit-action">${item.action.toUpperCase()}</div>
-                                <div class="audit-details">by ${item.handledBy || 'System'}</div>
-                                ${item.reason ? `<div class="audit-details">Reason: ${item.reason}</div>` : ''}
-                            </div>
-                            <div class="audit-time">${time}</div>
-                        </div>
-                    `;
-                }).join('');
-                
-                auditTrailHtml = `<div class="audit-trail">${auditItems}</div>`;
             }
 
             container.innerHTML = `
@@ -1505,8 +1631,8 @@
                         <img src="assets/images/avatar.png" alt="User Avatar" class="profile-avatar" 
                             onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSI0MCIgZmlsbD0iI2YwZjBmMCIvPjxjaXJjbGUgY3g9IjQwIiBjeT0iMzIiIHI9IjEyIiBmaWxsPSIjY2NjIi8+PGVsbGlwc2UgY3g9IjQwIiBjeT0iNjAiIHJ4PSIxOCIgcnk9IjEyIiBmaWxsPSIjY2NjIi8+PC9zdmc+'" />
                         <div class="account-details">
-                            <h3>Account Name:</h3>
-                            <div class="account-name">${report.name || report.reporterName || report.userId || report.reporterId || 'Anonymous User'}</div>
+                            <h3>Reporter:</h3>
+                            <div class="account-name">${report.name || report.reporterName || report.userId || 'Anonymous User'}</div>
                         </div>
                     </div>
                     
@@ -1520,7 +1646,7 @@
                         </div>
                         <div class="meta-item">
                             <div class="meta-label">Subcategory</div>
-                            <div class="meta-value">${report.subCategory || report.subcategory || report.incidentType || report.subtype || 'Not specified'}</div>
+                            <div class="meta-value">${report.subCategory || report.subcategory || report.incidentType || 'Not specified'}</div>
                         </div>
                         <div class="meta-item">
                             <div class="meta-label">Status</div>
@@ -1602,7 +1728,7 @@
                             </div>
                         </div>
                         <div style="line-height: 1.6; color: #555; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #dee2e6;">
-                            ${report.notes || report.description || report.details || report.additionalInfo || report.additionalDetails || 'No description provided'}
+                          ${report.description || report.notes || report.details || report.additionalInfo || 'No description provided'}
                         </div>
                     </div>
 
@@ -1615,42 +1741,33 @@
                         </div>
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #dee2e6;">
                             <p><strong>Report ID:</strong> ${reportId}</p>
-                            <p><strong>Reporter Email:</strong> ${report.email || report.reporterEmail || report.userEmail || 'Not provided'}</p>
-                            <p><strong>Contact Number:</strong> ${report.phone || report.number || report.contactNumber || report.phoneNumber || 'Not provided'}</p>
-                            <p><strong>Emergency Type:</strong> ${report.emergencyType || report.incidentType || 'Not specified'}</p>
-                            <p><strong>Submitted:</strong> ${timestamp}</p>
-                            <p><strong>Reporter ID:</strong> ${report.reporterId || report.userId || 'Not provided'}</p>
+                            <p><strong>Reporter Email:</strong> ${report.email || report.reporterEmail || 'Not provided'}</p>
+                            <p><strong>Contact Number:</strong> ${report.phone || report.contactNumber || 'Not provided'}</p>
+                            <p><strong>Emergency Type:</strong> ${report.emergencyType || 'Not specified'}</p>
                             ${report.resolvedAt ? `<p><strong>Resolved:</strong> ${new Date(report.resolvedAt.seconds * 1000).toLocaleString()}</p>` : ''}
                             ${report.assignedAt ? `<p><strong>Assigned:</strong> ${new Date(report.assignedAt.seconds * 1000).toLocaleString()}</p>` : ''}
                             ${report.barangay ? `<p><strong>Barangay:</strong> ${report.barangay}</p>` : ''}
                         </div>
                     </div>
                 </div>
-
-                <div class="content-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <i class="fas fa-history"></i>
-                            Audit Trail
-                        </div>
-                    </div>
-                    ${auditTrailHtml}
-                </div>
             `;
         }
 
+        // Status update functions
         window.updateReportStatus = async function(newStatus) {
             if (!currentReport || !currentUser) return;
+
+            if (newStatus === 'dismissed') {
+                newStatus = 'rejected';
+            }
 
             let confirmMessage = '';
             switch (newStatus) {
                 case 'accepted':
-                case 'approved':
                     confirmMessage = 'Accept this emergency report?';
                     break;
-                case 'dismissed':
                 case 'rejected':
-                    confirmMessage = 'Dismiss this emergency report? Please provide a reason.';
+                    confirmMessage = 'Reject this emergency report?';
                     break;
                 case 'resolved':
                     confirmMessage = 'Mark this incident as resolved?';
@@ -1662,66 +1779,76 @@
             if (!confirm(confirmMessage)) return;
 
             let rejectionReason = '';
-            if (newStatus === 'dismissed' || newStatus === 'rejected') {
-                rejectionReason = prompt('Reason for dismissal:') || 'No reason provided';
+            if (newStatus === 'rejected') {
+                rejectionReason = prompt('Reason for rejection:') || 'No reason provided';
             }
 
             try {
                 const updateData = {
                     status: newStatus,
+                    updatedAt: Timestamp.now(),
                     auditTrail: arrayUnion({
                         action: newStatus,
                         handledBy: currentUser.email,
                         handledAt: Timestamp.now(),
+                        previousStatus: currentReport.status,
+                        newStatus: newStatus,
                         ...(rejectionReason && { reason: rejectionReason })
                     })
                 };
 
                 if (newStatus === 'resolved') {
                     updateData.resolvedAt = Timestamp.now();
-                    updateData.resolvedBy = currentUser.email;
-                } else if (newStatus === 'dismissed' || newStatus === 'rejected') {
-                    updateData.dismissedAt = Timestamp.now();
-                    updateData.dismissedBy = currentUser.email;
+                    updateData.resolvedBy = currentUser.uid;
+                    if (currentUserData.role === 'rescuer') {
+                        updateData.rescuerStatus = 'resolved';
+                    }
+                } else if (newStatus === 'rejected') {
+                    updateData.rejectedAt = Timestamp.now();
+                    updateData.rejectedBy = currentUser.uid;
                     if (rejectionReason) {
-                        updateData.dismissReason = rejectionReason;
+                        updateData.rejectionReason = rejectionReason;
                     }
                 }
 
                 await updateDoc(doc(db, "incident_reports", reportId), updateData);
-                
-                // Send notification to reporter
-                if (currentReport.reporterToken) {
-                    const notificationTitle = `Report ${newStatus.toUpperCase()}`;
-                    let notificationBody = '';
-                    
-                    switch (newStatus) {
-                        case 'accepted':
-                        case 'approved':
-                            notificationBody = 'Your emergency report has been accepted and is being processed.';
-                            break;
-                        case 'dismissed':
-                        case 'rejected':
-                            notificationBody = `Your report has been dismissed. Reason: ${rejectionReason}`;
-                            break;
-                        case 'resolved':
-                            notificationBody = 'Your incident has been marked as resolved.';
-                            break;
-                    }
-                    
-                    await sendPushNotification(
-                        currentReport.reporterToken,
-                        notificationTitle,
-                        notificationBody,
-                        { reportId, status: newStatus }
-                    );
-                }
-
                 showNotification(`Report ${newStatus} successfully!`, 'success');
                 
             } catch (error) {
                 console.error('Error updating report status:', error);
                 showNotification(`Failed to ${newStatus} report: ${error.message}`, 'error');
+            }
+        };
+
+        window.updateRescuerStatus = async function(status) {
+            if (!currentReport || !currentUser) return;
+
+            try {
+                const updateData = {
+                    rescuerStatus: status,
+                    updatedAt: Timestamp.now(),
+                    auditTrail: arrayUnion({
+                        action: `rescuer_${status}`,
+                        handledBy: currentUser.email,
+                        handledAt: Timestamp.now(),
+                        previousStatus: currentReport.rescuerStatus || 'assigned',
+                        newStatus: status
+                    })
+                };
+
+                if (status === 'resolved') {
+                    updateData.status = 'resolved';
+                    updateData.resolvedAt = Timestamp.now();
+                    updateData.resolvedBy = currentUser.uid;
+                }
+
+                await updateDoc(doc(db, "incident_reports", reportId), updateData);
+                showNotification(`Status updated to ${status}!`, 'success');
+                closeStatusModal();
+                
+            } catch (error) {
+                console.error('Error updating rescuer status:', error);
+                showNotification(`Failed to update status: ${error.message}`, 'error');
             }
         };
 
@@ -1774,10 +1901,12 @@
             }
 
             try {
+                console.log(`Assigning report to rescuer: ${rescuerName} (${rescuerId})`);
+                
                 const updateData = {
                     status: 'assigned',
-                    assignedTo: rescuerId,
                     assignedRescuer: rescuerId,
+                    assignedTo: rescuerId,
                     assignedRescuerName: rescuerName,
                     assignedRescuerEmail: rescuerEmail,
                     assignedAt: Timestamp.now(),
@@ -1787,13 +1916,13 @@
                         action: 'assigned',
                         handledBy: currentUser.email,
                         handledAt: Timestamp.now(),
-                        assignedTo: rescuerName
+                        assignedTo: rescuerName,
+                        assignedRescuer: rescuerId
                     })
                 };
 
                 await updateDoc(doc(db, "incident_reports", reportId), updateData);
                 
-                // Update rescuer assignment count
                 const rescuerRef = doc(db, "users", rescuerId);
                 const rescuerSnapshot = await getDoc(rescuerRef);
                 if (rescuerSnapshot.exists()) {
@@ -1806,27 +1935,6 @@
                     });
                 }
 
-                // Send notification to reporter
-                if (currentReport.reporterToken) {
-                    await sendPushNotification(
-                        currentReport.reporterToken,
-                        'Rescuer Assigned',
-                        `A rescuer (${rescuerName}) has been assigned to your emergency report.`,
-                        { reportId, rescuerId }
-                    );
-                }
-
-                // Send notification to rescuer
-                const assignedRescuerDoc = await getDoc(doc(db, "users", rescuerId));
-                if (assignedRescuerDoc.exists() && assignedRescuerDoc.data().fcmToken) {
-                    await sendPushNotification(
-                        assignedRescuerDoc.data().fcmToken,
-                        'New Emergency Assignment',
-                        `You have been assigned to an emergency: ${currentReport.emergencyType}`,
-                        { reportId, action: 'assigned' }
-                    );
-                }
-
                 showNotification(`Report assigned to ${rescuerName}!`, 'success');
                 closeModal();
                 
@@ -1836,11 +1944,46 @@
             }
         };
 
+        window.showStatusModal = function() {
+            document.getElementById('statusModal').style.display = 'block';
+        };
+
         window.closeModal = function() {
             document.getElementById('assignModal').style.display = 'none';
         };
 
-        window.logoutAdmin = async function() {
+        window.closeStatusModal = function() {
+            document.getElementById('statusModal').style.display = 'none';
+        };
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+        };
+
+        window.closeSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        };
+
+        window.onclick = function(event) {
+            const assignModal = document.getElementById('assignModal');
+            const statusModal = document.getElementById('statusModal');
+            
+            if (event.target === assignModal) {
+                closeModal();
+            } else if (event.target === statusModal) {
+                closeStatusModal();
+            }
+        };
+
+        window.logoutUser = async function() {
             if (confirm("Are you sure you want to logout?")) {
                 try {
                     await signOut(auth);
@@ -1853,29 +1996,14 @@
             }
         };
 
-        window.navigateTo = function(page) {
-            window.location.href = page;
-        };
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('assignModal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        };
-
         onAuthStateChanged(auth, async (user) => {
-            console.log('Auth state changed:', user?.email || 'No user');
-            
-            // Always hide loading overlay after auth check
             setTimeout(() => {
                 const overlay = document.getElementById('loadingOverlay');
                 if (overlay) overlay.style.display = 'none';
             }, 1000);
 
             if (!user) {
-                console.log('No user found, redirecting to login');
+                console.log("No authenticated user, redirecting to login");
                 showNotification("Please login first", "error");
                 setTimeout(() => {
                     window.location.href = "index.html";
@@ -1884,16 +2012,17 @@
             }
 
             try {
-                console.log('Checking user profile for:', user.uid);
+                console.log("Authenticated user:", user.email, "UID:", user.uid);
+                
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
                 
                 if (!userDoc.exists()) {
-                    console.log('User profile not found');
+                    console.error("User profile not found for UID:", user.uid);
                     showNotification("User profile not found", "error");
                     document.getElementById('reportContainer').innerHTML = `
                         <div class="error-content">
                             <h3>User Profile Not Found</h3>
-                            <p>Your user profile could not be found. Please contact an administrator.</p>
+                            <p>Your user profile could not be found.</p>
                             <button class="back-button" onclick="window.location.href='index.html'">← Back to Login</button>
                         </div>
                     `;
@@ -1901,55 +2030,92 @@
                 }
 
                 const userData = userDoc.data();
-                console.log('User role:', userData.role);
+                console.log("User data loaded:", {
+                    role: userData.role,
+                    status: userData.status,
+                    name: userData.name
+                });
                 
-                if (!['admin', 'monitor', 'rescuer'].includes(userData.role)) {
-                    console.log('Access denied for role:', userData.role);
-                    showNotification("Access denied. Admin, Monitor, or Rescuer role required.", "error");
+                if (!['admin', 'monitor', 'rescuer', 'agency'].includes(userData.role)) {
+                    console.error("Access denied for role:", userData.role);
+                    showNotification("Access denied. Admin, Monitor, Rescuer, or Agency role required.", "error");
                     document.getElementById('reportContainer').innerHTML = `
                         <div class="error-content">
                             <h3>Access Denied</h3>
-                            <p>You don't have permission to view this page. Admin, Monitor, or Rescuer role required.</p>
-                            <button class="back-button" onclick="window.location.href='dashboard.html'">← Back to Dashboard</button>
+                            <p>You don't have permission to view report details.</p>
+                            <p>Required roles: Admin, Monitor, Rescuer, or Agency</p>
+                            <p>Your role: ${userData.role || 'Unknown'}</p>
+                            <button class="back-button" onclick="window.location.href='Dashboard.html'">← Back to Dashboard</button>
                         </div>
                     `;
                     return;
                 }
 
-                currentUser = { ...user, role: userData.role };
-                document.getElementById('adminEmail').textContent = user.email;
+                if (userData.status !== 'active') {
+                    console.error("User account not active:", userData.status);
+                    showNotification("Account not active. Please contact administrator.", "error");
+                    document.getElementById('reportContainer').innerHTML = `
+                        <div class="error-content">
+                            <h3>Account Not Active</h3>
+                            <p>Your account status: ${userData.status}</p>
+                            <p>Please contact administrator to activate your account.</p>
+                            <button class="back-button" onclick="window.location.href='index.html'">← Back to Login</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                currentUser = user;
+                currentUserData = userData;
                 
-                console.log('Report ID from URL:', reportId);
+                document.getElementById('userName').textContent = userData.name || user.displayName || user.email;
+                document.getElementById('userEmail').textContent = user.email;
+                
+                const roleElement = document.getElementById('userRole');
+                const displayRole = userData.role === 'monitor' ? 'Moderator' : userData.role.charAt(0).toUpperCase() + userData.role.slice(1);
+                roleElement.textContent = displayRole;
+                roleElement.className = `role-badge ${userData.role}`;
+                
+                updateNavigationVisibility(userData.role);
                 
                 if (!reportId) {
-                    console.log('No report ID provided');
+                    console.error("No report ID provided in URL");
                     document.getElementById('reportContainer').innerHTML = `
                         <div class="error-content">
                             <h3>Invalid Report ID</h3>
-                            <p>No report ID provided in URL. Please select a report from the reports list.</p>
+                            <p>No report ID provided in URL.</p>
                             <button class="back-button" onclick="window.location.href='IncidentReportList.html'">← Back to Reports</button>
                         </div>
                     `;
                     return;
                 }
                 
-                console.log('Loading report...');
+                console.log(`Loading report for user role: ${userData.role}`);
                 await loadReport();
                 
             } catch (error) {
                 console.error('Authentication/setup error:', error);
-                showNotification("Error setting up page: " + error.message, "error");
+                
+                let errorMessage = "Error setting up page";
+                if (error.code === 'permission-denied') {
+                    errorMessage = "Permission denied. Please check your account permissions.";
+                } else if (error.code === 'unavailable') {
+                    errorMessage = "Service temporarily unavailable. Please try again.";
+                }
+                
+                showNotification(errorMessage + ": " + error.message, "error");
                 document.getElementById('reportContainer').innerHTML = `
                     <div class="error-content">
                         <h3>Error Loading Page</h3>
-                        <p>There was an error setting up the page: ${error.message}</p>
+                        <p>Error: ${error.message}</p>
+                        <p><small>Error Code: ${error.code || 'unknown'}</small></p>
                         <button class="back-button" onclick="window.location.reload()">Reload Page</button>
+                        <button class="back-button" onclick="window.location.href='IncidentReportList.html'" style="margin-left: 10px;">← Back to Reports</button>
                     </div>
                 `;
             }
         });
 
-        // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
             if (reportListener) {
                 reportListener();

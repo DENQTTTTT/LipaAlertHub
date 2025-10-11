@@ -1,4 +1,4 @@
-// services/notifications.ts - Fixed deprecation warnings + Added "accepted" status support
+// services/notifications.ts - Enhanced with Violation Notifications
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
@@ -31,11 +31,11 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Comprehensive notification types - ADDED "report_accepted"
+// Comprehensive notification types - ADDED VIOLATION TYPES
 export type NotificationType =
   // Report/Incident notifications
   | 'report_submitted'
-  | 'report_accepted'  // ✅ ADDED FOR ACCEPTED STATUS
+  | 'report_accepted'
   | 'report_verified'
   | 'report_approved'
   | 'report_rejected'
@@ -68,6 +68,12 @@ export type NotificationType =
   | 'account_suspended'
   | 'account_role_changed'
   | 'account_profile_updated'
+  // ✅ NEW: Violation notifications
+  | 'violation'
+  | 'violation_warning'
+  | 'violation_strike'
+  | 'violation_suspension'
+  | 'violation_ban'
   // System notifications
   | 'system_maintenance'
   | 'system_update'
@@ -104,36 +110,36 @@ export interface NotificationData {
     senderAvatar?: string;
     actionUrl?: string;
     imageUrl?: string;
+    // ✅ NEW: Violation-specific data
+    violationType?: 'warning' | 'strike' | 'suspension' | 'ban';
+    reason?: string;
+    strikes?: number;
+    warnings?: number;
+    suspensionDays?: number;
+    suspensionUntil?: string;
     [key: string]: any;
   };
 }
 
-// FIXED: Proper subscription interface
 interface NotificationSubscription {
   remove(): void;
 }
 
 export class NotificationService {
   private db = getFirestore();
-  
-  // FIXED: Store subscriptions properly for cleanup
   private notificationListener: NotificationSubscription | null = null;
   private responseListener: NotificationSubscription | null = null;
 
-  // FIXED: Initialize push notifications with proper cleanup handling
   async initializePushNotifications(): Promise<string | null> {
-    // Check device compatibility
     if (!Device.isDevice) {
       console.log('Must use physical device for Push Notifications');
       return null;
     }
 
-    // Setup Android notification channels
     if (Platform.OS === 'android') {
       await this.setupNotificationChannels();
     }
 
-    // Request permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
@@ -153,10 +159,7 @@ export class NotificationService {
       })).data;
 
       await AsyncStorage.setItem('expoPushToken', token);
-      
-      // Setup notification listeners with proper cleanup
       this.setupNotificationListeners();
-      
       return token;
     } catch (error) {
       console.error('Error getting push token:', error);
@@ -164,25 +167,19 @@ export class NotificationService {
     }
   }
 
-  // FIXED: Setup notification listeners with proper subscription management
   private setupNotificationListeners() {
-    // Clean up existing listeners first
     this.cleanupListeners();
 
-    // FIXED: Use the new subscription pattern
     this.notificationListener = Notifications.addNotificationReceivedListener(notification => {
       console.log('Notification received:', notification);
-      // Handle received notification
     });
 
     this.responseListener = Notifications.addNotificationResponseReceivedListener(response => {
       console.log('Notification response received:', response);
-      // Handle notification tap/interaction
       this.handleNotificationResponse(response);
     });
   }
 
-  // FIXED: Proper cleanup method using subscription.remove()
   private cleanupListeners() {
     if (this.notificationListener) {
       this.notificationListener.remove();
@@ -195,25 +192,19 @@ export class NotificationService {
     }
   }
 
-  // FIXED: Public cleanup method for component unmounting
   cleanup() {
     this.cleanupListeners();
   }
 
-  // Handle notification response (when user taps notification)
   private handleNotificationResponse(response: Notifications.NotificationResponse) {
     const data = response.notification.request.content.data;
     
-    // Navigate based on notification type
     if (data?.type && data?.notificationId) {
       console.log(`Handling notification tap for type: ${data.type}`);
-      // Add your navigation logic here
-      // e.g., navigate to specific screens based on notification type
     }
   }
 
   private async setupNotificationChannels() {
-    // Create detailed notification channels for Android
     await Notifications.setNotificationChannelAsync('reports', {
       name: 'Incident Reports',
       description: 'Updates about your incident reports',
@@ -250,6 +241,17 @@ export class NotificationService {
       sound: 'default',
     });
 
+    // ✅ NEW: Violation channel
+    await Notifications.setNotificationChannelAsync('violations', {
+      name: 'Account Violations',
+      description: 'Warnings, strikes, and suspension notifications',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 300, 200, 300, 200, 300],
+      lightColor: '#e74c3c',
+      sound: 'default',
+      bypassDnd: false,
+    });
+
     await Notifications.setNotificationChannelAsync('emergency', {
       name: 'Emergency Alerts',
       description: 'Weather alerts and emergency broadcasts',
@@ -270,7 +272,6 @@ export class NotificationService {
     });
   }
 
-  // Store push token in user profile
   async storePushToken(userId: string) {
     try {
       const token = await AsyncStorage.getItem('expoPushToken');
@@ -298,7 +299,6 @@ export class NotificationService {
     try {
       const docRef = await addDoc(collection(this.db, 'notifications'), completeNotification);
 
-      // Send local push notification
       await this.sendLocalNotification(
         completeNotification.title,
         completeNotification.body,
@@ -317,7 +317,164 @@ export class NotificationService {
     }
   }
 
-  // =================== REPORT NOTIFICATIONS - UPDATED WITH "ACCEPTED" ===================
+  // =================== ✅ NEW: VIOLATION NOTIFICATION METHODS ===================
+
+  /**
+   * Create a warning notification for a user
+   */
+  async createWarningNotification(
+    userId: string,
+    reason: string,
+    currentWarnings: number,
+    currentStrikes: number
+  ) {
+    return this.createNotification({
+      userId,
+      title: '⚠️ Account Warning',
+      body: `You have received a warning for: ${reason}. Current warnings: ${currentWarnings}`,
+      type: 'violation_warning',
+      priority: 'high',
+      status: 'unread',
+      data: {
+        violationType: 'warning',
+        reason,
+        warnings: currentWarnings,
+        strikes: currentStrikes,
+      },
+    });
+  }
+
+  /**
+   * Create a strike notification for a user
+   */
+  async createStrikeNotification(
+    userId: string,
+    reason: string,
+    currentStrikes: number,
+    currentWarnings: number,
+    suspensionDays?: number
+  ) {
+    let body = `You have received a strike for: ${reason}. Total strikes: ${currentStrikes}`;
+    
+    if (suspensionDays) {
+      body += ` Your account is suspended for ${suspensionDays} days.`;
+    } else if (currentStrikes >= 3) {
+      body += ` Your account may be permanently banned.`;
+    }
+
+    return this.createNotification({
+      userId,
+      title: '🔺 Account Strike',
+      body,
+      type: 'violation_strike',
+      priority: 'urgent',
+      status: 'unread',
+      data: {
+        violationType: 'strike',
+        reason,
+        strikes: currentStrikes,
+        warnings: currentWarnings,
+        suspensionDays,
+      },
+    });
+  }
+
+  /**
+   * Create a suspension notification for a user
+   */
+  async createSuspensionNotification(
+    userId: string,
+    reason: string,
+    suspensionUntil: Date,
+    currentStrikes: number,
+    currentWarnings: number
+  ) {
+    const days = Math.ceil(
+      (suspensionUntil.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    return this.createNotification({
+      userId,
+      title: '⏸️ Account Suspended',
+      body: `Your account has been suspended for ${days} days due to: ${reason}. Suspension ends on ${suspensionUntil.toLocaleDateString()}.`,
+      type: 'violation_suspension',
+      priority: 'urgent',
+      status: 'unread',
+      data: {
+        violationType: 'suspension',
+        reason,
+        strikes: currentStrikes,
+        warnings: currentWarnings,
+        suspensionDays: days,
+        suspensionUntil: suspensionUntil.toISOString(),
+      },
+    });
+  }
+
+  /**
+   * Create a ban notification for a user
+   */
+  async createBanNotification(
+    userId: string,
+    reason: string,
+    currentStrikes: number,
+    currentWarnings: number
+  ) {
+    return this.createNotification({
+      userId,
+      title: '🚫 Account Permanently Banned',
+      body: `Your account has been permanently banned due to: ${reason}. You have accumulated ${currentStrikes} strikes.`,
+      type: 'violation_ban',
+      priority: 'urgent',
+      status: 'unread',
+      data: {
+        violationType: 'ban',
+        reason,
+        strikes: currentStrikes,
+        warnings: currentWarnings,
+      },
+    });
+  }
+
+  /**
+   * Generic violation notification (for backward compatibility)
+   */
+  async createViolationNotification(
+    userId: string,
+    type: 'warning' | 'strike' | 'suspension' | 'ban',
+    reason: string,
+    additionalData?: any
+  ) {
+    const titles = {
+      warning: '⚠️ Violation Warning',
+      strike: '🔺 Strike Issued',
+      suspension: '⏸️ Account Suspended',
+      ban: '🚫 Account Banned',
+    };
+
+    const bodies = {
+      warning: `You have been warned for: ${reason}. Continued violations may lead to suspension.`,
+      strike: `You have received a strike for: ${reason}. Multiple strikes may result in account suspension.`,
+      suspension: `Your account has been suspended due to: ${reason}. Please review our community guidelines.`,
+      ban: `Your account has been permanently banned for: ${reason}.`,
+    };
+
+    return this.createNotification({
+      userId,
+      title: titles[type],
+      body: bodies[type],
+      type: 'violation',
+      priority: type === 'ban' || type === 'suspension' ? 'urgent' : 'high',
+      status: 'unread',
+      data: {
+        violationType: type,
+        reason,
+        ...additionalData,
+      },
+    });
+  }
+
+  // =================== REPORT NOTIFICATIONS ===================
 
   async createReportNotification(
     userId: string,
@@ -331,7 +488,7 @@ export class NotificationService {
   ) {
     const titles = {
       'report_submitted': 'Report Submitted',
-      'report_accepted': 'Report Accepted',  // ✅ ADDED
+      'report_accepted': 'Report Accepted',
       'report_verified': 'Report Verified',
       'report_approved': 'Report Approved',
       'report_rejected': 'Report Not Approved',
@@ -344,7 +501,7 @@ export class NotificationService {
 
     const bodies = {
       'report_submitted': `Your ${reportType} report has been submitted for review.`,
-      'report_accepted': `Your ${reportType} report has been accepted and assigned to responders.`,  // ✅ ADDED
+      'report_accepted': `Your ${reportType} report has been accepted and assigned to responders.`,
       'report_verified': `Your ${reportType} report has been verified by our team.`,
       'report_approved': `Your ${reportType} report has been approved and is now visible.`,
       'report_rejected': `Your ${reportType} report was not approved. Please review guidelines.`,
@@ -370,8 +527,6 @@ export class NotificationService {
     });
   }
 
-  // =================== SPECIFIC REPORT NOTIFICATION METHODS ===================
-
   async createReportSubmittedNotification(
     userId: string,
     reportId: string,
@@ -390,7 +545,6 @@ export class NotificationService {
     );
   }
 
-  // ✅ NEW: Added missing createReportAcceptedNotification method
   async createReportAcceptedNotification(
     userId: string,
     reportId: string,
@@ -403,7 +557,7 @@ export class NotificationService {
       'report_accepted',
       reportType,
       'Report Accepted',
-      `Your ${reportType} report at ${location} has been accepted by CDRRMO and assigned to responders. You will be notified with further updates.`,
+      `Your ${reportType} report at ${location} has been accepted by CDRRMO and assigned to responders.`,
       'high',
       { location }
     );
@@ -454,7 +608,7 @@ export class NotificationService {
   ) {
     const body = reason 
       ? `Your ${reportType} report at ${location} was not approved. Reason: ${reason}`
-      : `Your ${reportType} report at ${location} was not approved. Please review our guidelines and try again.`;
+      : `Your ${reportType} report at ${location} was not approved. Please review our guidelines.`;
     
     return this.createReportNotification(
       userId,
@@ -486,7 +640,7 @@ export class NotificationService {
     );
   }
 
-  // =================== FORUM NOTIFICATION METHODS ===================
+  // =================== FORUM NOTIFICATIONS ===================
 
   async createForumPostSubmittedNotification(
     userId: string,
@@ -501,9 +655,7 @@ export class NotificationService {
       type: 'forum_post_submitted',
       priority: 'normal',
       status: 'unread',
-      data: {
-        postTitle,
-      },
+      data: { postTitle },
     });
   }
 
@@ -520,9 +672,7 @@ export class NotificationService {
       type: 'forum_post_approved',
       priority: 'high',
       status: 'unread',
-      data: {
-        postTitle,
-      },
+      data: { postTitle },
     });
   }
 
@@ -540,10 +690,7 @@ export class NotificationService {
       type: 'forum_post_rejected',
       priority: 'normal',
       status: 'unread',
-      data: {
-        postTitle,
-        reason,
-      },
+      data: { postTitle, reason },
     });
   }
 
@@ -620,7 +767,6 @@ export class NotificationService {
 
   // =================== NOTIFICATION MANAGEMENT ===================
 
-  // Subscribe to user notifications in real time with proper cleanup
   getUserNotifications(
     userId: string,
     callback: (notifications: NotificationData[]) => void,
@@ -641,11 +787,9 @@ export class NotificationService {
       callback(notifications);
     });
 
-    // Return unsubscribe function
     return unsubscribe;
   }
 
-  // Mark single notification as read
   async markAsRead(notificationId: string) {
     try {
       await updateDoc(doc(this.db, 'notifications', notificationId), {
@@ -657,7 +801,6 @@ export class NotificationService {
     }
   }
 
-  // Mark multiple notifications as read
   async markMultipleAsRead(notificationIds: string[]) {
     try {
       const batch = writeBatch(this.db);
@@ -673,7 +816,6 @@ export class NotificationService {
     }
   }
 
-  // Delete a notification
   async deleteNotification(notificationId: string) {
     try {
       await deleteDoc(doc(this.db, 'notifications', notificationId));
@@ -682,7 +824,6 @@ export class NotificationService {
     }
   }
 
-  // Get unread notification count
   async getUnreadCount(userId: string): Promise<number> {
     try {
       const q = query(
@@ -698,13 +839,15 @@ export class NotificationService {
     }
   }
 
-  // =================== UTILITY METHODS - UPDATED WITH "ACCEPTED" ===================
+  // =================== UTILITY METHODS ===================
   
   private getChannelForType(type: NotificationType): string {
     if (type.startsWith('report_')) return 'reports';
     if (type.startsWith('forum_')) return 'forum';
     if (type.startsWith('chat_')) return 'chat';
     if (type.startsWith('account_')) return 'account';
+    if (type.startsWith('violation')) return 'violations'; // ✅ NEW
+    if (type === 'violation') return 'violations'; // ✅ NEW
     if (type.includes('emergency') || type.includes('weather') || type.includes('evacuation')) return 'emergency';
     return 'system';
   }
@@ -740,7 +883,6 @@ export class NotificationService {
     }
   }
 
-  // Utility methods for formatting and display
   formatNotificationTime(timestamp: Timestamp): string {
     const now = new Date();
     const notificationTime = timestamp.toDate();
@@ -762,11 +904,10 @@ export class NotificationService {
     });
   }
 
-  // ✅ UPDATED: Added "report_accepted" to icon mapping
   getNotificationIcon(type: NotificationType): string {
     const iconMap: Record<string, string> = {
       'report_submitted': '📝',
-      'report_accepted': '✅',  // ✅ ADDED
+      'report_accepted': '✅',
       'report_verified': '✅',
       'report_approved': '✅',
       'report_rejected': '❌',
@@ -789,6 +930,12 @@ export class NotificationService {
       'emergency_broadcast': '🚨',
       'evacuation_notice': '🚨',
       'emergency_contact_updated': '📞',
+      // ✅ NEW: Violation icons
+      'violation': '⚠️',
+      'violation_warning': '⚠️',
+      'violation_strike': '🔺',
+      'violation_suspension': '⏸️',
+      'violation_ban': '🚫',
     };
     return iconMap[type] || '🔔';
   }
@@ -804,5 +951,5 @@ export class NotificationService {
   }
 }
 
-// FIXED: Export singleton instance with proper initialization
+// Export singleton instance
 export const notificationService = new NotificationService();

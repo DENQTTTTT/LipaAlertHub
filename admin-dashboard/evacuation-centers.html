@@ -1,0 +1,2715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Evacuation Centers - LipaAlertHub Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .dashboard-container {
+            display: none;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            border: 3px solid white;
+        }
+
+        .brand-title {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .brand-subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 12px;
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link i {
+            width: 20px;
+            margin-right: 15px;
+            font-size: 16px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 250px;
+            min-height: 100vh;
+            background: #f8f9fa;
+            position: relative;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #dee2e6;
+            position: relative;
+            z-index: 100;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-details {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: white;
+        }
+
+        .role-badge.admin {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        /* Map Container */
+        .map-container {
+            position: absolute;
+            top: 80px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1;
+        }
+
+        #evacuationMap {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Floating Controls */
+        .floating-controls {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 20px;
+            min-width: 320px;
+        }
+
+        .add-center-btn {
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .add-center-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(213, 59, 44, 0.3);
+        }
+
+        .emergency-presets {
+            margin-top: 15px;
+        }
+
+        .presets-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .preset-btn {
+            padding: 8px 12px;
+            border: 2px solid #dee2e6;
+            background: white;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .preset-btn:hover {
+            border-color: #d53b2c;
+            background: rgba(213, 59, 44, 0.1);
+        }
+
+        .preset-btn.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .filter-controls {
+            margin-top: 15px;
+        }
+
+        .filter-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            border: 2px solid #dee2e6;
+            background: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background: #d53b2c;
+            color: white;
+            border-color: #d53b2c;
+        }
+
+        .filter-btn:hover {
+            border-color: #d53b2c;
+        }
+
+        /* Floating Sidebar */
+        .floating-sidebar {
+            position: absolute;
+            top: 100px;
+            right: 20px;
+            width: 380px;
+            max-height: calc(100vh - 140px);
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.1);
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .sidebar-header-card {
+            padding: 20px;
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            color: white;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .centers-count {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .centers-list {
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .center-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #d53b2c;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .center-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .center-item.inactive {
+            border-left-color: #6c757d;
+            opacity: 0.7;
+        }
+
+        .center-item.google-result {
+            border-left-color: #28a745;
+            background: #f8fff9;
+        }
+
+        .center-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .center-location {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .center-details {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .facility-type {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(213, 59, 44, 0.1);
+            color: #d53b2c;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .capacity-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .center-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-badge.google-found {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .center-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .edit-btn {
+            background: #007bff;
+            color: white;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .toggle-btn {
+            background: #6c757d;
+            color: white;
+        }
+
+        .add-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Modal Styles */
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 20px 25px;
+        }
+
+        .modal-title {
+            font-weight: 600;
+        }
+
+        .btn-close {
+            filter: brightness(0) invert(1);
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: #d53b2c;
+            box-shadow: 0 0 0 0.25rem rgba(213, 59, 44, 0.1);
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .search-result-item {
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s ease;
+        }
+
+        .search-result-item:hover {
+            background: #f8f9fa;
+        }
+
+        .search-result-name {
+            font-weight: 600;
+            color: #d53b2c;
+            margin-bottom: 4px;
+        }
+
+        .search-result-address {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .search-result-details {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .google-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            background: #4285f4;
+            color: white;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .photo-upload-area {
+            border: 2px dashed #d53b2c;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            background: #fafafa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .photo-upload-area:hover {
+            background: #f5f5f5;
+            border-color: #b92e20;
+        }
+
+        .photo-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover, .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Loading & Empty States */
+        .loading-spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #d53b2c;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #dc3545;
+            background: #f8d7da;
+            border-radius: 10px;
+            margin: 20px;
+        }
+
+        /* Mobile Toggle Button */
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 2000;
+            background: #d53b2c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+
+        .mobile-toggle:hover {
+            background: #b92e20;
+            transform: scale(1.1);
+        }
+
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        /* Notification Styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #28a745, #20a83a);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .notification.warning {
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+        }
+
+        .notification.info {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 991px) {
+            .mobile-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 1001;
+                width: 280px;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .mobile-overlay.show {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .header {
+                padding: 15px 20px 15px 70px;
+            }
+
+            .page-title {
+                font-size: 24px;
+            }
+
+            .user-details {
+                display: none;
+            }
+
+            .floating-controls {
+                top: 90px;
+                left: 15px;
+            }
+
+            .control-card {
+                min-width: 280px;
+                padding: 15px;
+            }
+
+            .floating-sidebar {
+                top: 90px;
+                right: 15px;
+                width: 300px;
+            }
+
+            .map-container {
+                top: 70px;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .floating-controls {
+                position: relative;
+                top: 0;
+                left: 0;
+                padding: 15px;
+                background: white;
+                margin-bottom: 0;
+            }
+
+            .floating-sidebar {
+                position: relative;
+                top: 0;
+                right: 0;
+                width: 100%;
+                max-height: 300px;
+                margin: 15px;
+                margin-top: 0;
+            }
+
+            .map-container {
+                position: relative;
+                height: 400px;
+                top: 0;
+                margin: 15px;
+                border-radius: 15px;
+                overflow: hidden;
+            }
+
+            .control-card {
+                min-width: 100%;
+                margin-bottom: 15px;
+            }
+
+            .preset-buttons {
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+            }
+
+            .preset-btn {
+                padding: 6px 10px;
+                font-size: 10px;
+            }
+        }
+
+        @media (max-width: 575px) {
+            .mobile-toggle {
+                width: 45px;
+                height: 45px;
+                top: 15px;
+                left: 15px;
+            }
+
+            .sidebar {
+                width: calc(100vw - 40px);
+                max-width: 300px;
+            }
+
+            .header {
+                padding: 10px 15px 10px 65px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .page-title {
+                font-size: 20px;
+            }
+
+            .map-container {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div style="text-align: center;">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+                Loading Evacuation Centers...
+            </div>
+            <small style="opacity: 0.8;">
+                Initializing Google Places API and map services
+            </small>
+        </div>
+    </div>
+
+    <div id="dashboardContainer" class="dashboard-container">
+        <!-- Mobile Toggle Button -->
+        <button id="mobileToggle" class="mobile-toggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Mobile Overlay -->
+        <div id="mobileOverlay" class="mobile-overlay" onclick="closeSidebar()"></div>
+
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
+                <div class="brand-title">LipaAlertHub</div>
+                <div class="brand-subtitle">Disaster Management System</div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item" data-role="admin,monitor">
+                    <a href="Dashboard.html" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Dashboard
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin,monitor,rescuer">
+                    <a href="IncidentReportList.html" class="nav-link">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Reports
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="Announcements.html" class="nav-link">
+                        <i class="fas fa-bullhorn"></i>
+                        Announcements
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="EmergencyTips.html" class="nav-link">
+                        <i class="fas fa-lightbulb"></i>
+                        Emergency Tips
+                    </a>
+                </div>
+
+                     <div class="nav-item" data-role="admin">
+                    <a href="evacuation-centers.html" class="nav-link active">
+                        <i class="fa-solid fa-tents"></i>
+                        Evacuation Centers
+                    </a>
+                </div>
+
+               <div class="nav-item" data-role="admin,monitor">
+                    <a href="Forums.html" class="nav-link">
+                        <i class="fas fa-comments"></i>
+                        Forums
+                    </a>
+                </div>
+                
+                  <div class="nav-item" data-role="admin">
+                    <a href="Maps.html" class="nav-link">
+                        <i class="fas fa-map"></i>
+                        Hazard Map
+                    </a>
+                </div>
+                
+                      <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="Chats.html" class="nav-link">
+                        <i class="fas fa-comment-dots"></i>  
+                          Chats
+                    </a>
+                </div>
+                
+     <div class="nav-item" data-role="admin,monitor">
+                    <a href="Accounts.html" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        Accounts
+                    </a>
+                </div>
+                
+          <div class="nav-item" data-role="admin">
+                    <a href="Analytics.html" class="nav-link">
+                        <i class="fas fa-chart-bar"></i>
+                        Analytics
+                    </a>
+                </div>
+
+           <div class="nav-item" data-role="admin">
+                    <a href="WeatherDisasters.html" class="nav-link">
+                       <i class="fa-solid fa-cloud"></i>
+                        Weather & Disasters
+                    </a>
+                </div>
+                
+               <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="Contacts.html" class="nav-link">
+                        <i class="fas fa-phone"></i>
+                        Contacts
+                    </a>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <h1 class="page-title">Evacuation Centers</h1>
+                <div class="user-info">
+                    <div class="user-details">
+                        <div class="user-name" data-user-info="name">Loading...</div>
+                        <div class="user-role" data-user-info="email">Loading...</div>
+                    </div>
+                    <div class="role-badge" data-user-info="role">Loading...</div>
+                    <div class="dropdown">
+                        <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle fa-2x" style="color: #d53b2c;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="logoutUser()">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="map-container">
+                <div id="evacuationMap"></div>
+            </div>
+
+            <!-- Floating Controls -->
+            <div class="floating-controls">
+                <div class="control-card">
+                    <button class="add-center-btn" id="addCenterBtn" onclick="openAddCenterModal()">
+                        <i class="fas fa-plus"></i>
+                        <span id="addBtnText">Add Evacuation Center</span>
+                    </button>
+                    
+
+                    
+                    <div class="filter-controls">
+                        <div class="filter-title">Filter Centers</div>
+                        <div class="filter-buttons">
+                            <button class="filter-btn active" data-filter="all">All</button>
+                            <button class="filter-btn" data-filter="active">Active</button>
+                            <button class="filter-btn" data-filter="inactive">Inactive</button>
+                            <button class="filter-btn" data-filter="google">Google Found</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floating Sidebar -->
+            <div class="floating-sidebar">
+                <div class="sidebar-header-card">
+                    <div class="sidebar-title">Evacuation Centers</div>
+                    <div class="centers-count" id="centersCount">Loading...</div>
+                </div>
+                <div class="centers-list" id="centersList">
+                    <div class="text-center py-4">
+                        <div class="loading-spinner-small"></div>
+                        <p class="mt-3 mb-0">Loading centers...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Center Modal -->
+    <div class="modal fade" id="centerModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Add Evacuation Center</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="centerForm">
+                        <input type="hidden" id="centerId" value="">
+                        
+                        <!-- Enhanced Location Search -->
+                        <div class="mb-3">
+                            <label for="locationSearch" class="form-label">Search Evacuation Centers</label>
+                            <div class="position-relative">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="locationSearch" placeholder="Search schools, barangay halls, churches in Lipa City...">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="searchEvacuationCenters()">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                                <div id="searchResults" class="search-results" style="display: none;"></div>
+                            </div>
+                            <small class="text-muted">Try: "elementary school", "barangay hall", "church", or specific names</small>
+                        </div>
+                        
+                        <!-- OR divider -->
+                        <div class="text-center mb-3">
+                            <small class="text-muted">— OR ENTER COORDINATES MANUALLY —</small>
+                        </div>
+                        
+                        <!-- Manual Coordinates -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="centerLat" class="form-label">Latitude</label>
+                                    <input type="number" step="any" class="form-control" id="centerLat" placeholder="13.9411">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="centerLng" class="form-label">Longitude</label>
+                                    <input type="number" step="any" class="form-control" id="centerLng" placeholder="121.1624">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="centerName" class="form-label">Center Name</label>
+                            <input type="text" class="form-control" id="centerName" required placeholder="e.g. Lipa City Elementary School">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="centerBarangay" class="form-label">Barangay</label>
+                            <input type="text" class="form-control" id="centerBarangay" required placeholder="e.g. Poblacion">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="facilityType" class="form-label">Facility Type</label>
+                            <select class="form-control" id="facilityType">
+                                <option value="">Select facility type</option>
+                                <option value="elementary_school">Elementary School</option>
+                                <option value="high_school">High School</option>
+                                <option value="university">University/College</option>
+                                <option value="barangay_hall">Barangay Hall</option>
+                                <option value="church">Church/Religious Facility</option>
+                                <option value="gym">Gymnasium/Sports Center</option>
+                                <option value="community_center">Community Center</option>
+                                <option value="government_office">Government Office</option>
+                                <option value="hospital">Medical Facility</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="evacuationCapacity" class="form-label">Estimated Capacity</label>
+                            <select class="form-control" id="evacuationCapacity">
+                                <option value="Low (50-150 people)">Low (50-150 people)</option>
+                                <option value="Medium (150-300 people)">Medium (150-300 people)</option>
+                                <option value="High (300-500 people)">High (300-500 people)</option>
+                                <option value="Very High (500+ people)">Very High (500+ people)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="centerPhoto" class="form-label">Photo</label>
+                            <div class="photo-upload-area" onclick="document.getElementById('centerPhoto').click()">
+                                <i class="fas fa-cloud-upload-alt fa-2x mb-2" style="color: #d53b2c;"></i>
+                                <p class="mb-0">Click to upload center photo</p>
+                                <small class="text-muted">JPG, PNG, or WEBP (max 5MB)</small>
+                            </div>
+                            <input type="file" id="centerPhoto" accept="image/*" style="display: none;">
+                            <div id="photoPreview" style="display: none;">
+                                <img id="previewImage" class="photo-preview" alt="Photo Preview">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="centerActive" checked>
+                                <label class="form-check-label" for="centerActive">
+                                    Active (visible to users)
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCenterData()">
+                        <span id="saveButtonText">Save Center</span>
+                        <div id="saveButtonSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Global Google Maps Callback Function (accessible to API) -->
+    <script>
+        // Global variables and callback function for Google Maps
+        window.googleMapsReady = false;
+        
+        // This callback function MUST be in global scope for Google Maps API
+        window.initializeGoogleMapsCallback = function() {
+            console.log('Google Maps API loaded successfully');
+            window.googleMapsReady = true;
+            
+            // Dispatch event to notify the module script
+            window.dispatchEvent(new CustomEvent('googleMapsLoaded'));
+        };
+    </script>
+    
+    <!-- Firebase and Main JavaScript -->
+    <script type="module">
+        // Firebase Configuration
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+            authDomain: "lipaalerthub.firebaseapp.com",
+            projectId: "lipaalerthub",
+            storageBucket: "lipaalerthub.firebasestorage.app",
+            messagingSenderId: "991310233066",
+            appId: "1:991310233066:web:7e836a60e5c4a302de0693"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        // Google Places API Configuration
+        let map;
+        let placesService;
+        let geocoder;
+        let markers = [];
+        let evacuationCenters = [];
+        let currentFilter = 'all';
+        let currentUser = null;
+        let centersListener = null;
+        let autocomplete;
+
+        // Lipa City boundaries for restricting searches
+        const LIPA_CITY_BOUNDS = new google.maps.LatLngBounds(
+            new google.maps.LatLng(13.8, 121.0), // SW
+            new google.maps.LatLng(14.1, 121.3)  // NE
+        );
+
+        const LIPA_CITY_CENTER = new google.maps.LatLng(13.9411, 121.1624);
+
+        // Evacuation center specific place types
+        const EVACUATION_CENTER_TYPES = [
+            'school', 'primary_school', 'secondary_school', 'university', 
+            'establishment', 'point_of_interest',
+            'local_government_office', 'city_hall', 'courthouse', 'fire_station',
+            'community_center', 'library', 'gym', 'stadium', 'park',
+            'church', 'place_of_worship', 'mosque', 'temple',
+            'hospital', 'health', 'doctor', 'clinic',
+            'shopping_mall', 'convention_center', 'auditorium'
+        ];
+
+        // Emergency-specific search presets
+        const EMERGENCY_SEARCH_PRESETS = {
+            'flood': ['school', 'church', 'community_center', 'gym'],
+            'earthquake': ['park', 'stadium', 'gym', 'school'],
+            'fire': ['school', 'church', 'community_center'],
+            'typhoon': ['school', 'local_government_office', 'community_center']
+        };
+
+        // Initialize everything when DOM loads
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthentication();
+        });
+
+        // Wait for Google Maps to load
+        window.addEventListener('googleMapsLoaded', function() {
+            if (currentUser && window.googleMapsReady) {
+                initializeMap().then(() => {
+                    setupEvacuationCentersListener();
+                    setupEventListeners();
+                    
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    document.getElementById('dashboardContainer').style.display = 'block';
+                    
+                    showNotification('Enhanced evacuation center search ready!', 'success');
+                });
+            }
+        });
+
+        // Authentication check
+        function checkAuthentication() {
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) {
+                    window.location.href = "index.html";
+                    return;
+                }
+
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (!userDoc.exists()) {
+                        alert("User profile not found.");
+                        await signOut(auth);
+                        window.location.href = "index.html";
+                        return;
+                    }
+
+                    const userData = userDoc.data();
+                    if (userData.role !== 'admin') {
+                        alert("Access denied. Admin role required.");
+                        await signOut(auth);
+                        window.location.href = "index.html";
+                        return;
+                    }
+
+                    currentUser = { user, userData };
+                    updateUserInfo(userData, user);
+                    
+                    // Check if Google Maps is already loaded
+                    if (window.googleMapsReady) {
+                        await initializeMap();
+                        setupEvacuationCentersListener();
+                        setupEventListeners();
+                        
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        document.getElementById('dashboardContainer').style.display = 'block';
+                        
+                        showNotification('Enhanced evacuation center search ready!', 'success');
+                    }
+                    
+                } catch (error) {
+                    console.error('Authentication error:', error);
+                    alert('Authentication failed. Please try again.');
+                    await signOut(auth);
+                    window.location.href = "index.html";
+                }
+            });
+        }
+
+        // Initialize Google Maps with all required services
+        async function initializeMap() {
+            if (typeof google === 'undefined' || !google.maps) {
+                throw new Error('Google Maps API not loaded');
+            }
+
+            const defaultCenter = LIPA_CITY_CENTER;
+            
+            map = new google.maps.Map(document.getElementById("evacuationMap"), {
+                zoom: 13,
+                center: defaultCenter,
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                restriction: {
+                    latLngBounds: LIPA_CITY_BOUNDS,
+                    strictBounds: false,
+                },
+                styles: [
+                    {
+                        featureType: "poi",
+                        elementType: "labels",
+                        stylers: [{ visibility: "off" }]
+                    }
+                ]
+            });
+
+            // Initialize Places Service
+            placesService = new google.maps.places.PlacesService(map);
+            
+            // Initialize Geocoder
+            geocoder = new google.maps.Geocoder();
+
+            // Initialize Autocomplete for the search input
+            initializeEvacuationAutocomplete();
+
+            console.log('Google Maps and Places API initialized successfully');
+        }
+
+        // Initialize autocomplete specifically for evacuation centers
+        function initializeEvacuationAutocomplete() {
+            const searchInput = document.getElementById('locationSearch');
+            if (!searchInput || typeof google === 'undefined') return;
+
+            try {
+                autocomplete = new google.maps.places.Autocomplete(searchInput, {
+                    bounds: LIPA_CITY_BOUNDS,
+                    componentRestrictions: { country: 'PH' },
+                    fields: ['place_id', 'geometry', 'name', 'formatted_address', 'address_components', 'types', 'rating', 'photos'],
+                    types: ['establishment']
+                });
+
+                autocomplete.setOptions({
+                    strictBounds: true,
+                    types: ['establishment', 'geocode']
+                });
+
+                autocomplete.addListener('place_changed', () => {
+                    const place = autocomplete.getPlace();
+                    if (place.geometry) {
+                        processSelectedEvacuationCenter(place);
+                    }
+                });
+            } catch (error) {
+                console.error('Error initializing autocomplete:', error);
+            }
+        }
+
+        // Process selected evacuation center from autocomplete
+        function processSelectedEvacuationCenter(place) {
+            const lat = place.geometry.location.lat();
+            const lng = place.geometry.location.lng();
+            const name = place.name;
+            const address = place.formatted_address;
+            
+            // Extract barangay from address components
+            const barangay = extractBarangayFromPlace(place);
+            
+            // Estimate facility type and capacity
+            const facilityType = getFacilityTypeFromPlace(place.types);
+            const capacity = estimateEvacuationCapacity(place);
+
+            // Fill form fields
+            document.getElementById('centerLat').value = lat;
+            document.getElementById('centerLng').value = lng;
+            document.getElementById('centerName').value = name;
+            document.getElementById('centerBarangay').value = barangay;
+            document.getElementById('facilityType').value = facilityType;
+            document.getElementById('evacuationCapacity').value = capacity;
+
+            // Update map
+            if (map) {
+                map.setCenter({ lat: lat, lng: lng });
+                map.setZoom(16);
+                
+                if (window.tempMarker) {
+                    window.tempMarker.setMap(null);
+                }
+                window.tempMarker = new google.maps.Marker({
+                    position: { lat: lat, lng: lng },
+                    map: map,
+                    title: name,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 12,
+                        fillColor: '#28a745',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2
+                    }
+                });
+            }
+
+            showNotification(`Selected: ${name} (${getFacilityTypeName(facilityType)})`, 'success');
+        }
+
+        // Enhanced evacuation center search using Google Places
+        window.searchEvacuationCenters = async function() {
+            if (typeof google === 'undefined' || !placesService) {
+                showNotification('Google Maps API not ready yet', 'warning');
+                return;
+            }
+
+            const query = document.getElementById('locationSearch').value.trim();
+            const resultsContainer = document.getElementById('searchResults');
+            
+            if (!query) {
+                resultsContainer.style.display = 'none';
+                return;
+            }
+            
+            resultsContainer.innerHTML = '<div class="search-result-item">🔍 Searching evacuation centers...</div>';
+            resultsContainer.style.display = 'block';
+            
+            try {
+                // Process evacuation-specific query
+                const processedQuery = processEvacuationQuery(query);
+                
+                // Level 1: Text Search with evacuation-specific terms
+                const results = await level1_TextSearch(processedQuery.query);
+                
+                if (results && results.length > 0) {
+                    displaySearchResults(results, resultsContainer);
+                } else {
+                    // Fallback to broader search
+                    await performBroaderEvacuationSearch(query, resultsContainer);
+                }
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                await handleSearchErrors(error, query, resultsContainer);
+            }
+        };
+
+        // Level 1: Direct text search with evacuation-specific terms
+        async function level1_TextSearch(query) {
+            const enhancedQuery = `${query} Lipa City Batangas`;
+            
+            return new Promise((resolve, reject) => {
+                const request = {
+                    query: enhancedQuery,
+                    bounds: LIPA_CITY_BOUNDS,
+                    location: LIPA_CITY_CENTER,
+                    radius: 15000,
+                    fields: ['place_id', 'name', 'geometry', 'formatted_address', 'address_components', 'types', 'rating', 'photos']
+                };
+                
+                placesService.textSearch(request, (results, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK) {
+                        // Filter results to ensure they're in Lipa City
+                        const filteredResults = results.filter(result => {
+                            const lat = result.geometry.location.lat();
+                            const lng = result.geometry.location.lng();
+                            return LIPA_CITY_BOUNDS.contains(new google.maps.LatLng(lat, lng));
+                        });
+                        resolve(filteredResults);
+                    } else {
+                        reject(status);
+                    }
+                });
+            });
+        }
+
+        // Level 2: Nearby Search by Type
+        async function level2_NearbySearch(types) {
+            return new Promise((resolve, reject) => {
+                const request = {
+                    location: LIPA_CITY_CENTER,
+                    radius: 10000,
+                    type: types,
+                    bounds: LIPA_CITY_BOUNDS
+                };
+                
+                placesService.nearbySearch(request, (results, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK) {
+                        resolve(results);
+                    } else {
+                        reject(status);
+                    }
+                });
+            });
+        }
+
+        // Process evacuation center specific search patterns
+        function processEvacuationQuery(query) {
+            const lowerQuery = query.toLowerCase();
+            let searchRequest = { query: query };
+            
+            // Educational institutions
+            if (lowerQuery.includes('elementary') || lowerQuery.includes('elem') || lowerQuery.includes('es')) {
+                searchRequest.type = 'primary_school';
+                searchRequest.query += ' elementary school';
+            }
+            
+            if (lowerQuery.includes('high school') || lowerQuery.includes('secondary') || lowerQuery.includes('nhs')) {
+                searchRequest.type = 'secondary_school';
+                searchRequest.query += ' high school';
+            }
+            
+            // Government facilities
+            if (lowerQuery.includes('barangay hall') || lowerQuery.includes('brgy hall') || lowerQuery.includes('civic')) {
+                searchRequest.type = 'local_government_office';
+                searchRequest.query += ' barangay hall';
+            }
+            
+            // Community facilities
+            if (lowerQuery.includes('covered court') || lowerQuery.includes('gymnasium') || lowerQuery.includes('gym')) {
+                searchRequest.type = 'gym';
+            }
+            
+            // Religious facilities
+            if (lowerQuery.includes('church') || lowerQuery.includes('chapel') || lowerQuery.includes('cathedral')) {
+                searchRequest.type = 'church';
+            }
+            
+            return searchRequest;
+        }
+
+        // Extract barangay from Google Places result
+        function extractBarangayFromPlace(place) {
+            const addressComponents = place.address_components || [];
+            
+            for (let component of addressComponents) {
+                if (component.types.includes('sublocality_level_1') || 
+                    component.types.includes('sublocality_level_2') ||
+                    component.types.includes('political') ||
+                    component.long_name.toLowerCase().includes('barangay') ||
+                    component.long_name.toLowerCase().includes('brgy')) {
+                    
+                    return component.long_name
+                        .replace(/^(Barangay|Brgy)\.?\s*/i, '')
+                        .replace(/,.*$/, '')
+                        .trim();
+                }
+            }
+            
+            // Fallback: extract from formatted address
+            const address = place.formatted_address || '';
+            const barangayMatch = address.match(/(?:Barangay|Brgy)\.?\s+([^,]+)/i);
+            if (barangayMatch) {
+                return barangayMatch[1].trim();
+            }
+            
+            return 'Unknown';
+        }
+
+        // Get facility type from place types
+        function getFacilityTypeFromPlace(types) {
+            if (!types) return 'other';
+            
+            if (types.includes('primary_school')) return 'elementary_school';
+            if (types.includes('secondary_school')) return 'high_school';
+            if (types.includes('university')) return 'university';
+            if (types.includes('local_government_office')) return 'barangay_hall';
+            if (types.includes('church') || types.includes('place_of_worship')) return 'church';
+            if (types.includes('hospital') || types.includes('health')) return 'hospital';
+            if (types.includes('gym') || types.includes('stadium')) return 'gym';
+            if (types.includes('community_center')) return 'community_center';
+            
+            return 'other';
+        }
+
+        // Estimate evacuation capacity based on place type
+        function estimateEvacuationCapacity(place) {
+            const types = place.types || [];
+            
+            if (types.includes('university') || types.includes('hospital')) return 'Very High (500+ people)';
+            if (types.includes('secondary_school') || types.includes('shopping_mall')) return 'High (300-500 people)';
+            if (types.includes('primary_school') || types.includes('church')) return 'Medium (150-300 people)';
+            if (types.includes('local_government_office') || types.includes('gym')) return 'Low (50-150 people)';
+            
+            return 'Medium (150-300 people)';
+        }
+
+        // Display search results with enhanced information
+        function displaySearchResults(results, container) {
+            if (!results || results.length === 0) {
+                container.innerHTML = '<div class="search-result-item">No evacuation centers found. Try a different search term.</div>';
+                return;
+            }
+
+            container.innerHTML = results.map(place => {
+                const barangay = extractBarangayFromPlace(place);
+                const facilityType = getFacilityTypeFromPlace(place.types);
+                const capacity = estimateEvacuationCapacity(place);
+                const lat = place.geometry.location.lat();
+                const lng = place.geometry.location.lng();
+                
+                return `
+                    <div class="search-result-item" onclick="selectGooglePlace('${place.place_id}', ${lat}, ${lng}, '${place.name.replace(/'/g, "\\'")}', '${barangay.replace(/'/g, "\\'")}', '${facilityType}', '${capacity.replace(/'/g, "\\'")}')">
+                        <div class="search-result-name">
+                            ${place.name}
+                            <span class="google-badge">Google Places</span>
+                        </div>
+                        <div class="search-result-address">${place.formatted_address}</div>
+                        <div class="search-result-details">
+                            <small>📍 ${barangay} • ${getFacilityEmoji(facilityType)} ${getFacilityTypeName(facilityType)} • 👥 ${capacity}</small>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Get facility type display name
+        function getFacilityTypeName(type) {
+            const types = {
+                'elementary_school': 'Elementary School',
+                'high_school': 'High School',
+                'university': 'University',
+                'barangay_hall': 'Barangay Hall',
+                'church': 'Church',
+                'hospital': 'Medical Facility',
+                'gym': 'Sports Facility',
+                'community_center': 'Community Center',
+                'government_office': 'Government Office',
+                'other': 'Public Facility'
+            };
+            return types[type] || 'Public Facility';
+        }
+
+        // Get facility emoji
+        function getFacilityEmoji(type) {
+            const emojis = {
+                'elementary_school': '🏫',
+                'high_school': '🎓',
+                'university': '🏛️',
+                'barangay_hall': '🏢',
+                'church': '⛪',
+                'hospital': '🏥',
+                'gym': '🏃',
+                'community_center': '🏢',
+                'government_office': '🏛️',
+                'other': '📍'
+            };
+            return emojis[type] || '📍';
+        }
+
+        // Select Google Place result - make it globally accessible
+        window.selectGooglePlace = function(placeId, lat, lng, name, barangay, facilityType, capacity) {
+            document.getElementById('centerLat').value = lat;
+            document.getElementById('centerLng').value = lng;
+            document.getElementById('centerName').value = name;
+            document.getElementById('centerBarangay').value = barangay;
+            document.getElementById('facilityType').value = facilityType;
+            document.getElementById('evacuationCapacity').value = capacity;
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('locationSearch').value = name;
+            
+            if (map) {
+                map.setCenter({ lat: lat, lng: lng });
+                map.setZoom(16);
+                
+                if (window.tempMarker) {
+                    window.tempMarker.setMap(null);
+                }
+                window.tempMarker = new google.maps.Marker({
+                    position: { lat: lat, lng: lng },
+                    map: map,
+                    title: name,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 12,
+                        fillColor: '#4285f4',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2
+                    }
+                });
+            }
+            
+            showNotification(`Selected: ${name} from Google Places`, 'success');
+        };
+
+        // Quick evacuation search for emergency scenarios - make globally accessible
+        window.quickEvacuationSearch = async function(emergencyType) {
+            if (typeof google === 'undefined' || !placesService) {
+                showNotification('Google Maps API not ready yet', 'warning');
+                return;
+            }
+
+            const btn = event.target;
+            const originalText = btn.textContent;
+            
+            btn.classList.add('loading');
+            btn.textContent = 'Searching...';
+            
+            try {
+                const types = EMERGENCY_SEARCH_PRESETS[emergencyType] || EVACUATION_CENTER_TYPES;
+                const results = [];
+                
+                // Search for each type
+                for (const type of types) {
+                    try {
+                        const typeResults = await level2_NearbySearch(type);
+                        results.push(...typeResults);
+                    } catch (error) {
+                        console.log(`No results for type: ${type}`);
+                    }
+                }
+                
+                // Remove duplicates and display on map
+                const uniqueResults = results.filter((result, index, self) => 
+                    index === self.findIndex(r => r.place_id === result.place_id)
+                );
+                
+                displayEmergencyResults(uniqueResults, emergencyType);
+                
+                showNotification(`Found ${uniqueResults.length} ${emergencyType} evacuation centers`, 'success');
+                
+            } catch (error) {
+                console.error('Quick search error:', error);
+                showNotification(`Error searching for ${emergencyType} centers`, 'error');
+            } finally {
+                btn.classList.remove('loading');
+                btn.textContent = originalText;
+            }
+        };
+
+        // Display emergency search results on map
+        function displayEmergencyResults(results, emergencyType) {
+            // Clear existing emergency markers
+            if (window.emergencyMarkers) {
+                window.emergencyMarkers.forEach(marker => marker.setMap(null));
+            }
+            window.emergencyMarkers = [];
+            
+            const colors = {
+                'flood': '#007bff',
+                'earthquake': '#ffc107',
+                'fire': '#dc3545',
+                'typhoon': '#6f42c1'
+            };
+            
+            results.forEach(place => {
+                const marker = new google.maps.Marker({
+                    position: place.geometry.location,
+                    map: map,
+                    title: `${place.name} (${emergencyType} evacuation center)`,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: colors[emergencyType] || '#007bff',
+                        fillOpacity: 0.8,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2
+                    }
+                });
+                
+                const infoWindow = new google.maps.InfoWindow({
+                    content: createEmergencyInfoWindowContent(place, emergencyType)
+                });
+                
+                marker.addListener('click', () => {
+                    if (window.activeEmergencyInfoWindow) {
+                        window.activeEmergencyInfoWindow.close();
+                    }
+                    infoWindow.open(map, marker);
+                    window.activeEmergencyInfoWindow = infoWindow;
+                });
+                
+                window.emergencyMarkers.push(marker);
+            });
+        }
+
+        // Create info window content for emergency search results
+        function createEmergencyInfoWindowContent(place, emergencyType) {
+            const barangay = extractBarangayFromPlace(place);
+            const facilityType = getFacilityTypeFromPlace(place.types);
+            const capacity = estimateEvacuationCapacity(place);
+            
+            return `
+                <div style="min-width: 200px; padding: 10px;">
+                    <h6 style="margin: 0 0 5px 0; color: #d53b2c; font-weight: 600;">${place.name}</h6>
+                    <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">
+                        <i class="fas fa-map-marker-alt" style="color: #d53b2c; margin-right: 5px;"></i>${barangay}
+                    </p>
+                    <div style="margin-bottom: 8px;">
+                        <span style="background: rgba(213, 59, 44, 0.1); color: #d53b2c; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">
+                            ${getFacilityTypeName(facilityType)}
+                        </span>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <span style="background: rgba(40, 167, 69, 0.1); color: #28a745; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600;">
+                            ${capacity}
+                        </span>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <span style="background: #4285f4; color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600;">
+                            ${emergencyType.toUpperCase()} SUITABLE
+                        </span>
+                    </div>
+                    <button onclick="addCenterFromGoogle('${place.place_id}', '${place.name.replace(/'/g, "\\'")}', ${place.geometry.location.lat()}, ${place.geometry.location.lng()}, '${barangay.replace(/'/g, "\\'")}', '${facilityType}', '${capacity.replace(/'/g, "\\'")}', '${place.formatted_address.replace(/'/g, "\\'")}')" 
+                            style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; width: 100%;">
+                        <i class="fas fa-plus"></i> Add as Evacuation Center
+                    </button>
+                </div>
+            `;
+        }
+
+        // Add center from Google Places search result - make globally accessible
+        window.addCenterFromGoogle = async function(placeId, name, lat, lng, barangay, facilityType, capacity, address) {
+            try {
+                const centerData = {
+                    name: name,
+                    barangay: barangay,
+                    latitude: lat,
+                    longitude: lng,
+                    facilityType: facilityType,
+                    evacuationCapacity: capacity,
+                    isActive: true,
+                    googlePlaceId: placeId,
+                    sourceAddress: address,
+                    source: 'google_places',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                };
+                
+                await addDoc(collection(db, "evacuation_centers"), centerData);
+                showNotification(`${name} added as evacuation center`, 'success');
+                
+                // Close any open info windows
+                if (window.activeEmergencyInfoWindow) {
+                    window.activeEmergencyInfoWindow.close();
+                }
+                
+            } catch (error) {
+                console.error('Error adding center from Google:', error);
+                showNotification('Error adding evacuation center', 'error');
+            }
+        };
+
+        // Perform broader evacuation search when initial search fails
+        async function performBroaderEvacuationSearch(query, container) {
+            try {
+                const broadTerms = ['school', 'barangay', 'church', 'gym', 'hall'];
+                let allResults = [];
+                
+                for (const term of broadTerms) {
+                    try {
+                        const results = await level2_NearbySearch(term);
+                        allResults.push(...results);
+                    } catch (error) {
+                        console.log(`No results for ${term}`);
+                    }
+                }
+                
+                // Remove duplicates
+                const uniqueResults = allResults.filter((result, index, self) => 
+                    index === self.findIndex(r => r.place_id === result.place_id)
+                );
+                
+                if (uniqueResults.length > 0) {
+                    displaySearchResults(uniqueResults, container);
+                } else {
+                    container.innerHTML = '<div class="search-result-item">No evacuation centers found. Try searching for specific facility names.</div>';
+                }
+                
+            } catch (error) {
+                container.innerHTML = '<div class="search-result-item" style="color: #dc3545;">Search failed. Please try again.</div>';
+            }
+        }
+
+        // Enhanced error handling for emergency situations
+        async function handleSearchErrors(error, query, container, retryCount = 0) {
+            const maxRetries = 3;
+            
+            switch(error) {
+                case google.maps.places.PlacesServiceStatus.OVER_QUERY_LIMIT:
+                    if (retryCount < maxRetries) {
+                        container.innerHTML = `<div class="search-result-item">⏳ Rate limit hit, retrying in ${retryCount + 1} seconds...</div>`;
+                        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+                        return searchEvacuationCenters();
+                    }
+                    container.innerHTML = '<div class="search-result-item" style="color: #dc3545;">Rate limit exceeded. Please try again later.</div>';
+                    break;
+                    
+                case google.maps.places.PlacesServiceStatus.REQUEST_DENIED:
+                    container.innerHTML = '<div class="search-result-item" style="color: #dc3545;">API access denied. Please check configuration.</div>';
+                    showNotification('Google Places API access denied', 'error');
+                    break;
+                    
+                case google.maps.places.PlacesServiceStatus.ZERO_RESULTS:
+                    await performBroaderEvacuationSearch(query, container);
+                    break;
+                    
+                default:
+                    if (retryCount < maxRetries) {
+                        container.innerHTML = `<div class="search-result-item">🔄 Search failed, retrying (${retryCount + 1}/${maxRetries})...</div>`;
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        return searchEvacuationCenters();
+                    }
+                    container.innerHTML = '<div class="search-result-item" style="color: #dc3545;">Search failed. Please try again.</div>';
+            }
+        }
+
+        // Update user info in header
+        function updateUserInfo(userData, user) {
+            const nameElement = document.querySelector('[data-user-info="name"]');
+            const emailElement = document.querySelector('[data-user-info="email"]');
+            const roleElement = document.querySelector('[data-user-info="role"]');
+            
+            if (nameElement) nameElement.textContent = userData.name || user.displayName || 'Admin';
+            if (emailElement) emailElement.textContent = user.email;
+            if (roleElement) {
+                roleElement.textContent = 'Administrator';
+                roleElement.className = 'role-badge admin';
+            }
+        }
+
+        // Setup realtime listener for evacuation centers
+        function setupEvacuationCentersListener() {
+            const q = query(collection(db, "evacuation_centers"), orderBy("createdAt", "desc"));
+            
+            if (centersListener) centersListener();
+            
+            centersListener = onSnapshot(q, (snapshot) => {
+                evacuationCenters = [];
+                snapshot.forEach((doc) => {
+                    evacuationCenters.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                updateCentersList();
+                updateMapMarkers();
+                updateCentersCount();
+                
+            }, (error) => {
+                console.error("Error fetching evacuation centers:", error);
+                showNotification("Error loading evacuation centers", "error");
+            });
+        }
+
+        // Update centers list in sidebar
+        function updateCentersList() {
+            const container = document.getElementById('centersList');
+            const filteredCenters = getFilteredCenters();
+            
+            if (filteredCenters.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-home fa-2x mb-3" style="color: #d53b2c;"></i>
+                        <p>No evacuation centers found</p>
+                        ${currentFilter !== 'all' ? '<small>Try changing the filter</small>' : ''}
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filteredCenters.map(center => {
+                const isGoogleResult = center.source === 'google_places';
+                return `
+                    <div class="center-item ${!center.isActive ? 'inactive' : ''} ${isGoogleResult ? 'google-result' : ''}" onclick="focusOnCenter('${center.id}')">
+                        <div class="center-name">${center.name}</div>
+                        <div class="center-location">
+                            <i class="fas fa-map-marker-alt me-1"></i>${center.barangay}
+                        </div>
+                        <div class="center-details">
+                            <div class="facility-type">${getFacilityEmoji(center.facilityType || 'other')} ${getFacilityTypeName(center.facilityType || 'other')}</div>
+                            <div class="capacity-badge">${center.evacuationCapacity || 'Unknown capacity'}</div>
+                        </div>
+                        <div class="center-status">
+                            <div>
+                                <span class="status-badge ${center.isActive ? 'active' : 'inactive'}">
+                                    ${center.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                                ${isGoogleResult ? '<span class="status-badge google-found">Google Places</span>' : ''}
+                            </div>
+                            <div class="center-actions">
+                                <button class="action-btn toggle-btn" onclick="event.stopPropagation(); toggleCenterStatus('${center.id}', ${!center.isActive})" title="${center.isActive ? 'Deactivate' : 'Activate'}">
+                                    <i class="fas fa-power-off"></i>
+                                </button>
+                                <button class="action-btn edit-btn" onclick="event.stopPropagation(); editCenter('${center.id}')" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn delete-btn" onclick="event.stopPropagation(); deleteCenter('${center.id}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Get filtered centers
+        function getFilteredCenters() {
+            switch (currentFilter) {
+                case 'active':
+                    return evacuationCenters.filter(center => center.isActive);
+                case 'inactive':
+                    return evacuationCenters.filter(center => !center.isActive);
+                case 'google':
+                    return evacuationCenters.filter(center => center.source === 'google_places');
+                default:
+                    return evacuationCenters;
+            }
+        }
+
+        // Update map markers
+        function updateMapMarkers() {
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+            
+            const filteredCenters = getFilteredCenters();
+            
+            filteredCenters.forEach(center => {
+                const isGoogleResult = center.source === 'google_places';
+                
+                const marker = new google.maps.Marker({
+                    position: { lat: center.latitude, lng: center.longitude },
+                    map: map,
+                    title: center.name,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 15,
+                        fillColor: center.isActive ? 
+                            (isGoogleResult ? '#28a745' : '#d53b2c') : 
+                            '#6c757d',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 3
+                    }
+                });
+                
+                const infoWindow = new google.maps.InfoWindow({
+                    content: createInfoWindowContent(center)
+                });
+                
+                marker.addListener('click', () => {
+                    markers.forEach(m => {
+                        if (m.infoWindow) m.infoWindow.close();
+                    });
+                    
+                    infoWindow.open(map, marker);
+                });
+                
+                marker.infoWindow = infoWindow;
+                markers.push(marker);
+            });
+        }
+
+        // Create info window content
+        function createInfoWindowContent(center) {
+            const isGoogleResult = center.source === 'google_places';
+            return `
+                <div style="min-width: 220px; padding: 10px;">
+                    ${center.photoUrl ? `<img src="${center.photoUrl}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" alt="${center.name}">` : ''}
+                    <h6 style="margin: 0 0 5px 0; color: #d53b2c; font-weight: 600;">
+                        ${center.name}
+                        ${isGoogleResult ? '<span style="background: #4285f4; color: white; padding: 2px 4px; border-radius: 3px; font-size: 9px; margin-left: 5px;">Google</span>' : ''}
+                    </h6>
+                    <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">
+                        <i class="fas fa-map-marker-alt" style="color: #d53b2c; margin-right: 5px;"></i>${center.barangay}
+                    </p>
+                    <div style="margin-bottom: 8px;">
+                        <span style="background: rgba(213, 59, 44, 0.1); color: #d53b2c; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">
+                            ${getFacilityEmoji(center.facilityType || 'other')} ${getFacilityTypeName(center.facilityType || 'other')}
+                        </span>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <span style="background: rgba(40, 167, 69, 0.1); color: #28a745; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600;">
+                            ${center.evacuationCapacity || 'Unknown capacity'}
+                        </span>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <span class="badge" style="background: ${center.isActive ? '#d4edda' : '#f8d7da'}; color: ${center.isActive ? '#155724' : '#721c24'}; padding: 4px 8px; border-radius: 4px; font-size: 11px;">
+                            ${center.isActive ? 'ACTIVE' : 'INACTIVE'}
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                        <button onclick="editCenter('${center.id}')" style="background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button onclick="deleteCenter('${center.id}')" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update centers count
+        function updateCentersCount() {
+            const total = evacuationCenters.length;
+            const active = evacuationCenters.filter(c => c.isActive).length;
+            const googleSourced = evacuationCenters.filter(c => c.source === 'google_places').length;
+            document.getElementById('centersCount').textContent = `${total} total • ${active} active • ${googleSourced} from Google Places`;
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentFilter = e.target.getAttribute('data-filter');
+                    updateCentersList();
+                    updateMapMarkers();
+                });
+            });
+
+            document.getElementById('centerPhoto').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                        showNotification('File size must be less than 5MB', 'error');
+                        e.target.value = '';
+                        return;
+                    }
+
+                    if (!file.type.startsWith('image/')) {
+                        showNotification('Please select an image file', 'error');
+                        e.target.value = '';
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        document.getElementById('previewImage').src = e.target.result;
+                        document.getElementById('photoPreview').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Enhanced search with debouncing
+            let searchTimeout;
+            const searchInput = document.getElementById('locationSearch');
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                if (this.value.trim()) {
+                    searchTimeout = setTimeout(() => searchEvacuationCenters(), 800);
+                } else {
+                    document.getElementById('searchResults').style.display = 'none';
+                }
+            });
+
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchEvacuationCenters();
+                }
+            });
+
+            // Hide search results when clicking outside
+            document.addEventListener('click', function(e) {
+                const resultsContainer = document.getElementById('searchResults');
+                if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+                    resultsContainer.style.display = 'none';
+                }
+            });
+        }
+
+        // Open add center modal - make globally accessible
+        window.openAddCenterModal = function() {
+            openCenterModal();
+        };
+
+        // Open center modal
+        function openCenterModal(centerId = null) {
+            const modal = new bootstrap.Modal(document.getElementById('centerModal'));
+            const form = document.getElementById('centerForm');
+            
+            form.reset();
+            document.getElementById('photoPreview').style.display = 'none';
+            document.getElementById('searchResults').style.display = 'none';
+            
+            if (window.tempMarker) {
+                window.tempMarker.setMap(null);
+                window.tempMarker = null;
+            }
+            
+            if (centerId) {
+                const center = evacuationCenters.find(c => c.id === centerId);
+                if (center) {
+                    document.getElementById('modalTitle').textContent = 'Edit Evacuation Center';
+                    document.getElementById('centerId').value = centerId;
+                    document.getElementById('centerName').value = center.name;
+                    document.getElementById('centerBarangay').value = center.barangay;
+                    document.getElementById('centerLat').value = center.latitude;
+                    document.getElementById('centerLng').value = center.longitude;
+                    document.getElementById('centerActive').checked = center.isActive;
+                    document.getElementById('facilityType').value = center.facilityType || '';
+                    document.getElementById('evacuationCapacity').value = center.evacuationCapacity || 'Medium (150-300 people)';
+                    
+                    if (center.photoUrl) {
+                        document.getElementById('previewImage').src = center.photoUrl;
+                        document.getElementById('photoPreview').style.display = 'block';
+                    }
+                }
+            } else {
+                document.getElementById('modalTitle').textContent = 'Add Evacuation Center';
+                document.getElementById('centerId').value = '';
+                document.getElementById('evacuationCapacity').value = 'Medium (150-300 people)';
+            }
+            
+            modal.show();
+        }
+
+        // Edit center - make globally accessible
+        window.editCenter = function(centerId) {
+            openCenterModal(centerId);
+        };
+
+        // Focus on center - make globally accessible
+        window.focusOnCenter = function(centerId) {
+            const center = evacuationCenters.find(c => c.id === centerId);
+            if (center && map) {
+                map.setCenter({ lat: center.latitude, lng: center.longitude });
+                map.setZoom(16);
+                
+                const marker = markers.find(m => 
+                    Math.abs(m.getPosition().lat() - center.latitude) < 0.0001 &&
+                    Math.abs(m.getPosition().lng() - center.longitude) < 0.0001
+                );
+                
+                if (marker) {
+                    google.maps.event.trigger(marker, 'click');
+                }
+            }
+        };
+
+        // Toggle center status - make globally accessible
+        window.toggleCenterStatus = async function(centerId, newStatus) {
+            try {
+                await updateDoc(doc(db, "evacuation_centers", centerId), {
+                    isActive: newStatus,
+                    updatedAt: serverTimestamp()
+                });
+                
+                showNotification(`Center ${newStatus ? 'activated' : 'deactivated'} successfully`, 'success');
+            } catch (error) {
+                console.error('Error toggling center status:', error);
+                showNotification('Error updating center status', 'error');
+            }
+        };
+
+        // Save center data - make globally accessible
+        window.saveCenterData = async function() {
+            const saveBtn = document.querySelector('#centerModal .btn-primary');
+            const saveText = document.getElementById('saveButtonText');
+            const saveSpinner = document.getElementById('saveButtonSpinner');
+            
+            const name = document.getElementById('centerName').value.trim();
+            const barangay = document.getElementById('centerBarangay').value.trim();
+            const latValue = document.getElementById('centerLat').value;
+            const lngValue = document.getElementById('centerLng').value;
+            const isActive = document.getElementById('centerActive').checked;
+            const facilityType = document.getElementById('facilityType').value;
+            const evacuationCapacity = document.getElementById('evacuationCapacity').value;
+            const photoFile = document.getElementById('centerPhoto').files[0];
+            const centerId = document.getElementById('centerId').value;
+            
+            if (!name || !barangay) {
+                showNotification('Please fill in center name and barangay', 'error');
+                return;
+            }
+            
+            if (!latValue || !lngValue) {
+                showNotification('Please search for a location or enter coordinates manually', 'error');
+                return;
+            }
+            
+            const lat = parseFloat(latValue);
+            const lng = parseFloat(lngValue);
+            
+            if (isNaN(lat) || isNaN(lng)) {
+                showNotification('Invalid coordinates. Please search for a valid location.', 'error');
+                return;
+            }
+            
+            if (typeof google !== 'undefined' && !LIPA_CITY_BOUNDS.contains(new google.maps.LatLng(lat, lng))) {
+                showNotification('Location must be within Lipa City bounds', 'error');
+                return;
+            }
+            
+            // Show loading
+            saveBtn.disabled = true;
+            saveText.textContent = centerId ? 'Updating...' : 'Saving...';
+            saveSpinner.style.display = 'inline-block';
+            
+            try {
+                let photoUrl = null;
+                
+                if (photoFile) {
+                    const photoRef = ref(storage, `evacuation_photos/${Date.now()}_${photoFile.name}`);
+                    const snapshot = await uploadBytes(photoRef, photoFile);
+                    photoUrl = await getDownloadURL(snapshot.ref);
+                }
+                
+                const centerData = {
+                    name: name,
+                    barangay: barangay,
+                    latitude: lat,
+                    longitude: lng,
+                    isActive: isActive,
+                    facilityType: facilityType,
+                    evacuationCapacity: evacuationCapacity,
+                    updatedAt: serverTimestamp()
+                };
+                
+                if (photoUrl) {
+                    centerData.photoUrl = photoUrl;
+                }
+                
+                if (centerId) {
+                    await updateDoc(doc(db, "evacuation_centers", centerId), centerData);
+                    showNotification('Evacuation center updated successfully', 'success');
+                } else {
+                    centerData.createdAt = serverTimestamp();
+                    centerData.source = 'manual';
+                    await addDoc(collection(db, "evacuation_centers"), centerData);
+                    showNotification('Evacuation center added successfully', 'success');
+                }
+                
+                bootstrap.Modal.getInstance(document.getElementById('centerModal')).hide();
+                
+            } catch (error) {
+                console.error('Error saving center:', error);
+                showNotification('Error saving evacuation center: ' + error.message, 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveText.textContent = 'Save Center';
+                saveSpinner.style.display = 'none';
+            }
+        };
+
+        // Delete center - make globally accessible
+        window.deleteCenter = async function(centerId) {
+            if (!confirm('Are you sure you want to delete this evacuation center? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const center = evacuationCenters.find(c => c.id === centerId);
+                
+                if (center && center.photoUrl) {
+                    try {
+                        const photoRef = ref(storage, center.photoUrl);
+                        await deleteObject(photoRef);
+                    } catch (storageError) {
+                        console.log('Photo not found in storage or already deleted');
+                    }
+                }
+                
+                await deleteDoc(doc(db, "evacuation_centers", centerId));
+                showNotification('Evacuation center deleted successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error deleting center:', error);
+                showNotification('Error deleting evacuation center: ' + error.message, 'error');
+            }
+        };
+
+        // Mobile responsiveness functions - make globally accessible
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            const toggleBtn = document.getElementById('mobileToggle');
+            
+            if (sidebar.classList.contains('show')) {
+                closeSidebar();
+            } else {
+                sidebar.classList.add('show');
+                overlay.classList.add('show');
+                toggleBtn.innerHTML = '<i class="fas fa-times"></i>';
+                document.body.style.overflow = 'hidden';
+            }
+        };
+
+        window.closeSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            const toggleBtn = document.getElementById('mobileToggle');
+            
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
+            document.body.style.overflow = '';
+        };
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 992) {
+                window.closeSidebar();
+                const sidebar = document.getElementById('sidebar');
+                sidebar.style.transform = '';
+            }
+        });
+
+        // Logout user - make globally accessible
+        window.logoutUser = async function() {
+            if (confirm("Are you sure you want to logout?")) {
+                try {
+                    await signOut(auth);
+                    showNotification("Logged out successfully", "info");
+                    window.location.href = "index.html";
+                } catch (error) {
+                    console.error("Logout error:", error);
+                    showNotification("Error logging out", "error");
+                }
+            }
+        };
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const existing = document.querySelectorAll('.notification');
+            existing.forEach(n => n.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+            
+            notification.addEventListener('click', () => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            });
+        }
+
+        // Cleanup listeners on page unload
+        window.addEventListener('beforeunload', () => {
+            if (centersListener) centersListener();
+            if (window.emergencyMarkers) {
+                window.emergencyMarkers.forEach(marker => marker.setMap(null));
+            }
+        });
+
+    </script>
+
+    <!-- Enhanced Google Maps API with ALL required libraries -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo&libraries=places,geometry,geocoding&callback=initializeGoogleMapsCallback"></script>
+    
+    <script>
+        // Additional validation and utility functions
+        
+        // Validate evacuation center suitability
+        function validateEvacuationCenter(place) {
+            if (typeof google === 'undefined' || !place?.geometry?.location) {
+                return { isValid: () => false };
+            }
+            
+            const lat = place.geometry.location.lat() || 0;
+            const lng = place.geometry.location.lng() || 0;
+            const types = place.types || [];
+            
+            const validation = {
+                isInLipaCity: window.LIPA_CITY_BOUNDS?.contains(new google.maps.LatLng(lat, lng)) || false,
+                hasValidTypes: hasEvacuationSuitableTypes(types),
+                hasCapacity: true, // Assume all found places have some capacity
+                isAccessible: assessAccessibility(place),
+                safetyScore: calculateSafetyScore(place),
+                isValid: function() {
+                    return this.isInLipaCity && this.hasValidTypes && this.safetyScore >= 3;
+                }
+            };
+            
+            return validation;
+        }
+
+        // Check if place has evacuation-suitable types
+        function hasEvacuationSuitableTypes(types) {
+            const suitableTypes = [
+                'school', 'primary_school', 'secondary_school', 'university',
+                'church', 'place_of_worship', 'community_center', 'gym', 
+                'local_government_office', 'hospital', 'library', 'auditorium'
+            ];
+            return types.some(type => suitableTypes.includes(type));
+        }
+
+        // Assess accessibility (simplified assessment)
+        function assessAccessibility(place) {
+            // This could be enhanced with more detailed accessibility data
+            const types = place.types || [];
+            
+            // Government buildings and hospitals typically have better accessibility
+            if (types.includes('hospital') || types.includes('local_government_office')) {
+                return 'High';
+            }
+            
+            // Schools and community centers usually have decent accessibility
+            if (types.includes('school') || types.includes('community_center')) {
+                return 'Medium';
+            }
+            
+            // Churches and other buildings may vary
+            return 'Variable';
+        }
+
+        // Calculate safety score for evacuation center
+        function calculateSafetyScore(place) {
+            let score = 5; // Base score
+            const types = place.types || [];
+            
+            // Higher scores for purpose-built public facilities
+            if (types.includes('hospital')) score += 2;
+            if (types.includes('school')) score += 2;
+            if (types.includes('local_government_office')) score += 1;
+            if (types.includes('community_center')) score += 1;
+            
+            // Google rating boost
+            if (place.rating && place.rating >= 4.0) score += 1;
+            
+            return Math.min(score, 10); // Cap at 10
+        }
+
+        // Enhanced barangay detection with common variations
+        function extractBarangayFromAddress(address) {
+            if (!address) return 'Unknown';
+            
+            // Common barangay patterns in Philippines
+            const patterns = [
+                /(?:Barangay|Brgy\.?)\s+([^,]+)/i,
+                /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s+Lipa/i,
+                /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),?\s+Batangas/i
+            ];
+            
+            for (const pattern of patterns) {
+                const match = address.match(pattern);
+                if (match && match[1]) {
+                    return match[1].trim()
+                        .replace(/^(Barangay|Brgy)\.?\s*/i, '')
+                        .replace(/,.*$/, '');
+                }
+            }
+            
+            // Fallback: try to extract first proper noun before "Lipa"
+            const beforeLipa = address.split('Lipa')[0];
+            const words = beforeLipa.split(/[,\s]+/).filter(word => 
+                word.length > 2 && /^[A-Z][a-z]/.test(word)
+            );
+            
+            return words.length > 0 ? words[words.length - 1] : 'Unknown';
+        }
+
+        // Emergency contact information helper
+        function getEmergencyContacts() {
+            return {
+                'Lipa City Disaster Risk Reduction Office': '+63 43 756 5001',
+                'Lipa City Police Station': '+63 43 756 8914',
+                'Lipa City Fire Station': '+63 43 756 2077',
+                'Emergency Hotline': '911'
+            };
+        }
+
+        // Generate evacuation center report
+        function generateEvacuationReport() {
+            if (typeof window.evacuationCenters === 'undefined') return null;
+            
+            const activeCenters = window.evacuationCenters.filter(center => center.isActive);
+            const totalCapacity = activeCenters.reduce((sum, center) => {
+                const capacity = center.evacuationCapacity || '';
+                const match = capacity.match(/(\d+)/);
+                return sum + (match ? parseInt(match[1]) : 100); // Default 100 if no number found
+            }, 0);
+            
+            return {
+                totalCenters: window.evacuationCenters.length,
+                activeCenters: activeCenters.length,
+                estimatedTotalCapacity: totalCapacity,
+                centersByBarangay: groupCentersByBarangay(activeCenters),
+                centersByType: groupCentersByType(activeCenters),
+                googleSourcedCenters: window.evacuationCenters.filter(c => c.source === 'google_places').length
+            };
+        }
+
+        // Group centers by barangay
+        function groupCentersByBarangay(centers) {
+            const grouped = {};
+            centers.forEach(center => {
+                const barangay = center.barangay || 'Unknown';
+                if (!grouped[barangay]) {
+                    grouped[barangay] = [];
+                }
+                grouped[barangay].push(center);
+            });
+            return grouped;
+        }
+
+        // Group centers by type
+        function groupCentersByType(centers) {
+            const grouped = {};
+            centers.forEach(center => {
+                const type = center.facilityType || 'other';
+                if (!grouped[type]) {
+                    grouped[type] = [];
+                }
+                grouped[type].push(center);
+            });
+            return grouped;
+        }
+
+        // Export evacuation centers data (for backup/sharing)
+        function exportEvacuationData() {
+            if (typeof window.evacuationCenters === 'undefined') return;
+            
+            const data = {
+                exportDate: new Date().toISOString(),
+                totalCenters: window.evacuationCenters.length,
+                centers: window.evacuationCenters.map(center => ({
+                    name: center.name,
+                    barangay: center.barangay,
+                    latitude: center.latitude,
+                    longitude: center.longitude,
+                    facilityType: center.facilityType,
+                    evacuationCapacity: center.evacuationCapacity,
+                    isActive: center.isActive,
+                    source: center.source,
+                    createdAt: center.createdAt?.toDate?.()?.toISOString() || null
+                }))
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lipa-evacuation-centers-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Keyboard shortcuts for power users
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + K: Focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                const searchInput = document.getElementById('locationSearch');
+                const modal = document.getElementById('centerModal');
+                if (searchInput && modal && modal.classList.contains('show')) {
+                    searchInput.focus();
+                }
+            }
+            
+            // Escape: Close modals/search results
+            if (e.key === 'Escape') {
+                const searchResults = document.getElementById('searchResults');
+                if (searchResults && searchResults.style.display === 'block') {
+                    searchResults.style.display = 'none';
+                }
+                
+                if (window.activeEmergencyInfoWindow) {
+                    window.activeEmergencyInfoWindow.close();
+                }
+            }
+        });
+
+        console.log('Enhanced Evacuation Center System with Google Places API Integration Ready');
+        console.log('Features: Text Search, Nearby Search, Geocoding, Emergency Presets, Real-time Updates');
+        
+        // Error handling for uncaught Google Maps errors
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('google')) {
+                console.warn('Google Maps related error caught:', e.message);
+                // Don't let Google Maps errors break the entire application
+                e.preventDefault();
+            }
+        });
+    </script>
+
+</body>
+</html>

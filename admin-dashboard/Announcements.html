@@ -1,87 +1,1256 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Announcements</title>
-  <style>
-    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f2f2f2; display: flex; height: 100vh; }
-    .container { display: flex; width: 100%; }
-    .sidebar { width: 220px; background: #d53b2c; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
-    .logo { width: 60px; margin-bottom: 10px; }
-    .main { flex: 1; padding: 30px; overflow-y: auto; }
-    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.1); margin-bottom: 20px; }
-    .announcement { border-bottom: 1px solid #ddd; padding: 10px 0; }
-    form { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
-    input, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 8px; }
-    button { padding: 10px; border: none; background: #d53b2c; color: white; border-radius: 8px; cursor: pointer; font-weight: bold; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LipaAlertHub - Announcements Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .announcements-container {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            border: 3px solid white;
+        }
+
+        .brand-title {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .brand-subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 12px;
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link i {
+            width: 20px;
+            margin-right: 15px;
+            font-size: 16px;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            min-height: 100vh;
+            background: #f8f9fa;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .page-title i {
+            color: #d53b2c;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-details {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: white;
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .content-area {
+            padding: 30px;
+        }
+
+        .content-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .create-btn {
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .create-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(213, 59, 44, 0.4);
+        }
+
+        .announcements-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .announcements-table th {
+            background: #f8f9fa;
+            color: #333;
+            font-weight: 600;
+            padding: 15px 12px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .announcements-table td {
+            padding: 15px 12px;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: middle;
+        }
+
+        .announcements-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .announcement-title {
+            font-weight: 600;
+            color: #333;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .announcement-date {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-view {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-edit {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #999;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #d53b2c;
+            box-shadow: 0 0 0 3px rgba(213, 59, 44, 0.1);
+        }
+
+        .form-control.textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .file-upload input[type="file"] {
+            display: none;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 12px;
+            border: 2px dashed #d53b2c;
+            border-radius: 8px;
+            text-align: center;
+            color: #d53b2c;
+            background: #fff5f5;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover .file-upload-label {
+            background: #ffe5e5;
+        }
+
+        .image-preview {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .loading-content {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .loading-spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #d53b2c;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px dashed #dee2e6;
+        }
+
+        .access-denied {
+            text-align: center;
+            padding: 100px 20px;
+            color: #dc3545;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 3000;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            min-width: 300px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification.success { background: #28a745; }
+        .notification.error { background: #dc3545; }
+        .notification.warning { background: #ffc107; color: #212529; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .content-area {
+                padding: 20px 15px;
+            }
+
+            .announcements-table {
+                font-size: 14px;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 20px;
+                padding: 20px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <aside class="sidebar">
-      <div class="logo-section">
-        <img src="images/Logo.png" class="logo" />
-        <h2>LipaAlertHub</h2>
-      </div>
-    </aside>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div style="text-align: center;">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+                Loading Announcements Management...
+            </div>
+            <small style="opacity: 0.8;">
+                Verifying admin permissions
+            </small>
+        </div>
+    </div>
 
-    <main class="main">
-      <h2>📢 Announcements</h2>
-      <div class="card">
-        <h3>Create New Announcement</h3>
-        <form id="announcementForm">
-          <input type="text" id="title" placeholder="Title" required />
-          <textarea id="content" placeholder="Announcement details..." required></textarea>
-          <button type="submit">Post</button>
-        </form>
-      </div>
-      <div class="card">
-        <h3>Recent Announcements</h3>
-        <div id="announcementsList"></div>
-      </div>
-    </main>
-  </div>
+    <div id="announcementsContainer" class="announcements-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
+                <div class="brand-title">LipaAlertHub</div>
+                <div class="brand-subtitle">Disaster Management System</div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item">
+                    <a href="Dashboard.html" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Dashboard
+                    </a>
+                </div>
+                
+                      <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="IncidentReportList.html" class="nav-link">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Reports
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="#" class="nav-link active">
+                        <i class="fas fa-bullhorn"></i>
+                        Announcements
+                    </a>
+                </div>
+                
+               <div class="nav-item" data-role="admin">
+                <a href="EmergencyTips.html" class="nav-link">
+                        <i class="fas fa-lightbulb"></i>
+                        Emergency Tips
+                    </a>
+                </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot, orderBy, query } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+             <div class="nav-item" data-role="admin">
+                   <a href="evacuation-centers.html" class="nav-link">
+                   <i class="fa-solid fa-tents"></i>
+                       evacuation-centers
+                    </a>
+                </div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
-      authDomain: "lipaalerthub.firebaseapp.com",
-      projectId: "lipaalerthub",
-      storageBucket: "lipaalerthub.firebasestorage.app",
-      messagingSenderId: "991310233066",
-      appId: "1:991310233066:web:7e836a60e5c4a302de0693"
-    };
+                               <div class="nav-item" data-role="admin,monitor">
+                    <a href="Forums.html" class="nav-link">
+                        <i class="fas fa-comments"></i>
+                        Forums
+                    </a>
+                </div>
+                
+                 <div class="nav-item">
+                    <a href="Maps.html" class="nav-link">
+                        <i class="fas fa-map"></i>
+                        Hazard Map
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="Chats.html" class="nav-link">
+                        <i class="fas fa-comment-dots"></i>
+                   Chats
+                    </a>
+                </div>
+                
+                    <div class="nav-item" data-role="admin,monitor">
+                    <a href="AccountVerification.html" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        Accounts
+                    </a>
+                </div>
+                
+          <div class="nav-item" data-role="admin">
+                    <a href="Analytics.html" class="nav-link">
+                        <i class="fas fa-chart-bar"></i>
+                        Analytics
+                    </a>
+                </div>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+                <div class="nav-item" data-role="admin">
+                      <a href="WeatherDisasters.html" class="nav-link">
+                         <i class="fa-solid fa-cloud"></i>
+                    Weather & Disasters
+                </a>
+            </div>
+                
+                 <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="Contacts.html" class="nav-link">
+                        <i class="fas fa-phone"></i>
+                        Contacts
+                    </a>
+                </div>
+            </nav>
+        </div>
 
-    const form = document.getElementById("announcementForm");
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      await addDoc(collection(db, "announcements"), {
-        title: document.getElementById("title").value,
-        content: document.getElementById("content").value,
-        createdAt: serverTimestamp()
-      });
-      form.reset();
-    });
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <h1 class="page-title">
+                    <i class="fas fa-bullhorn"></i>
+                    Announcements
+                </h1>
+                
+                <div class="user-info">
+                    <div class="user-details">
+                        <div class="user-name" id="userName">Loading...</div>
+                        <div class="user-role" id="userEmail">Loading...</div>
+                    </div>
+                    <div class="role-badge" id="userRole">Admin</div>
+                    <div class="dropdown">
+                        <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle fa-2x" style="color: #d53b2c;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="logoutUser()">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
 
-    const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"));
-    const list = document.getElementById("announcementsList");
-    onSnapshot(q, (snapshot) => {
-      list.innerHTML = "";
-      snapshot.forEach((doc) => {
-        const d = doc.data();
-        const div = document.createElement("div");
-        div.className = "announcement";
-        div.innerHTML = `<h4>${d.title}</h4><p>${d.content}</p><small>${d.createdAt?.toDate().toLocaleString() || ""}</small>`;
-        list.appendChild(div);
-      });
-    });
-  </script>
+            <!-- Content Area -->
+            <div class="content-area">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3>Manage Announcements</h3>
+                        <button class="create-btn" onclick="openCreateModal()">
+                            <i class="fas fa-plus"></i>
+                            New Announcement
+                        </button>
+                    </div>
+
+                    <div id="announcementsTableContainer">
+                        <div class="loading-content">
+                            <div class="loading-spinner-small"></div>
+                            <p>Loading announcements...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="announcementModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">New Announcement</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+
+            <form id="announcementForm">
+                <div class="form-group">
+                    <label class="form-label">Title *</label>
+                    <input type="text" id="announcementTitle" class="form-control" required maxlength="200">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Content *</label>
+                    <textarea id="announcementContent" class="form-control textarea" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Image (Optional)</label>
+                    <div class="file-upload">
+                        <input type="file" id="announcementImage" accept="image/*">
+                        <label for="announcementImage" class="file-upload-label">
+                            <i class="fas fa-cloud-upload-alt"></i><br>
+                            Click to upload image
+                        </label>
+                    </div>
+                    <div id="imagePreview" class="image-preview" style="display: none;">
+                        <img id="previewImg" src="" alt="Preview">
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="submitBtn">Create Announcement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Modal -->
+    <div id="viewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">View Announcement</h2>
+                <button class="close-btn" onclick="closeViewModal()">&times;</button>
+            </div>
+
+            <div id="viewContent">
+                <h3 id="viewTitle"></h3>
+                <p id="viewDate" class="announcement-date" style="margin-bottom: 20px;"></p>
+                <div id="viewImage" style="margin-bottom: 20px;"></div>
+                <div id="viewBody"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeViewModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Access Denied -->
+    <div id="accessDenied" class="access-denied" style="display: none;">
+        <i class="fas fa-ban fa-4x" style="color: #dc3545; margin-bottom: 20px;"></i>
+        <h2>Access Denied</h2>
+        <p>You don't have permission to access this page.</p>
+        <p>Admin role required.</p>
+        <a href="Dashboard.html" class="btn-primary">Back to Dashboard</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            query, 
+            orderBy, 
+            onSnapshot, 
+            addDoc, 
+            updateDoc, 
+            deleteDoc, 
+            doc, 
+            serverTimestamp,
+            getDoc
+        } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL, 
+            deleteObject 
+        } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+            authDomain: "lipaalerthub.firebaseapp.com",
+            projectId: "lipaalerthub",
+            storageBucket: "lipaalerthub.firebasestorage.app",
+            messagingSenderId: "991310233066",
+            appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        let currentUser = null;
+        let announcementsListener = null;
+        let currentEditingId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuthAndPermissions();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Image upload preview
+            document.getElementById('announcementImage').addEventListener('change', handleImagePreview);
+            
+            // Form submission
+            document.getElementById('announcementForm').addEventListener('submit', handleFormSubmit);
+            
+            // Modal close on outside click
+            document.getElementById('announcementModal').addEventListener('click', (e) => {
+                if (e.target.id === 'announcementModal') {
+                    closeModal();
+                }
+            });
+
+            document.getElementById('viewModal').addEventListener('click', (e) => {
+                if (e.target.id === 'viewModal') {
+                    closeViewModal();
+                }
+            });
+        }
+
+        async function checkAuthAndPermissions() {
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) {
+                    window.location.href = "index.html";
+                    return;
+                }
+
+                try {
+                    // Get user document to check role
+                    const userDocRef = doc(db, 'users', user.uid);
+                    const userDoc = await getDoc(userDocRef);
+                    
+                    if (!userDoc.exists()) {
+                        showNotification("User profile not found", "error");
+                        await signOut(auth);
+                        window.location.href = "index.html";
+                        return;
+                    }
+
+                    const userData = userDoc.data();
+                    
+                    // Check if user is admin
+                    if (userData.role !== 'admin') {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        document.getElementById('accessDenied').style.display = 'block';
+                        return;
+                    }
+
+                    currentUser = user;
+                    updateUserInfo(userData);
+                    await loadAnnouncements();
+                    
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    document.getElementById('announcementsContainer').style.display = 'block';
+                    
+                    showNotification("Welcome to Announcements Management", "success");
+
+                } catch (error) {
+                    console.error('Error checking permissions:', error);
+                    showNotification("Error verifying permissions", "error");
+                    await signOut(auth);
+                    window.location.href = "index.html";
+                }
+            });
+        }
+
+        function updateUserInfo(userData) {
+            document.getElementById('userName').textContent = userData.name || currentUser.displayName || 'Admin User';
+            document.getElementById('userEmail').textContent = currentUser.email;
+        }
+
+        async function loadAnnouncements() {
+            const container = document.getElementById('announcementsTableContainer');
+            
+            try {
+                const q = query(
+                    collection(db, "announcements"),
+                    orderBy("createdAt", "desc")
+                );
+
+                if (announcementsListener) {
+                    announcementsListener();
+                }
+
+                announcementsListener = onSnapshot(q, (snapshot) => {
+                    container.innerHTML = '';
+                    
+                    if (snapshot.empty) {
+                        container.innerHTML = `
+                            <div class="no-data">
+                                <i class="fas fa-bullhorn fa-3x mb-3"></i>
+                                <h4>No Announcements Found</h4>
+                                <p>Create your first announcement to get started.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    const table = document.createElement('table');
+                    table.className = 'announcements-table';
+                    table.innerHTML = `
+                        <thead>
+                            <tr>
+                                <th style="width: 40%;">Title</th>
+                                <th style="width: 20%;">Created Date</th>
+                                <th style="width: 20%;">Created By</th>
+                                <th style="width: 20%;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="announcementsTableBody">
+                        </tbody>
+                    `;
+
+                    const tbody = table.querySelector('#announcementsTableBody');
+                    
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        const row = createAnnouncementRow(docSnap.id, data);
+                        tbody.appendChild(row);
+                    });
+
+                    container.appendChild(table);
+                    console.log(`Loaded ${snapshot.size} announcements`);
+
+                }, (error) => {
+                    console.error('Error loading announcements:', error);
+                    container.innerHTML = `
+                        <div class="error-content" style="text-align: center; padding: 40px; color: #dc3545;">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                            <p>Error loading announcements</p>
+                        </div>
+                    `;
+                });
+
+            } catch (error) {
+                console.error('Error setting up announcements listener:', error);
+                container.innerHTML = `
+                    <div class="error-content" style="text-align: center; padding: 40px; color: #dc3545;">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Error loading announcements</p>
+                    </div>
+                `;
+            }
+        }
+
+        function createAnnouncementRow(id, data) {
+            const row = document.createElement('tr');
+            
+            const createdAt = data.createdAt;
+            let formattedDate = 'Unknown date';
+            
+            if (createdAt) {
+                try {
+                    const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+                    formattedDate = date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                } catch (e) {
+                    console.error('Error formatting date:', e);
+                }
+            }
+
+            row.innerHTML = `
+                <td>
+                    <div class="announcement-title" title="${data.title || 'Untitled'}">${data.title || 'Untitled'}</div>
+                </td>
+                <td class="announcement-date">${formattedDate}</td>
+                <td>${data.createdBy ? 'Admin' : 'System'}</td>
+                <td>
+                    <button class="action-btn btn-view" onclick="viewAnnouncement('${id}')">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    <button class="action-btn btn-edit" onclick="editAnnouncement('${id}')">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="action-btn btn-delete" onclick="deleteAnnouncement('${id}')">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </td>
+            `;
+            
+            return row;
+        }
+
+        function handleImagePreview(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewImg').src = e.target.result;
+                    document.getElementById('imagePreview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                document.getElementById('imagePreview').style.display = 'none';
+            }
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('announcementTitle').value.trim();
+            const content = document.getElementById('announcementContent').value.trim();
+            const imageFile = document.getElementById('announcementImage').files[0];
+            
+            if (!title || !content) {
+                showNotification("Please fill in all required fields", "error");
+                return;
+            }
+
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            try {
+                let imageUrl = '';
+                
+                // Upload image if provided
+                if (imageFile) {
+                    // Generate a unique announcement ID for the path
+                    const announcementId = currentEditingId || `new_${Date.now()}`;
+                    const imageRef = ref(storage, `announcements/${announcementId}/${Date.now()}_${imageFile.name}`);
+                    const snapshot = await uploadBytes(imageRef, imageFile);
+                    imageUrl = await getDownloadURL(snapshot.ref);
+                }
+
+                const announcementData = {
+                    title: title,
+                    body: content,
+                    content: content, // For compatibility
+                    createdAt: serverTimestamp(),
+                    createdBy: currentUser.uid,
+                    ...(imageUrl && { imageUrl: imageUrl })
+                };
+
+                if (currentEditingId) {
+                    // Update existing announcement
+                    await updateDoc(doc(db, "announcements", currentEditingId), {
+                        ...announcementData,
+                        updatedAt: serverTimestamp()
+                    });
+                    showNotification("Announcement updated successfully!", "success");
+                } else {
+                    // Create new announcement
+                    await addDoc(collection(db, "announcements"), announcementData);
+                    showNotification("Announcement created successfully!", "success");
+                }
+
+                closeModal();
+
+            } catch (error) {
+                console.error('Error saving announcement:', error);
+                showNotification("Error saving announcement: " + error.message, "error");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        }
+
+        window.openCreateModal = function() {
+            currentEditingId = null;
+            document.getElementById('modalTitle').textContent = 'New Announcement';
+            document.getElementById('submitBtn').textContent = 'Create Announcement';
+            document.getElementById('announcementForm').reset();
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('announcementModal').classList.add('show');
+        };
+
+        window.editAnnouncement = async function(id) {
+            try {
+                const docRef = doc(db, "announcements", id);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    currentEditingId = id;
+                    
+                    document.getElementById('modalTitle').textContent = 'Edit Announcement';
+                    document.getElementById('submitBtn').textContent = 'Update Announcement';
+                    document.getElementById('announcementTitle').value = data.title || '';
+                    document.getElementById('announcementContent').value = data.body || data.content || '';
+                    
+                    // Show existing image if available
+                    if (data.imageUrl) {
+                        document.getElementById('previewImg').src = data.imageUrl;
+                        document.getElementById('imagePreview').style.display = 'block';
+                    } else {
+                        document.getElementById('imagePreview').style.display = 'none';
+                    }
+                    
+                    document.getElementById('announcementModal').classList.add('show');
+                } else {
+                    showNotification("Announcement not found", "error");
+                }
+            } catch (error) {
+                console.error('Error loading announcement:', error);
+                showNotification("Error loading announcement", "error");
+            }
+        };
+
+        window.viewAnnouncement = async function(id) {
+            try {
+                const docRef = doc(db, "announcements", id);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    
+                    document.getElementById('viewTitle').textContent = data.title || 'Untitled';
+                    
+                    // Format date
+                    let formattedDate = 'Unknown date';
+                    if (data.createdAt) {
+                        try {
+                            const date = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+                            formattedDate = date.toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                        } catch (e) {
+                            console.error('Error formatting date:', e);
+                        }
+                    }
+                    document.getElementById('viewDate').textContent = `Published: ${formattedDate}`;
+                    
+                    // Show image if available
+                    const imageContainer = document.getElementById('viewImage');
+                    if (data.imageUrl) {
+                        imageContainer.innerHTML = `<img src="${data.imageUrl}" alt="Announcement Image" style="max-width: 100%; height: auto; border-radius: 8px;">`;
+                    } else {
+                        imageContainer.innerHTML = '';
+                    }
+                    
+                    // Show content
+                    document.getElementById('viewBody').innerHTML = (data.body || data.content || '').replace(/\n/g, '<br>');
+                    
+                    document.getElementById('viewModal').classList.add('show');
+                } else {
+                    showNotification("Announcement not found", "error");
+                }
+            } catch (error) {
+                console.error('Error loading announcement:', error);
+                showNotification("Error loading announcement", "error");
+            }
+        };
+
+        window.deleteAnnouncement = async function(id) {
+            if (!confirm("Are you sure you want to delete this announcement? This action cannot be undone.")) {
+                return;
+            }
+
+            try {
+                // Get announcement data to check if there's an image to delete
+                const docRef = doc(db, "announcements", id);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    
+                    // Delete image from storage if exists
+                    if (data.imageUrl) {
+                        try {
+                            const imageRef = ref(storage, data.imageUrl);
+                            await deleteObject(imageRef);
+                        } catch (imageError) {
+                            console.warn('Could not delete image:', imageError);
+                        }
+                    }
+                }
+                
+                // Delete the document
+                await deleteDoc(docRef);
+                showNotification("Announcement deleted successfully", "success");
+                
+            } catch (error) {
+                console.error('Error deleting announcement:', error);
+                showNotification("Error deleting announcement: " + error.message, "error");
+            }
+        };
+
+        window.closeModal = function() {
+            document.getElementById('announcementModal').classList.remove('show');
+            document.getElementById('announcementForm').reset();
+            document.getElementById('imagePreview').style.display = 'none';
+            currentEditingId = null;
+        };
+
+        window.closeViewModal = function() {
+            document.getElementById('viewModal').classList.remove('show');
+        };
+
+        window.logoutUser = async function() {
+            if (confirm("Are you sure you want to logout?")) {
+                try {
+                    await signOut(auth);
+                    showNotification("Logged out successfully", "success");
+                    window.location.href = "index.html";
+                } catch (error) {
+                    console.error("Logout error:", error);
+                    showNotification("Error logging out", "error");
+                }
+            }
+        };
+
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            const existingNotifications = document.querySelectorAll('.notification');
+            existingNotifications.forEach(notification => notification.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+            
+            notification.addEventListener('click', () => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            });
+        }
+
+        // Cleanup listeners on page unload
+        window.addEventListener('beforeunload', () => {
+            if (announcementsListener) {
+                announcementsListener();
+            }
+        });
+
+    </script>
 </body>
 </html>

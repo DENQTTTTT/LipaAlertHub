@@ -26,7 +26,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            background: linear-gradient(135deg, #d73527, #b92e20);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -57,10 +57,16 @@
             top: 0;
             width: 250px;
             height: 100vh;
-            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            background: linear-gradient(180deg, #d73527 0%, #b92e20 100%);
             z-index: 1000;
             overflow-y: auto;
             box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.show {
+            transform: translateX(0);
         }
 
         .sidebar-header {
@@ -126,9 +132,10 @@
         }
 
         .main-content {
-            margin-left: 250px;
+            margin-left: 0;
             min-height: 100vh;
             background: #f8f9fa;
+            transition: margin-left 0.3s ease;
         }
 
         .header {
@@ -141,10 +148,32 @@
             border-bottom: 1px solid #dee2e6;
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .mobile-menu-toggle {
+            background: none;
+            border: none;
+            color: #d73527;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .mobile-menu-toggle:hover {
+            background-color: rgba(215, 53, 39, 0.1);
+        }
+
         .page-title {
             font-size: 28px;
             font-weight: 600;
             color: #333;
+            margin: 0;
         }
 
         .user-info {
@@ -178,11 +207,19 @@
         }
 
         .role-badge.admin {
-            background: linear-gradient(135deg, #dc3545, #c82333);
+            background: linear-gradient(135deg, #d73527, #b92e20);
         }
 
         .role-badge.monitor {
             background: linear-gradient(135deg, #17a2b8, #138496);
+        }
+
+        .role-badge.agency {
+            background: linear-gradient(135deg, #6f42c1, #5a2d91);
+        }
+
+        .role-badge.rescuer {
+            background: linear-gradient(135deg, #28a745, #218838);
         }
 
         .content {
@@ -217,6 +254,10 @@
             transform: translateY(-2px);
             color: white;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .create-button.hidden {
+            display: none;
         }
 
         .filters-section {
@@ -259,8 +300,8 @@
 
         .filter-input:focus, .filter-select:focus {
             outline: none;
-            border-color: #d53b2c;
-            box-shadow: 0 0 0 0.2rem rgba(213, 59, 44, 0.25);
+            border-color: #d73527;
+            box-shadow: 0 0 0 0.2rem rgba(215, 53, 39, 0.25);
         }
 
         .clear-filters-btn {
@@ -292,6 +333,7 @@
         .reports-table {
             width: 100%;
             margin-bottom: 0;
+            min-width: 800px;
         }
 
         .reports-table thead th {
@@ -303,6 +345,7 @@
             font-size: 13px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            white-space: nowrap;
         }
 
         .reports-table tbody td {
@@ -413,7 +456,7 @@
             width: 30px;
             height: 30px;
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #d53b2c;
+            border-top: 3px solid #d73527;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             margin: 0 auto 20px;
@@ -453,7 +496,7 @@
         .stat-number {
             font-size: 32px;
             font-weight: 700;
-            color: #d53b2c;
+            color: #d73527;
             margin-bottom: 8px;
         }
 
@@ -507,20 +550,40 @@
             to { opacity: 1; transform: translateX(0); }
         }
 
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-            }
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
 
-            .sidebar.show {
+        .sidebar-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Mobile responsiveness */
+        @media (min-width: 769px) {
+            .sidebar {
                 transform: translateX(0);
             }
-
+            
             .main-content {
-                margin-left: 0;
+                margin-left: 250px;
             }
+            
+            .mobile-menu-toggle {
+                display: none;
+            }
+        }
 
+        @media (max-width: 768px) {
             .header {
                 padding: 15px 20px;
             }
@@ -556,6 +619,7 @@
 
             .table-container {
                 padding: 15px;
+                overflow-x: auto;
             }
 
             .reports-table {
@@ -565,6 +629,51 @@
             .reports-table thead th,
             .reports-table tbody td {
                 padding: 10px 8px;
+            }
+
+            .user-details {
+                display: none;
+            }
+
+            .notification {
+                min-width: 280px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 10px 15px;
+            }
+
+            .page-title {
+                font-size: 20px;
+            }
+
+            .content {
+                padding: 15px 10px;
+            }
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            .stat-number {
+                font-size: 24px;
+            }
+
+            .filters-section {
+                padding: 15px;
+            }
+
+            .table-container {
+                padding: 10px;
+            }
+
+            .reports-table thead th,
+            .reports-table tbody td {
+                padding: 8px 6px;
+                font-size: 12px;
             }
         }
     </style>
@@ -579,7 +688,10 @@
         </div>
     </div>
 
-    <div class="sidebar">
+    <!-- Sidebar Overlay -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
             <div class="brand-title">LipaAlertHub</div>
@@ -588,69 +700,83 @@
         
         <nav class="sidebar-nav">
             <div class="nav-item">
-                <a href="dashboard.html" class="nav-link">
+                <a href="Dashboard.html" class="nav-link">
                     <i class="fas fa-tachometer-alt"></i>
                     Dashboard
                 </a>
             </div>
             
-            <div class="nav-item">
-                <a href="IncidentReportList.html" class="nav-link active">
+            <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                <a href="#" class="nav-link active">
                     <i class="fas fa-exclamation-triangle"></i>
                     Reports
                 </a>
             </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin">
                 <a href="Announcements.html" class="nav-link">
                     <i class="fas fa-bullhorn"></i>
                     Announcements
                 </a>
             </div>
-
-             <div class="nav-item" data-role="admin">
-                    <a href="EmergencyTips.html" class="nav-link active">
-                        <i class="fas fa-lightbulb"></i>
-                        Emergency Tips
-                    </a>
-                </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin">
+                <a href="EmergencyTips.html" class="nav-link">
+                    <i class="fas fa-lightbulb"></i>
+                    Emergency Tips
+                </a>
+            </div>
+
+            <div class="nav-item" data-role="admin">
+                <a href="evacuation-centers.html" class="nav-link">
+                    <i class="fa-solid fa-tents"></i>
+                    Evacuation Centers
+                </a>
+            </div>
+
+            <div class="nav-item" data-role="admin,monitor">
                 <a href="Forums.html" class="nav-link">
                     <i class="fas fa-comments"></i>
                     Forums
                 </a>
             </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin">
                 <a href="Maps.html" class="nav-link">
                     <i class="fas fa-map"></i>
-                    Map
+                    Hazard Map
                 </a>
             </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                 <a href="Chats.html" class="nav-link">
-                    <i class="fas fa-comment-dots"></i>
-                    CHATS
+                    <i class="fas fa-comment-dots"></i>  
+                    Chats
                 </a>
             </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin,monitor">
                 <a href="AccountVerification.html" class="nav-link">
                     <i class="fas fa-users"></i>
                     Accounts
                 </a>
             </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin">
                 <a href="Analytics.html" class="nav-link">
                     <i class="fas fa-chart-bar"></i>
                     Analytics
                 </a>
             </div>
+
+            <div class="nav-item" data-role="admin">
+                <a href="WeatherDisasters.html" class="nav-link">
+                    <i class="fas fa-cloud-rain"></i>
+                    Weather & Disasters
+                </a>
+            </div>
             
-            <div class="nav-item">
+            <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                 <a href="Contacts.html" class="nav-link">
                     <i class="fas fa-phone"></i>
                     Contacts
@@ -661,7 +787,12 @@
 
     <div class="main-content">
         <div class="header">
-            <h1 class="page-title">Incident Reports</h1>
+            <div class="header-left">
+                <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Incident Reports</h1>
+            </div>
             
             <div class="user-info">
                 <div class="user-details">
@@ -671,7 +802,7 @@
                 <div class="role-badge" id="userRole">Loading...</div>
                 <div class="dropdown">
                     <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-user-circle fa-2x" style="color: #d53b2c;"></i>
+                        <i class="fas fa-user-circle fa-2x" style="color: #d73527;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="#" onclick="logoutUser()">
@@ -686,9 +817,9 @@
             <div class="content-header">
                 <div>
                     <h2 style="margin: 0; color: #333; font-size: 20px;">Emergency Reports Management</h2>
-                    <p style="margin: 0; color: #666; font-size: 14px;">View and manage all submitted incident reports</p>
+                    <p style="margin: 0; color: #666; font-size: 14px;" id="reportDescription">View and manage all submitted incident reports</p>
                 </div>
-                <a href="ReportForm.html" class="create-button">
+                <a href="ReportForm.html" class="create-button" id="createButton">
                     <i class="fas fa-plus"></i>
                     Create Report
                 </a>
@@ -798,6 +929,7 @@
         const db = getFirestore(app);
 
         let currentUser = null;
+        let currentUserData = null;
         let allReports = [];
         let filteredReports = [];
         let reportsListener = null;
@@ -808,6 +940,8 @@
         const typeFilter = document.getElementById('typeFilter');
         const clearFiltersBtn = document.getElementById('clearFiltersBtn');
         const tableContent = document.getElementById('tableContent');
+        const reportDescription = document.getElementById('reportDescription');
+        const createButton = document.getElementById('createButton');
 
         // Statistics elements
         const totalCount = document.getElementById('totalCount');
@@ -833,6 +967,30 @@
             'accident': 'fa-car-crash',
             'infrastructure': 'fa-tools'
         };
+
+        // Role-based navigation visibility
+        function updateNavigationVisibility(userRole) {
+            const navItems = document.querySelectorAll('.nav-item[data-role]');
+            
+            navItems.forEach(item => {
+                const allowedRoles = item.getAttribute('data-role').split(',');
+                if (allowedRoles.includes(userRole)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Update UI based on user role
+        function updateUIForRole(userRole) {
+            // Hide create button for rescuers and agencies
+            if (userRole === 'rescuer' || userRole === 'agency') {
+                createButton.classList.add('hidden');
+            } else {
+                createButton.classList.remove('hidden');
+            }
+        }
 
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
@@ -958,6 +1116,18 @@
             resolvedCount.textContent = stats.resolved;
         }
 
+        function updateReportDescription(userRole) {
+            if (userRole === 'rescuer') {
+                reportDescription.textContent = 'View and manage incident reports assigned to you';
+            } else if (userRole === 'agency') {
+                reportDescription.textContent = 'View and manage incident reports assigned to your agency';
+            } else if (userRole === 'monitor') {
+                reportDescription.textContent = 'Monitor and manage all submitted incident reports';
+            } else {
+                reportDescription.textContent = 'View and manage all submitted incident reports';
+            }
+        }
+
         function applyFilters() {
             const searchTerm = searchInput.value.toLowerCase().trim();
             const statusValue = statusFilter.value.toLowerCase();
@@ -1000,61 +1170,88 @@
 
         function renderTable() {
             if (filteredReports.length === 0) {
+                let noDataMessage = "No incident reports match your current filters.";
+                if (currentUserData && currentUserData.role === 'rescuer') {
+                    noDataMessage = "No reports have been assigned to you yet.";
+                } else if (currentUserData && currentUserData.role === 'agency') {
+                    noDataMessage = "No reports have been assigned to your agency yet.";
+                }
+
                 tableContent.innerHTML = `
                     <div class="no-data">
                         <i class="fas fa-inbox fa-3x mb-3" style="color: #dee2e6;"></i>
                         <h5>No Reports Found</h5>
-                        <p>No incident reports match your current filters.</p>
+                        <p>${noDataMessage}</p>
                     </div>
                 `;
                 return;
             }
 
+            // Build table headers based on user role
+            let tableHeaders = `
+                <th>Report ID</th>
+                <th>Emergency Type</th>
+                <th>Subcategory</th>
+                <th>Full Address</th>
+                <th>Status</th>
+                <th>Timestamp</th>
+            `;
+
+            // Add "Assigned To" column for admins and monitors only
+            if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor')) {
+                tableHeaders += `<th>Assigned To</th>`;
+            }
+
+            tableHeaders += `<th>Actions</th>`;
+
             const tableHtml = `
                 <table class="table reports-table">
                     <thead>
                         <tr>
-                            <th>Report ID</th>
-                            <th>Emergency Type</th>
-                            <th>Subcategory</th>
-                            <th>Full Address</th>
-                            <th>Status</th>
-                            <th>Timestamp</th>
-                            <th>Actions</th>
+                            ${tableHeaders}
                         </tr>
                     </thead>
                     <tbody>
-                        ${filteredReports.map(report => `
-                            <tr>
-                                <td><div class="report-id">${generateShortId(report.id)}</div></td>
-                                <td>
-                                    <div class="emergency-type">
-                                        <div class="emergency-icon ${getEmergencyClass(report.emergencyType)}">
-                                            <i class="fas ${getEmergencyIcon(report.emergencyType)}"></i>
+                        ${filteredReports.map(report => {
+                            let assignedColumn = '';
+                            if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor')) {
+                                const assignedTo = report.assignedRescuerName || report.assignedAgencyName || 'Not assigned';
+                                assignedColumn = `<td><small>${assignedTo}</small></td>`;
+                            }
+
+                            return `
+                                <tr>
+                                    <td><div class="report-id">${generateShortId(report.id)}</div></td>
+                                    <td>
+                                        <div class="emergency-type">
+                                            <div class="emergency-icon ${getEmergencyClass(report.emergencyType)}">
+                                                <i class="fas ${getEmergencyIcon(report.emergencyType)}"></i>
+                                            </div>
+                                            ${getEmergencyTypeDisplay(report.emergencyType)}
                                         </div>
-                                        ${getEmergencyTypeDisplay(report.emergencyType)}
-                                    </div>
-                                </td>
-                                <td>${report.subCategory || report.subcategory || report.incidentType || 'Not specified'}</td>
-                                <td>
-                                    <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
-                                         title="${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}">
-                                        ${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="status-badge ${(report.status || 'pending').toLowerCase()}">
-                                        ${(report.status || 'Pending').toUpperCase()}
-                                    </span>
-                                </td>
-                                <td>${formatTimestamp(report.timestamp)}</td>
-                                <td>
-                                    <a href="report.html?id=${report.id}" class="view-btn">
-                                        <i class="fas fa-eye"></i> View
-                                    </a>
-                                </td>
-                            </tr>
-                        `).join('')}
+                                    </td>
+                                    <td>${report.subCategory || report.subcategory || report.incidentType || 'Not specified'}</td>
+                                    <td>
+                                        <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
+                                             title="${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}">
+                                            ${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge ${(report.status || 'pending').toLowerCase()}">
+                                            ${(report.status || 'Pending').toUpperCase()}
+                                        </span>
+                                    </td>
+                                    <td>${formatTimestamp(report.createdAt || report.timestamp)}</td>
+                                    ${assignedColumn}
+                                    <td>
+                                        <a href="report.html?id=${report.id}" class="view-btn">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -1062,39 +1259,107 @@
             tableContent.innerHTML = tableHtml;
         }
 
+        // FIXED: Role-based query function that matches security rules exactly
+        function createReportQuery(userRole, userId) {
+            const baseCollection = collection(db, "incident_reports");
+            
+            if (userRole === 'admin' || userRole === 'monitor') {
+                // Admin and Monitor can see ALL reports - NO WHERE CLAUSE NEEDED
+                console.log(`Creating query for ${userRole}: All reports (no restrictions)`);
+                return query(baseCollection, orderBy("createdAt", "desc"));
+            } else if (userRole === 'rescuer') {
+                // Rescuers can only see reports assigned to them
+                // Use the EXACT field name that matches security rules: assignedRescuer
+                console.log(`Creating query for rescuer: Reports where assignedRescuer == ${userId}`);
+                return query(
+                    baseCollection, 
+                    where("assignedRescuer", "==", userId),
+                    orderBy("createdAt", "desc")
+                );
+            } else if (userRole === 'agency') {
+                // Agencies can only see reports assigned to them
+                // Use the EXACT field name that matches security rules: assignedAgency
+                console.log(`Creating query for agency: Reports where assignedAgency == ${userId}`);
+                return query(
+                    baseCollection, 
+                    where("assignedAgency", "==", userId),
+                    orderBy("createdAt", "desc")
+                );
+            } else {
+                // Fallback for other roles - empty result
+                console.log(`Creating fallback query for role: ${userRole}`);
+                return query(
+                    baseCollection, 
+                    where("__name__", "==", "non-existent-document-id")
+                );
+            }
+        }
+
         function loadReports() {
-            const q = query(
-                collection(db, "incident_reports"),
-                orderBy("timestamp", "desc")
-            );
+            console.log(`Loading reports for user role: ${currentUserData.role}, userId: ${currentUser.uid}`);
+            
+            const reportQuery = createReportQuery(currentUserData.role, currentUser.uid);
 
             if (reportsListener) {
                 reportsListener();
             }
 
-            reportsListener = onSnapshot(q, (snapshot) => {
+            reportsListener = onSnapshot(reportQuery, (snapshot) => {
+                console.log(`Query snapshot received: ${snapshot.size} documents`);
                 allReports = [];
                 
                 snapshot.forEach((doc) => {
+                    const data = doc.data();
                     allReports.push({
                         id: doc.id,
-                        ...doc.data()
+                        ...data
                     });
+                    
+                    // Debug: Log first few reports to see field structure
+                    if (allReports.length <= 3) {
+                        console.log(`Report ${doc.id}:`, {
+                            assignedRescuer: data.assignedRescuer || 'not set',
+                            assignedAgency: data.assignedAgency || 'not set',
+                            assignedTo: data.assignedTo || 'not set',
+                            status: data.status || 'pending'
+                        });
+                    }
                 });
 
-                console.log(`Loaded ${allReports.length} reports`);
+                console.log(`Successfully loaded ${allReports.length} reports for role: ${currentUserData.role}`);
                 updateStatistics();
                 applyFilters();
             }, (error) => {
                 console.error("Error loading reports:", error);
+                
+                let errorMessage = "Failed to load incident reports. Please refresh the page.";
+                let errorDetails = error.message;
+                
+                if (error.code === 'permission-denied') {
+                    errorMessage = "Permission denied. You don't have access to view these reports.";
+                    errorDetails = "This could be due to missing composite indexes or security rule restrictions.";
+                    
+                    // Check for missing index error
+                    if (error.message.includes('index')) {
+                        errorDetails = "Missing Firestore composite index. Please check the console for index creation links.";
+                    }
+                } else if (error.code === 'failed-precondition') {
+                    errorMessage = "Database index required for this query.";
+                    errorDetails = "Please check the Firestore console for required index creation.";
+                }
+                
                 tableContent.innerHTML = `
                     <div class="error-content">
                         <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
                         <h5>Error Loading Reports</h5>
-                        <p>Failed to load incident reports. Please refresh the page.</p>
+                        <p>${errorMessage}</p>
+                        <p><small>Error Code: ${error.code}</small></p>
+                        <p><small>Details: ${errorDetails}</small></p>
+                        <button class="btn btn-primary mt-3" onclick="window.location.reload()">Reload Page</button>
                     </div>
                 `;
-                showNotification("Error loading reports: " + error.message, "error");
+                
+                showNotification(`Error loading reports: ${error.code}`, "error");
             });
         }
 
@@ -1105,11 +1370,37 @@
             applyFilters();
         }
 
+        // Sidebar toggle functions
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+        };
+
+        window.closeSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        };
+
         // Event listeners
         searchInput.addEventListener('input', applyFilters);
         statusFilter.addEventListener('change', applyFilters);
         typeFilter.addEventListener('change', applyFilters);
         clearFiltersBtn.addEventListener('click', clearFilters);
+
+        // Close sidebar when clicking on nav links on mobile
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    window.closeSidebar();
+                }
+            });
+        });
 
         window.logoutUser = async function() {
             if (confirm("Are you sure you want to logout?")) {
@@ -1124,48 +1415,105 @@
             }
         };
 
-        // Authentication and initialization
+        // ENHANCED: Authentication and initialization with better error handling
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
+                console.log("No authenticated user, redirecting to login");
                 window.location.href = "index.html";
                 return;
             }
 
             try {
+                console.log("Authenticated user:", user.email, "UID:", user.uid);
+                
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
                 if (!userDoc.exists()) {
+                    console.error("User profile not found for UID:", user.uid);
                     showNotification("User profile not found", "error");
                     window.location.href = "index.html";
                     return;
                 }
 
                 const userData = userDoc.data();
-                if (!['admin', 'monitor', 'rescuer'].includes(userData.role)) {
-                    showNotification("Access denied. Admin, Monitor, or Rescuer role required.", "error");
+                console.log("User data loaded:", {
+                    role: userData.role,
+                    status: userData.status,
+                    name: userData.name
+                });
+                
+                // Check if user has access to reports
+                if (!['admin', 'monitor', 'rescuer', 'agency'].includes(userData.role)) {
+                    console.error("Access denied for role:", userData.role);
+                    showNotification("Access denied. Admin, Moderator, Rescuer, or Agency role required.", "error");
+                    window.location.href = "Dashboard.html";
+                    return;
+                }
+
+                // Check user status
+                if (userData.status !== 'active') {
+                    console.error("User account not active:", userData.status);
+                    showNotification("Account not active. Please contact administrator.", "error");
                     window.location.href = "index.html";
                     return;
                 }
 
-                currentUser = { ...user, role: userData.role };
+                currentUser = user;
+                currentUserData = userData;
                 
                 // Update UI with user info
                 document.getElementById('userName').textContent = userData.name || user.displayName || user.email;
                 document.getElementById('userEmail').textContent = user.email;
                 
                 const roleElement = document.getElementById('userRole');
-                roleElement.textContent = userData.role.toUpperCase();
+                // Display "Moderator" instead of "Monitor"
+                const displayRole = userData.role === 'monitor' ? 'Moderator' : userData.role.charAt(0).toUpperCase() + userData.role.slice(1);
+                roleElement.textContent = displayRole;
                 roleElement.className = `role-badge ${userData.role}`;
+                
+                // Update navigation visibility based on user role
+                updateNavigationVisibility(userData.role);
+                
+                // Update UI based on role (hide create button for rescuers/agencies)
+                updateUIForRole(userData.role);
+                
+                // Update report description based on role
+                updateReportDescription(userData.role);
                 
                 // Hide loading overlay and start loading data
                 document.getElementById('loadingOverlay').style.display = 'none';
                 
+                // Load reports with error handling
                 loadReports();
-                showNotification(`Welcome back, ${userData.name || user.email}!`, "success");
+                
+                let welcomeMessage = `Welcome back, ${userData.name || user.email}!`;
+                if (userData.role === 'rescuer') {
+                    welcomeMessage += " You can see reports assigned to you.";
+                } else if (userData.role === 'agency') {
+                    welcomeMessage += " You can see reports assigned to your agency.";
+                } else if (userData.role === 'monitor') {
+                    welcomeMessage += " You can view and manage all reports.";
+                } else if (userData.role === 'admin') {
+                    welcomeMessage += " You have full access to all reports.";
+                }
+                
+                showNotification(welcomeMessage, "success");
                 
             } catch (error) {
-                console.error('Authentication error:', error);
-                showNotification("Authentication error", "error");
-                window.location.href = "index.html";
+                console.error('Authentication/setup error:', error);
+                
+                let errorMessage = "Authentication error";
+                if (error.code === 'permission-denied') {
+                    errorMessage = "Permission denied. Please check your account permissions.";
+                } else if (error.code === 'unavailable') {
+                    errorMessage = "Service temporarily unavailable. Please try again.";
+                }
+                
+                showNotification(errorMessage, "error");
+                
+                // Don't redirect immediately in case it's a temporary issue
+                setTimeout(() => {
+                    window.location.href = "index.html";
+                }, 3000);
             }
         });
 
@@ -1175,6 +1523,7 @@
                 reportsListener();
             }
         });
+
     </script>
 </body>
 </html>

@@ -1,70 +1,1030 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Map</title>
-  <style>
-    body { margin: 0; display: flex; height: 100vh; }
-    .container { display: flex; width: 100%; }
-    .sidebar { width: 220px; background: #d53b2c; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
-    .logo { width: 60px; margin-bottom: 10px; }
-    .main { flex: 1; }
-    #map { width: 100%; height: 100%; }
-  </style>
-  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LipaAlertHub - Hazard Map</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            border: 3px solid white;
+        }
+
+        .brand-title {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .brand-subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 12px;
+        }
+
+        .map-controls {
+            padding: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-title {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-checkbox {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-checkbox:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .filter-checkbox input[type="checkbox"] {
+            margin-right: 10px;
+            width: 16px;
+            height: 16px;
+        }
+
+        .filter-label {
+            color: white;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .incident-count {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            color: white;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .heatmap-toggle {
+            width: 100%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .heatmap-toggle:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .heatmap-toggle.active {
+            background: rgba(255,255,255,0.4);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            height: 100vh;
+            position: relative;
+        }
+
+        .header {
+            background: white;
+            padding: 15px 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #dee2e6;
+            position: relative;
+            z-index: 100;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stats-container {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #d53b2c;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .map-container {
+            height: calc(100vh - 80px);
+            position: relative;
+            width: 100%;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .custom-info-window {
+            max-width: 300px;
+            padding: 0;
+        }
+
+        .info-window-content {
+            padding: 15px;
+        }
+
+        .info-window-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .incident-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+
+        .info-window-title {
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .info-window-meta {
+            font-size: 12px;
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .info-window-description {
+            margin: 10px 0;
+            color: #555;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-verified { background: #d4edda; color: #155724; }
+        .status-assigned { background: #cce5ff; color: #0056b3; }
+        .status-resolved { background: #d1ecf1; color: #0c5460; }
+
+        .fullscreen-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+
+        .fullscreen-toggle:hover {
+            background: #f8f9fa;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            z-index: 2000;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            animation: slideIn 0.4s ease;
+        }
+
+        .notification.success { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+        .notification.error { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .notification.info { background: linear-gradient(135deg, #3498db, #2980b9); }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 280px;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .header {
+                padding: 10px 15px;
+            }
+            
+            .page-title {
+                font-size: 18px;
+            }
+            
+            .stats-container {
+                display: none;
+            }
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #333;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <aside class="sidebar">
-      <div class="logo-section">
-        <img src="images/Logo.png" class="logo" />
-        <h2>LipaAlertHub</h2>
-      </div>
-    </aside>
-    <main class="main">
-      <div id="map"></div>
-    </main>
-  </div>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div style="text-align: center;">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+                Loading Hazard Map...
+            </div>
+            <small style="opacity: 0.8;">
+                Initializing Google Maps & Firebase data
+            </small>
+        </div>
+    </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
+            <div class="brand-title">LipaAlertHub</div>
+            <div class="brand-subtitle">Hazard Map Dashboard</div>
+        </div>
+        
+        <div class="map-controls">
+            <!-- Heatmap Toggle -->
+            <div class="control-group">
+                <div class="control-title">
+                    <i class="fas fa-fire"></i>
+                    Heatmap Layer
+                </div>
+                <button class="heatmap-toggle" id="heatmapToggle" onclick="toggleHeatmap()">
+                    Enable Heatmap
+                </button>
+            </div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
-      authDomain: "lipaalerthub.firebaseapp.com",
-      projectId: "lipaalerthub",
-      storageBucket: "lipaalerthub.firebasestorage.app",
-      messagingSenderId: "991310233066",
-      appId: "1:991310233066:web:7e836a60e5c4a302de0693"
-    };
+            <!-- Incident Type Filters -->
+            <div class="control-group">
+                <div class="control-title">
+                    <i class="fas fa-filter"></i>
+                    Filter by Type
+                </div>
+                <div id="incidentFilters">
+                    <!-- Filters will be populated dynamically -->
+                </div>
+            </div>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+            <!-- Legend -->
+            <div class="control-group">
+                <div class="control-title">
+                    <i class="fas fa-map-marked-alt"></i>
+                    Legend
+                </div>
+                <div id="legend">
+                    <!-- Legend will be populated dynamically -->
+                </div>
+            </div>
 
-    let map;
-    function initMap() {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 13.941, lng: 121.163 }, // Lipa City
-        zoom: 13,
-      });
+            <!-- Time Range Filter -->
+            <div class="control-group">
+                <div class="control-title">
+                    <i class="fas fa-clock"></i>
+                    Time Range
+                </div>
+                <select class="form-select form-select-sm" id="timeRange" onchange="handleTimeRangeChange()" style="background: rgba(255,255,255,0.9); border: none; border-radius: 8px; color: #333;">
+                    <option value="today">Today</option>
+                    <option value="week" selected>This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="all">All Time</option>
+                </select>
+            </div>
 
-      onSnapshot(collection(db, "incident_reports"), (snapshot) => {
-        snapshot.forEach((doc) => {
-          const d = doc.data();
-          if (d.location) {
-            new google.maps.Marker({
-              position: { lat: d.location.latitude, lng: d.location.longitude },
-              map,
-              title: d.emergencyType
-            });
-          }
+            <!-- Back to Dashboard -->
+            <div class="control-group">
+                <a href="dashboard.html" class="heatmap-toggle" style="text-decoration: none; color: white; display: block; text-align: center;">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <h1 class="page-title">
+                <i class="fas fa-map-marked-alt"></i>
+                Hazard Map
+            </h1>
+            
+            <div class="stats-container">
+                <div class="stat-item">
+                    <span class="stat-number" id="totalIncidents">0</span>
+                    <span class="stat-label">Total Incidents</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="activeIncidents">0</span>
+                    <span class="stat-label">Active</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="resolvedIncidents">0</span>
+                    <span class="stat-label">Resolved</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <button class="fullscreen-toggle" onclick="toggleFullscreen()" title="Toggle Fullscreen">
+                <i class="fas fa-expand" id="fullscreenIcon"></i>
+            </button>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, where, Timestamp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+            authDomain: "lipaalerthub.firebaseapp.com",
+            projectId: "lipaalerthub",
+            storageBucket: "lipaalerthub.firebasestorage.app",
+            messagingSenderId: "991310233066",
+            appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Global variables
+        let map;
+        let heatmapLayer = null;
+        let markers = [];
+        let allReports = [];
+        let activeFilters = new Set();
+        let isHeatmapEnabled = false;
+        let reportsListener = null;
+
+        // Incident type configuration
+        const INCIDENT_TYPES = {
+            fire: { label: 'Fire', color: '#e74c3c', icon: 'fas fa-fire' },
+            crime: { label: 'Crime', color: '#8e24aa', icon: 'fas fa-shield-alt' },
+            medical: { label: 'Medical', color: '#f44336', icon: 'fas fa-plus' },
+            flood: { label: 'Flood', color: '#2196f3', icon: 'fas fa-tint' },
+            accident: { label: 'Accident', color: '#ff9800', icon: 'fas fa-car-crash' },
+            infrastructure: { label: 'Infrastructure', color: '#607d8b', icon: 'fas fa-tools' }
+        };
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await checkAuthentication();
+                await loadGoogleMaps();
+            } catch (error) {
+                console.error('Initialization failed:', error);
+                showNotification('Failed to initialize hazard map', 'error');
+            }
         });
-      });
-    }
 
-    window.onload = initMap;
-  </script>
+        async function checkAuthentication() {
+            return new Promise((resolve, reject) => {
+                onAuthStateChanged(auth, (user) => {
+                    if (!user) {
+                        window.location.href = "index.html";
+                        reject(new Error('Not authenticated'));
+                        return;
+                    }
+                    console.log('User authenticated:', user.email);
+                    resolve(user);
+                });
+            });
+        }
+
+        async function loadGoogleMaps() {
+            // Load Google Maps API
+            const script = document.createElement('script');
+            script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo&libraries=visualization&callback=initMap';
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+
+            // Make initMap globally available
+            window.initMap = initMap;
+        }
+
+        function initMap() {
+            console.log('Initializing Google Maps...');
+            
+            // Initialize map centered on Lipa City
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 13,
+                center: { lat: 13.9411, lng: 121.1624 }, // Lipa City center
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                styles: [
+                    {
+                        featureType: "poi",
+                        elementType: "labels",
+                        stylers: [{ visibility: "off" }]
+                    }
+                ]
+            });
+
+            // Initialize UI components
+            initializeFilters();
+            initializeLegend();
+            
+            // Load incident data
+            loadIncidentData();
+            
+            // Hide loading overlay
+            document.getElementById('loadingOverlay').style.display = 'none';
+            
+            console.log('Map initialized successfully');
+        }
+
+        function initializeFilters() {
+            const filtersContainer = document.getElementById('incidentFilters');
+            
+            Object.entries(INCIDENT_TYPES).forEach(([type, config]) => {
+                // Add all types to active filters by default
+                activeFilters.add(type);
+                
+                const filterDiv = document.createElement('div');
+                filterDiv.className = 'filter-checkbox';
+                filterDiv.innerHTML = `
+                    <input type="checkbox" id="filter-${type}" checked onchange="handleFilterChange('${type}')">
+                    <label class="filter-label" for="filter-${type}">
+                        <i class="${config.icon}" style="color: ${config.color};"></i>
+                        ${config.label}
+                        <span class="incident-count" id="count-${type}">0</span>
+                    </label>
+                `;
+                filtersContainer.appendChild(filterDiv);
+            });
+        }
+
+        function initializeLegend() {
+            const legendContainer = document.getElementById('legend');
+            
+            Object.entries(INCIDENT_TYPES).forEach(([type, config]) => {
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                legendItem.innerHTML = `
+                    <div class="legend-color" style="background-color: ${config.color};"></div>
+                    ${config.label}
+                `;
+                legendContainer.appendChild(legendItem);
+            });
+        }
+
+        function loadIncidentData() {
+            try {
+                // Set up real-time listener for incident reports
+                const timeRange = document.getElementById('timeRange').value;
+                let q = query(
+                    collection(db, "incident_reports"),
+                    orderBy("createdAt", "desc")
+                );
+
+                // Apply time filter
+                if (timeRange !== 'all') {
+                    const now = new Date();
+                    let startDate;
+                    
+                    switch (timeRange) {
+                        case 'today':
+                            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            break;
+                        case 'week':
+                            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            break;
+                        case 'month':
+                            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                            break;
+                    }
+                    
+                    if (startDate) {
+                        q = query(
+                            collection(db, "incident_reports"),
+                            where("createdAt", ">=", Timestamp.fromDate(startDate)),
+                            orderBy("createdAt", "desc")
+                        );
+                    }
+                }
+
+                if (reportsListener) {
+                    reportsListener();
+                }
+
+                reportsListener = onSnapshot(q, (snapshot) => {
+                    allReports = [];
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        allReports.push({
+                            id: doc.id,
+                            ...data
+                        });
+                    });
+                    
+                    console.log(`Loaded ${allReports.length} reports`);
+                    updateMap();
+                    updateStats();
+                    updateFilterCounts();
+                }, (error) => {
+                    console.error('Error loading reports:', error);
+                    showNotification('Error loading incident data', 'error');
+                });
+
+            } catch (error) {
+                console.error('Error setting up incident data listener:', error);
+                showNotification('Error initializing data feed', 'error');
+            }
+        }
+
+        function updateMap() {
+            // Clear existing markers
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+
+            // Filter reports based on active filters
+            const filteredReports = allReports.filter(report => {
+                const type = report.emergencyType || report.category;
+                return activeFilters.has(type);
+            });
+
+            // Create markers for filtered reports
+            filteredReports.forEach(report => {
+                createMarker(report);
+            });
+
+            // Update heatmap if enabled
+            if (isHeatmapEnabled && heatmapLayer) {
+                updateHeatmap(filteredReports);
+            }
+        }
+
+        function createMarker(report) {
+            const type = report.emergencyType || report.category;
+            const config = INCIDENT_TYPES[type] || INCIDENT_TYPES.fire;
+            
+            if (!report.location || !report.location.lat || !report.location.lng) {
+                console.warn('Report missing location data:', report.id);
+                return;
+            }
+
+            const position = {
+                lat: Number(report.location.lat),
+                lng: Number(report.location.lng)
+            };
+
+            // Create custom marker icon
+            const markerIcon = {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: config.color,
+                fillOpacity: 0.8,
+                strokeColor: '#fff',
+                strokeWeight: 2,
+                scale: 8
+            };
+
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: `${config.label} - ${report.description || 'No description'}`,
+                icon: markerIcon
+            });
+
+            // Create info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: createInfoWindowContent(report, config)
+            });
+
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+
+            markers.push(marker);
+        }
+
+        function createInfoWindowContent(report, config) {
+            const timestamp = report.createdAt ? formatTimestamp(report.createdAt) : 'Unknown time';
+            const status = report.status || 'pending';
+            const location = report.barangay || `${report.location.lat.toFixed(4)}, ${report.location.lng.toFixed(4)}`;
+            
+            return `
+                <div class="custom-info-window">
+                    <div class="info-window-content">
+                        <div class="info-window-header">
+                            <div class="incident-icon" style="background-color: ${config.color};">
+                                <i class="${config.icon}"></i>
+                            </div>
+                            <div>
+                                <h6 class="info-window-title">${config.label}</h6>
+                                <div class="info-window-meta">
+                                    <i class="fas fa-map-marker-alt"></i> ${location}
+                                </div>
+                                <div class="info-window-meta">
+                                    <i class="fas fa-clock"></i> ${timestamp}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="info-window-description">
+                            ${report.description || 'No description available'}
+                        </div>
+                        <div>
+                            <span class="status-badge status-${status}">${status.toUpperCase()}</span>
+                            ${report.name ? `<small class="text-muted ms-2">Reported by: ${report.name}</small>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateHeatmap(reports) {
+            if (!heatmapLayer) return;
+
+            const heatmapData = reports.map(report => {
+                if (report.location && report.location.lat && report.location.lng) {
+                    return new google.maps.LatLng(
+                        Number(report.location.lat),
+                        Number(report.location.lng)
+                    );
+                }
+                return null;
+            }).filter(Boolean);
+
+            heatmapLayer.setData(heatmapData);
+        }
+
+        function updateStats() {
+            const totalIncidents = allReports.length;
+            const activeIncidents = allReports.filter(report => 
+                report.status && !['resolved', 'dismissed'].includes(report.status)
+            ).length;
+            const resolvedIncidents = allReports.filter(report => 
+                report.status === 'resolved'
+            ).length;
+
+            document.getElementById('totalIncidents').textContent = totalIncidents;
+            document.getElementById('activeIncidents').textContent = activeIncidents;
+            document.getElementById('resolvedIncidents').textContent = resolvedIncidents;
+        }
+
+        function updateFilterCounts() {
+            Object.keys(INCIDENT_TYPES).forEach(type => {
+                const count = allReports.filter(report => {
+                    const reportType = report.emergencyType || report.category;
+                    return reportType === type;
+                }).length;
+                
+                const countElement = document.getElementById(`count-${type}`);
+                if (countElement) {
+                    countElement.textContent = count;
+                }
+            });
+        }
+
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return 'Unknown time';
+            
+            let date;
+            if (timestamp.seconds) {
+                date = new Date(timestamp.seconds * 1000);
+            } else if (timestamp.toDate) {
+                date = timestamp.toDate();
+            } else {
+                date = new Date(timestamp);
+            }
+            
+            const now = new Date();
+            const diffMs = now.getTime() - date.getTime();
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins} min ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays} days ago`;
+            
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Global functions for UI interactions
+        window.toggleHeatmap = function() {
+            const toggle = document.getElementById('heatmapToggle');
+            
+            if (!isHeatmapEnabled) {
+                // Enable heatmap
+                heatmapLayer = new google.maps.visualization.HeatmapLayer({
+                    data: [],
+                    map: map,
+                    radius: 30,
+                    opacity: 0.6,
+                    gradient: [
+                        'rgba(0, 255, 255, 0)',
+                        'rgba(0, 255, 255, 1)',
+                        'rgba(0, 191, 255, 1)',
+                        'rgba(0, 127, 255, 1)',
+                        'rgba(0, 63, 255, 1)',
+                        'rgba(0, 0, 255, 1)',
+                        'rgba(0, 0, 223, 1)',
+                        'rgba(0, 0, 191, 1)',
+                        'rgba(0, 0, 159, 1)',
+                        'rgba(0, 0, 127, 1)',
+                        'rgba(63, 0, 91, 1)',
+                        'rgba(127, 0, 63, 1)',
+                        'rgba(191, 0, 31, 1)',
+                        'rgba(255, 0, 0, 1)'
+                    ]
+                });
+                
+                updateHeatmap(allReports.filter(report => {
+                    const type = report.emergencyType || report.category;
+                    return activeFilters.has(type);
+                }));
+                
+                isHeatmapEnabled = true;
+                toggle.textContent = 'Disable Heatmap';
+                toggle.classList.add('active');
+                showNotification('Heatmap layer enabled', 'info');
+            } else {
+                // Disable heatmap
+                heatmapLayer.setMap(null);
+                heatmapLayer = null;
+                isHeatmapEnabled = false;
+                toggle.textContent = 'Enable Heatmap';
+                toggle.classList.remove('active');
+                showNotification('Heatmap layer disabled', 'info');
+            }
+        };
+
+        window.handleFilterChange = function(type) {
+            const checkbox = document.getElementById(`filter-${type}`);
+            
+            if (checkbox.checked) {
+                activeFilters.add(type);
+            } else {
+                activeFilters.delete(type);
+            }
+            
+            updateMap();
+            console.log('Active filters:', Array.from(activeFilters));
+        };
+
+        window.handleTimeRangeChange = function() {
+            console.log('Time range changed to:', document.getElementById('timeRange').value);
+            loadIncidentData();
+        };
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        };
+
+        window.toggleFullscreen = function() {
+            const icon = document.getElementById('fullscreenIcon');
+            
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().then(() => {
+                    icon.classList.remove('fa-expand');
+                    icon.classList.add('fa-compress');
+                }).catch(err => {
+                    console.error('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen().then(() => {
+                    icon.classList.remove('fa-compress');
+                    icon.classList.add('fa-expand');
+                }).catch(err => {
+                    console.error('Error attempting to exit fullscreen:', err);
+                });
+            }
+        };
+
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            const existing = document.querySelector('.notification');
+            if (existing) {
+                existing.remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 4000);
+            
+            notification.addEventListener('click', () => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            });
+        }
+
+        // Handle window resize for responsive map
+        window.addEventListener('resize', () => {
+            if (map) {
+                google.maps.event.trigger(map, 'resize');
+            }
+        });
+
+        // Cleanup listeners when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (reportsListener) {
+                reportsListener();
+            }
+        });
+
+        // Handle authentication state changes
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = "index.html";
+            }
+        });
+
+    </script>
+
+    <!-- Google Maps API will be loaded dynamically by the script above -->
 </body>
 </html>

@@ -24,7 +24,7 @@ body, html {
 .left-panel {
   flex: 1;
   background-color: #d53b2c;
-  background-image: url('images/background.png'); /* ✅ fixed */
+  background-image: url('images/background.png');
   background-size: cover;
   background-position: center;
   color: white;
@@ -52,7 +52,6 @@ body, html {
   font-weight: 500;
 }
 
-/* Right Panel */
 .right-panel {
   flex: 1;
   background-color: #f9f9f9;
@@ -116,6 +115,42 @@ button {
 button:hover {
   background-color: #b92e20;
 }
+
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.loading {
+  display: none;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #666;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 15px;
+  font-size: 14px;
+  display: none;
+}
+
+.success-message {
+  background-color: #d1edff;
+  color: #0c5460;
+  border: 1px solid #b8daff;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 15px;
+  font-size: 14px;
+  display: none;
+}
+
+
   </style>
 </head>
 <body>
@@ -135,7 +170,7 @@ button:hover {
 
     <div class="right-panel">
       <div class="login-box">
-        <img src="assets\images\Logo.png" alt="LipaAlertHub Logo" class="logo" /> <!-- ✅ fixed -->
+        <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo" />
         <h2>Admin Login</h2>
         <form id="loginForm">
           <label for="username">USERNAME</label>
@@ -144,8 +179,15 @@ button:hover {
           <label for="password">PASSWORD</label>
           <input type="password" id="password" name="password" placeholder="•••••" required />
 
-          <button type="submit">Login</button>
+          <button type="submit" id="loginButton">Login</button>
         </form>
+        
+        <div class="loading" id="loadingMessage">
+          Authenticating...
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
       </div>
     </div>
   </div>
@@ -155,15 +197,27 @@ button:hover {
   import { 
     getAuth, 
     signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword,
     setPersistence, 
     browserLocalPersistence 
   } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+  import { 
+    getFirestore, 
+    collection, 
+    query, 
+    where, 
+    getDocs, 
+    doc, 
+    getDoc, 
+    updateDoc,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
     authDomain: "lipaalerthub.firebaseapp.com",
     projectId: "lipaalerthub",
-    storageBucket: "lipaalerthub.appspot.com",   // ✅ fixed
+    storageBucket: "lipaalerthub.firebasestorage.app",
     messagingSenderId: "991310233066",
     appId: "1:991310233066:web:7e836a60e5c4a302de0693",
     measurementId: "G-PCEYY3PFWW"
@@ -171,32 +225,347 @@ button:hover {
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
+  const db = getFirestore(app);
 
-  // ✅ make login persistent
-  await setPersistence(auth, browserLocalPersistence);
+  // User roles and status constants
+  const USER_ROLES = {
+    ADMIN: 'admin',
+    MONITOR: 'monitor', 
+    RESCUER: 'rescuer',
+    RESIDENT: 'resident',
+    AGENCY: 'agency'
+  };
 
-  document.getElementById("loginForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
+  const USER_STATUS = {
+    ACTIVE: 'active',
+    PENDING: 'pending',
+    UNDER_REVIEW: 'under_review',
+    DECLINED: 'declined',
+    INACTIVE: 'inactive',
+    SUSPENDED_3D: 'suspended_3d',
+    SUSPENDED_2W: 'suspended_2w',
+    BANNED: 'banned'
+  };
 
+  const ALLOWED_ADMIN_ROLES = [
+    USER_ROLES.ADMIN,
+    USER_ROLES.MONITOR,
+    USER_ROLES.RESCUER,
+    USER_ROLES.AGENCY
+  ];
+
+  // Set login persistence
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch (error) {
+    console.error('Error setting persistence:', error);
+  }
+
+  function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    const successDiv = document.getElementById('successMessage');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    successDiv.style.display = 'none';
+  }
+
+  function showSuccess(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    const successDiv = document.getElementById('successMessage');
+    successDiv.textContent = message;
+    successDiv.style.display = 'block';
+    errorDiv.style.display = 'none';
+  }
+
+  function hideMessages() {
+    document.getElementById('errorMessage').style.display = 'none';
+    document.getElementById('successMessage').style.display = 'none';
+  }
+
+  function setLoading(isLoading) {
+    const loginButton = document.getElementById('loginButton');
+    const loadingDiv = document.getElementById('loadingMessage');
+    
+    loginButton.disabled = isLoading;
+    loginButton.textContent = isLoading ? 'Authenticating...' : 'Login';
+    loadingDiv.style.display = isLoading ? 'block' : 'none';
+  }
+
+  // Enhanced user lookup function
+  async function findUserData(email, firebaseUID) {
+    // Try Firebase UID first (most reliable)
+    if (firebaseUID) {
+      try {
+        const userDoc = await getDoc(doc(db, "users", firebaseUID));
+        if (userDoc.exists()) {
+          return { doc: userDoc, data: userDoc.data(), docId: firebaseUID };
+        }
+      } catch (error) {
+        console.error('Error checking Firebase UID:', error);
+      }
+    }
+    
+    // Search by email
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // ✅ force refresh token to get the latest claims
-      const token = await user.getIdTokenResult(true);
-
-      if (token.claims.admin) {
-        alert("✅ Welcome Admin!");
-        window.location.href = "dashboard.html"; 
-      } else {
-        alert("⛔ Access denied: Not an admin!");
-        await auth.signOut(); // prevent infinite loop
+      const emailQuery = query(collection(db, "users"), where("email", "==", email));
+      const emailSnapshot = await getDocs(emailQuery);
+      
+      if (!emailSnapshot.empty) {
+        const userDoc = emailSnapshot.docs[0];
+        return { doc: userDoc, data: userDoc.data(), docId: userDoc.id };
       }
     } catch (error) {
-      alert("Login failed: " + error.message);
-      console.error(error);
+      console.error('Error searching by email:', error);
+    }
+    
+    // Check for invite accounts
+    try {
+      const inviteQuery = query(
+        collection(db, "users"), 
+        where("email", "==", email),
+        where("isInvite", "==", true)
+      );
+      const inviteSnapshot = await getDocs(inviteQuery);
+      
+      if (!inviteSnapshot.empty) {
+        const inviteDoc = inviteSnapshot.docs[0];
+        return { doc: inviteDoc, data: inviteDoc.data(), docId: inviteDoc.id, isInvite: true };
+      }
+    } catch (error) {
+      console.error('Error checking invite accounts:', error);
+    }
+    
+    return null;
+  }
+
+  // Enhanced authentication flow
+  async function performLogin(email, password) {
+    try {
+      let userCredential = null;
+      let userData = null;
+      let userDocId = null;
+      let isNewInviteLogin = false;
+      
+      // Try Firebase Auth login first
+      try {
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+        
+        // Look up user data after successful auth
+        const userLookup = await findUserData(email, userCredential.user.uid);
+        if (userLookup) {
+          userData = userLookup.data;
+          userDocId = userLookup.docId;
+          
+          // Link Firebase UID if missing
+          if (!userData.firebaseUID || userData.firebaseUID !== userCredential.user.uid) {
+            try {
+              await updateDoc(doc(db, "users", userDocId), {
+                firebaseUID: userCredential.user.uid,
+                linkedAt: serverTimestamp(),
+                lastLoginAt: serverTimestamp()
+              });
+              userData.firebaseUID = userCredential.user.uid;
+            } catch (linkError) {
+              console.warn('Could not link Firebase UID:', linkError);
+              // Continue login even if linking fails
+            }
+          }
+        }
+        
+      } catch (authError) {
+        // Handle admin-created accounts or accounts with tempPassword
+        if (authError.code === 'auth/invalid-credential' || authError.code === 'auth/user-not-found') {
+          const userLookup = await findUserData(email, null);
+          
+          // Check if user exists and has a tempPassword
+          if (userLookup && userLookup.data && userLookup.data.tempPassword) {
+            const existingUserData = userLookup.data;
+            
+            // Verify temp password matches
+            if (existingUserData.tempPassword === password) {
+              console.log('✅ Found admin-created account with matching tempPassword');
+              
+              // Create Firebase Auth account
+              userCredential = await createUserWithEmailAndPassword(auth, email, password);
+              
+              // Update the existing document - remove tempPassword, link Firebase UID
+              await updateDoc(doc(db, "users", userLookup.docId), {
+                firebaseUID: userCredential.user.uid,
+                firstLoginAt: serverTimestamp(),
+                lastLoginAt: serverTimestamp(),
+                tempPassword: null, // Remove temp password after successful login
+                accountActivatedAt: serverTimestamp()
+              });
+              
+              userData = { 
+                ...existingUserData, 
+                firebaseUID: userCredential.user.uid,
+                tempPassword: null
+              };
+              userDocId = userLookup.docId;
+              isNewInviteLogin = true;
+              console.log('✅ Admin-created account activated successfully');
+            } else {
+              console.log('❌ Invalid temp password');
+              throw new Error('Invalid password');
+            }
+          } else {
+            console.log('❌ No account found or no temp password available');
+            throw authError;
+          }
+        } else {
+          throw authError;
+        }
+      }
+      
+      // Validate user data exists
+      if (!userData) {
+        if (userCredential) await auth.signOut();
+        throw new Error('Account not found in system. Please contact administrator.');
+      }
+      
+      // RBAC checks
+      return validateUserAccess(userData, userCredential.user, isNewInviteLogin);
+      
+    } catch (error) {
+      throw error;
+    }
+  }
+  
+  // RBAC validation
+  function validateUserAccess(userData, firebaseUser, isNewInviteLogin) {
+    const userRole = userData.role?.toLowerCase();
+    const userStatus = userData.status?.toLowerCase();
+    
+    // Block residents from admin portal
+    if (userRole === USER_ROLES.RESIDENT) {
+      return {
+        success: false,
+        error: 'Access denied. Residents cannot access the admin portal. Please use the mobile app.',
+        signOut: true
+      };
+    }
+    
+    // Check if role is allowed in admin portal
+    if (!ALLOWED_ADMIN_ROLES.includes(userRole)) {
+      return {
+        success: false,
+        error: 'Access denied. Your account role is not authorized for admin portal access.',
+        signOut: true
+      };
+    }
+    
+    // Status checks
+    if (userStatus === USER_STATUS.PENDING) {
+      return {
+        success: false,
+        error: 'Your account is pending approval. Please wait for administrator approval.',
+        signOut: true
+      };
+    }
+    
+    const bannedStatuses = [USER_STATUS.DECLINED, USER_STATUS.INACTIVE, USER_STATUS.SUSPENDED_3D, USER_STATUS.SUSPENDED_2W, USER_STATUS.BANNED];
+    if (bannedStatuses.includes(userStatus)) {
+      return {
+        success: false,
+        error: 'Your account has been suspended or deactivated. Please contact administrator.',
+        signOut: true
+      };
+    }
+    
+    if (userStatus !== USER_STATUS.ACTIVE) {
+      return {
+        success: false,
+        error: 'Your account is not active. Please contact administrator.',
+        signOut: true
+      };
+    }
+    
+    // Success
+    const roleDisplayNames = {
+      [USER_ROLES.ADMIN]: 'Administrator',
+      [USER_ROLES.MONITOR]: 'Moderator',
+      [USER_ROLES.RESCUER]: 'Rescuer',
+      [USER_ROLES.AGENCY]: 'Agency Representative'
+    };
+    
+    const welcomeMessage = `Welcome ${roleDisplayNames[userRole] || userRole.toUpperCase()}!`;
+    
+    return {
+      success: true,
+      message: isNewInviteLogin ? `${welcomeMessage} Account setup completed successfully.` : welcomeMessage,
+      userData: userData,
+      firebaseUser: firebaseUser
+    };
+  }
+
+  // MAIN LOGIN HANDLER
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value;
+
+    if (!email || !password) {
+      showError('Please enter both email and password');
+      return;
+    }
+
+    setLoading(true);
+    hideMessages();
+
+    try {
+      const result = await performLogin(email, password);
+      
+      if (result.success) {
+        showSuccess(result.message);
+        
+        // Redirect after successful login
+        setTimeout(() => {
+          window.location.href = "Dashboard.html";
+        }, 1000);
+        
+      } else {
+        if (result.signOut) {
+          try {
+            await auth.signOut();
+          } catch (signOutError) {
+            console.error('Error signing out:', signOutError);
+          }
+        }
+        showError(result.error);
+      }
+
+    } catch (error) {
+      console.error('Login error:', error);
+      
+      let errorMessage = 'Login failed. Please check your credentials and try again.';
+      
+      if (error.code === 'auth/invalid-credential') {
+        errorMessage = 'Invalid email or password. Please check your credentials.';
+      } else if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email address.';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password. Please try again.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address format.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many failed attempts. Please try again later.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showError(errorMessage);
+      
+      // Clean up auth state
+      try {
+        if (auth.currentUser) {
+          await auth.signOut();
+        }
+      } catch (signOutError) {
+        console.error('Error signing out:', signOutError);
+      }
+    } finally {
+      setLoading(false);
     }
   });
 </script>

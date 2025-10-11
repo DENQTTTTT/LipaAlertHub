@@ -11,14 +11,17 @@ const { Resend } = require("resend");
 const crypto = require("crypto");
 const sharp = require("sharp");
 const fetch = require("node-fetch");
+const cheerio = require("cheerio");
 
 // Initialize Firebase Admin
 admin.initializeApp();
 
 // Set global options for cost control and region
 setGlobalOptions({ 
-  maxInstances: 10,
-  region: "asia-southeast1" // Fixed: Set consistent region
+  maxInstances: 3,        // Reduced from 10 to 3
+  region: "asia-southeast1",
+  cpu: 0.5,              // Add global CPU limit
+  memory: "256MiB"       // Add global memory limit
 });
 
 // Initialize Resend client with error handling
@@ -38,6 +41,13 @@ const PASSWORD_RESET_WINDOW_MINUTES = 10;
 const MAX_OTP_REQUESTS_PER_HOUR = 3; // New: Hourly rate limit
 const PUSH_NOTIFICATION_BATCH_SIZE = 100;
 const MAX_RETRY_ATTEMPTS = 3;
+
+
+// Weather & Disaster Alert Constants
+const OPENWEATHER_API_KEY = "0baa706a6ca53436f3aa0b5bd9f0d25b";
+const LIPA_LAT = 13.9411;
+const LIPA_LON = 121.1631;
+const USGS_RADIUS = 200;
 
 /* ===================================================================
    UTILITY FUNCTIONS FOR RATE LIMITING AND ERROR HANDLING
@@ -117,6 +127,118 @@ function validateEmail(email) {
 /* ===================================================================
    PASSWORD RESET OTP SYSTEM - Enhanced with Better Rate Limiting
 =================================================================== */
+// Add this migration function as a callable export
+const { onRequest } = require("firebase-functions/v2/https");
+
+exports.migrateUsersNow = onRequest({
+  region: "asia-southeast1",
+  cors: true
+}, async (req, res) => {
+  try {
+    console.log("🚀 Starting immediate migration of existing users...");
+    
+    const db = admin.firestore();
+    
+    // Check if migration already completed
+    const migrationStatus = await db.collection("_system").doc("migration_status").get();
+    if (migrationStatus.exists && migrationStatus.data().completed) {
+      console.log("ℹ️ Migration already completed");
+      return res.status(200).json({
+        success: true,
+        message: "Migration already completed",
+        alreadyCompleted: true
+      });
+    }
+
+    // Use the correct collection name
+    const usersSnapshot = await db.collection("users").get();
+    const allUsers = usersSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    
+    const batch = db.batch();
+    let migratedCount = 0;
+    
+    // Define cutoff date when approval system started
+    const approvalSystemDate = new Date("2025-09-27");
+    
+    for (const doc of usersSnapshot.docs) {
+      const userData = doc.data();
+      const createdAt = userData.createdAt?.toDate?.() || new Date(0);
+      
+      // Check if user needs update
+      const needsMigration =
+        !userData.hasOwnProperty("status") ||
+        (userData.status === "pending" && createdAt < approvalSystemDate) ||
+        userData.status == null ||
+        userData.migrated !== true;
+      
+      if (needsMigration) {
+        const updates = {
+          status: "active", // Set existing users to active
+          statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          statusUpdatedBy: "system_migration",
+          migrated: true,
+          migratedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        
+        // Add moderation fields if missing
+        if (userData.warnings === undefined) updates.warnings = 0;
+        if (userData.strikes === undefined) updates.strikes = 0;
+        if (userData.lastViolationReason === undefined) updates.lastViolationReason = "";
+        if (userData.lastViolationDate === undefined) updates.lastViolationDate = null;
+        if (userData.suspensionUntil === undefined) updates.suspensionUntil = null;
+        if (userData.duplicateFlag === undefined) updates.duplicateFlag = false;
+        
+        // Check for duplicate (same name + barangay)
+        if (userData.name && userData.barangay) {
+          const duplicate = allUsers.find(
+            (u) =>
+              u.name === userData.name &&
+              u.barangay === userData.barangay &&
+              u.id !== doc.id
+          );
+          if (duplicate) {
+            updates.duplicateFlag = true;
+            updates.duplicateOf = duplicate.id;
+            updates.status = "under_review";
+            console.log(`⚠️ Duplicate detected for ${userData.name} (${userData.barangay})`);
+          }
+        }
+        
+        batch.update(doc.ref, updates);
+        migratedCount++;
+      }
+    }
+    
+    if (migratedCount > 0) {
+      await batch.commit();
+      console.log(`✅ Migrated ${migratedCount} users successfully`);
+    } else {
+      console.log("ℹ️ No users needed migration");
+    }
+
+    // Mark migration as completed
+    await db.collection("_system").doc("migration_status").set({
+      completed: true,
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      migratedCount,
+      totalUsers: usersSnapshot.size
+    });
+    
+    return res.status(200).json({
+      success: true,
+      migratedCount,
+      total: usersSnapshot.size,
+      message: `Successfully migrated ${migratedCount} users`
+    });
+    
+  } catch (error) {
+    console.error("❌ Migration failed:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // Request OTP - Enhanced with improved rate limiting and error handling
 exports.requestOtp = onCall({
@@ -169,7 +291,8 @@ exports.requestOtp = onCall({
 
  if (userExists) {
   try {
-    const apiKey = functions.config().resend?.api_key;
+    // FIXED: Use process.env instead of functions.config()
+    const apiKey = process.env.RESEND_API_KEY;
     
     if (apiKey) {
       // Initialize Resend
@@ -186,6 +309,7 @@ exports.requestOtp = onCall({
       logger.info(`Valid until: ${expiresAt.toLocaleString()}`);
       logger.info("Resend client initialized successfully");
       logger.info("=".repeat(60));
+      
       
       // DEVELOPMENT: Save to Firestore for testing
       await admin.firestore().collection("dev_otp_logs").add({
@@ -245,6 +369,7 @@ exports.requestOtp = onCall({
       });
       */
       
+       
     } else {
       // FALLBACK: No Resend API key configured
       logger.info(`DEV MODE - OTP for ${normalizedEmail}: ${otp}`);
@@ -273,6 +398,550 @@ exports.requestOtp = onCall({
     }
     
     throw new Error("Unable to process password reset request. Please try again later.");
+  }
+});
+exports.onUserStatusChange = onDocumentUpdated({
+  document: "users/{uid}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
+  const uid = event.params.uid;
+
+  // Only process if status changed
+  if (!before || !after || before.status === after.status) {
+    return;
+  }
+
+  const email = after.email;
+  const name = after.name || after.displayName || "User";
+  
+  if (!email) {
+    logger.warn(`No email found for user ${uid} status change`);
+    return;
+  }
+
+  try {
+    logger.info(`User ${uid} status changed: ${before.status} -> ${after.status}`);
+    
+    let subject, html;
+
+    if (after.status === "active") {
+      subject = "✅ Your LipaAlertHub Account Has Been Approved";
+      html = `
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #d73527; color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
+              .header h1 { margin: 0; font-size: 28px; }
+              .content { background: white; padding: 30px 20px; border: 1px solid #ddd; border-radius: 0 0 10px 10px; }
+              .status-badge { background: #27ae60; color: white; padding: 12px 24px; border-radius: 25px; display: inline-block; margin: 20px 0; font-weight: bold; }
+              .cta-button { background: #d73527; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; margin: 20px 0; font-weight: bold; }
+              .footer { color: #666; font-size: 14px; margin-top: 30px; text-align: center; }
+              .logo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="logo">🚨 LipaAlertHub</div>
+              <h1>Account Approved!</h1>
+            </div>
+            <div class="content">
+              <p>Dear <strong>${name}</strong>,</p>
+              
+              <div class="status-badge">✅ APPROVED</div>
+              
+              <p>Great news! Your LipaAlertHub account has been <strong>approved</strong> by our admin team.</p>
+              
+              <p>You can now:</p>
+              <ul>
+                <li>📱 Access all app features</li>
+                <li>🚨 Submit emergency reports</li>
+                <li>📢 Receive disaster alerts</li>
+                <li>💬 Participate in community forums</li>
+                <li>📍 Find evacuation centers</li>
+              </ul>
+              
+              <a href="#" class="cta-button">Open LipaAlertHub App</a>
+              
+              <p>Thank you for being part of our emergency preparedness community. Together, we make Lipa City safer!</p>
+              
+              <div class="footer">
+                <p><strong>LipaAlertHub Team</strong><br/>
+                City Disaster Risk Reduction and Management Office<br/>
+                Lipa City, Batangas</p>
+                <p><em>This is an automated message. Please do not reply to this email.</em></p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+    } else if (after.status === "declined") {
+      const declineReason = after.declineReason || "No specific reason provided";
+      subject = "⚠️ Your LipaAlertHub Account Application Update";
+      html = `
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #e74c3c; color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
+              .header h1 { margin: 0; font-size: 28px; }
+              .content { background: white; padding: 30px 20px; border: 1px solid #ddd; border-radius: 0 0 10px 10px; }
+              .status-badge { background: #e74c3c; color: white; padding: 12px 24px; border-radius: 25px; display: inline-block; margin: 20px 0; font-weight: bold; }
+              .reason-box { background: #f8f9fa; border-left: 4px solid #e74c3c; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+              .support-info { background: #e3f2fd; border: 1px solid #2196f3; padding: 20px; border-radius: 8px; margin: 20px 0; }
+              .footer { color: #666; font-size: 14px; margin-top: 30px; text-align: center; }
+              .logo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="logo">🚨 LipaAlertHub</div>
+              <h1>Application Review Update</h1>
+            </div>
+            <div class="content">
+              <p>Dear <strong>${name}</strong>,</p>
+              
+              <div class="status-badge">⏳ UNDER REVIEW</div>
+              
+              <p>Thank you for your interest in joining LipaAlertHub. After reviewing your application, we need additional information before we can approve your account.</p>
+              
+              <div class="reason-box">
+                <h3>📋 Review Notes:</h3>
+                <p>${declineReason}</p>
+              </div>
+              
+              <div class="support-info">
+                <h3>📞 Need Assistance?</h3>
+                <p>If you believe this is a mistake or need help with your application, please contact our support team:</p>
+                <p><strong>Email:</strong> cdrrmo@lipa.gov.ph<br/>
+                <strong>Phone:</strong> (043) 756-5555<br/>
+                <strong>Office:</strong> CDRRMO - Lipa City Hall</p>
+              </div>
+              
+              <p>We appreciate your patience and understanding as we work to maintain the security of our emergency response system.</p>
+              
+              <div class="footer">
+                <p><strong>LipaAlertHub Team</strong><br/>
+                City Disaster Risk Reduction and Management Office<br/>
+                Lipa City, Batangas</p>
+                <p><em>This is an automated message. Please do not reply to this email.</em></p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+    } else if (after.status === "pending") {
+      subject = "⏳ Your LipaAlertHub Account is Under Review";
+      html = `
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #f39c12; color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
+              .header h1 { margin: 0; font-size: 28px; }
+              .content { background: white; padding: 30px 20px; border: 1px solid #ddd; border-radius: 0 0 10px 10px; }
+              .status-badge { background: #f39c12; color: white; padding: 12px 24px; border-radius: 25px; display: inline-block; margin: 20px 0; font-weight: bold; }
+              .timeline { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+              .footer { color: #666; font-size: 14px; margin-top: 30px; text-align: center; }
+              .logo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="logo">🚨 LipaAlertHub</div>
+              <h1>Account Under Review</h1>
+            </div>
+            <div class="content">
+              <p>Dear <strong>${name}</strong>,</p>
+              
+              <div class="status-badge">⏳ UNDER REVIEW</div>
+              
+              <p>Thank you for registering with LipaAlertHub! Your account is currently <strong>under review</strong> by our admin team.</p>
+              
+              <div class="timeline">
+                <h3>📅 Review Process:</h3>
+                <p>✅ <strong>Application Received</strong> - Your registration was submitted successfully<br/>
+                ⏳ <strong>Document Verification</strong> - We're reviewing your submitted information<br/>
+                ⌛ <strong>Admin Approval</strong> - Final review by our team<br/>
+                📧 <strong>Email Notification</strong> - You'll receive an update once complete</p>
+              </div>
+              
+              <p><strong>Expected Timeline:</strong> Most applications are processed within 1-2 business days.</p>
+              
+              <p>We appreciate your patience. Our verification process helps maintain the security and reliability of our emergency response system.</p>
+              
+              <div class="footer">
+                <p><strong>LipaAlertHub Team</strong><br/>
+                City Disaster Risk Reduction and Management Office<br/>
+                Lipa City, Batangas</p>
+                <p><em>This is an automated message. Please do not reply to this email.</em></p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+    } else {
+      logger.warn(`Unknown status change: ${after.status}`);
+      return;
+    }
+
+    // Send email notification
+    await sendUserStatusEmail(email, subject, html, name, after.status);
+
+    // Create in-app notification
+    await createUserStatusNotification(uid, after.status, after.declineReason);
+
+    logger.info(`Status change notification sent to ${email} for status: ${after.status}`);
+
+  } catch (error) {
+    logger.error("Error in onUserStatusChange:", error);
+  }
+});
+
+// Helper function to send status change emails
+async function sendUserStatusEmail(email, subject, html, name, status) {
+  try {
+    // Check if we have Resend configured
+    const apiKey = process.env.RESEND_API_KEY;
+    
+    if (apiKey) {
+      const resend = new Resend(apiKey);
+      
+      await retryOperation(async () => {
+        await resend.emails.send({
+          from: "LipaAlertHub <noreply@cdrrmo.lipa.gov.ph>", // Update with your verified domain
+          to: [email],
+          subject: subject,
+          html: html,
+        });
+      });
+      
+      logger.info(`Status email sent successfully to ${email}`);
+    } else {
+      // Development mode - log to console
+      logger.info("=".repeat(60));
+      logger.info("USER STATUS EMAIL - DEVELOPMENT MODE");
+      logger.info("=".repeat(60));
+      logger.info(`To: ${email}`);
+      logger.info(`Subject: ${subject}`);
+      logger.info(`Status: ${status}`);
+      logger.info(`Name: ${name}`);
+      logger.info("=".repeat(60));
+      
+      // Save to development logs
+      await admin.firestore().collection("dev_email_logs").add({
+        type: "user_status_change",
+        email,
+        subject,
+        status,
+        name,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        environment: "development"
+      });
+    }
+  } catch (error) {
+    logger.error("Error sending status change email:", error);
+    throw error;
+  }
+}
+
+// Helper function to create in-app notifications
+async function createUserStatusNotification(userId, status, declineReason = null) {
+  try {
+    const notificationData = {
+      userId,
+      type: "account_status",
+      status: "unread",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+      )
+    };
+
+    if (status === "active") {
+      notificationData.title = "Account Approved! 🎉";
+      notificationData.body = "Welcome to LipaAlertHub! Your account has been approved and you can now access all features.";
+      notificationData.priority = "high";
+    } else if (status === "declined") {
+      notificationData.title = "Account Review Required ⏳";
+      notificationData.body = "Your account needs additional verification. Please check your email for details.";
+      notificationData.priority = "normal";
+      notificationData.data = { declineReason };
+    } else if (status === "pending") {
+      notificationData.title = "Account Under Review 📋";
+      notificationData.body = "Your account is being reviewed. You'll be notified once the process is complete.";
+      notificationData.priority = "low";
+    }
+
+    await admin.firestore().collection("notifications").add(notificationData);
+    logger.info(`In-app notification created for user ${userId}, status: ${status}`);
+
+  } catch (error) {
+    logger.error("Error creating status change notification:", error);
+    throw error;
+  }
+}
+
+// NEW: Admin callable function to update user status
+exports.updateUserAccountStatus = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  // Verify admin authentication
+  if (!request.auth) {
+    throw new Error("Authentication required");
+  }
+  
+  if (!request.auth.token.admin) {
+    throw new Error("Admin privileges required");
+  }
+
+  const { uid, status, declineReason } = request.data;
+  
+  if (!uid || !status) {
+    throw new Error("User ID and status are required");
+  }
+
+  const validStatuses = ["pending", "active", "declined", "suspended"];
+  if (!validStatuses.includes(status)) {
+    throw new Error(`Invalid status. Valid options: ${validStatuses.join(", ")}`);
+  }
+
+  if (status === "declined" && !declineReason) {
+    throw new Error("Decline reason is required when declining an account");
+  }
+
+  try {
+    // Get user document
+    const userRef = admin.firestore().collection("users").doc(uid);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      throw new Error("User not found");
+    }
+
+    const currentData = userDoc.data();
+    const updateData = {
+      status: status,
+      statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      statusUpdatedBy: request.auth.uid,
+      previousStatus: currentData.status
+    };
+
+    if (status === "declined" && declineReason) {
+      updateData.declineReason = declineReason.trim();
+    } else {
+      // Remove decline reason if status is not declined
+      updateData.declineReason = admin.firestore.FieldValue.delete();
+    }
+
+    // Add status history
+    const statusHistory = currentData.statusHistory || [];
+    statusHistory.push({
+      status: status,
+      updatedBy: request.auth.uid,
+      updatedAt: new Date().toISOString(),
+      declineReason: status === "declined" ? declineReason : null,
+      previousStatus: currentData.status
+    });
+    updateData.statusHistory = statusHistory;
+
+    // Update user document (this will trigger the onUserStatusChange function)
+    await userRef.update(updateData);
+
+    logger.info(`User ${uid} status updated by admin ${request.auth.uid}: ${currentData.status} -> ${status}`);
+
+    return { 
+      success: true, 
+      message: `User account status updated to ${status}`,
+      userId: uid,
+      newStatus: status,
+      timestamp: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    logger.error("Error updating user account status:", error);
+    throw new Error(error.message || "Failed to update user account status");
+  }
+});
+
+
+async function migrateExistingUsers() {
+  try {
+    console.log('Starting migration of existing users...');
+    
+    // Get all users without a status field OR with status "pending" created before approval system
+    const usersSnapshot = await admin.firestore()
+      .collection('users')
+      .get();
+    
+    const batch = admin.firestore().batch();
+    let migratedCount = 0;
+    
+    // Define cutoff date - when you implemented the approval system
+    const approvalSystemDate = new Date('2025-09-27'); // Adjust this date
+    
+    usersSnapshot.docs.forEach(doc => {
+      const userData = doc.data();
+      const createdAt = userData.createdAt?.toDate() || new Date(0);
+      
+      // Check if user needs migration
+      const needsMigration = (
+        // User has no status field
+        !userData.hasOwnProperty('status') ||
+        // User has pending status but was created before approval system
+        (userData.status === 'pending' && createdAt < approvalSystemDate) ||
+        // User has undefined/null status
+        userData.status == null
+      );
+      
+      if (needsMigration) {
+        console.log(`Migrating user: ${userData.email || userData.name || doc.id}`);
+        
+        batch.update(doc.ref, {
+          status: 'active',
+          statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          statusUpdatedBy: 'system_migration',
+          migrated: true,
+          migratedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        migratedCount++;
+      }
+    });
+    
+    if (migratedCount > 0) {
+      await batch.commit();
+      console.log(`✅ Successfully migrated ${migratedCount} existing users to active status`);
+    } else {
+      console.log('ℹ️ No users needed migration');
+    }
+    
+    return {
+      success: true,
+      migratedCount,
+      total: usersSnapshot.size
+    };
+    
+  } catch (error) {
+    console.error('❌ Error migrating existing users:', error);
+    throw error;
+  }
+}
+// NEW: Get user management stats for admin
+exports.getUserManagementStats = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  try {
+    const usersSnapshot = await admin.firestore().collection("users").get();
+    const users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const stats = {
+      total: users.length,
+      byStatus: {
+        pending: users.filter(u => u.status === "pending").length,
+        active: users.filter(u => u.status === "active").length,
+        declined: users.filter(u => u.status === "declined").length,
+        suspended: users.filter(u => u.status === "suspended").length,
+      },
+      byRole: {
+        resident: users.filter(u => u.role === "resident" || !u.role).length,
+        admin: users.filter(u => u.role === "admin").length,
+        monitor: users.filter(u => u.role === "monitor").length,
+        rescuer: users.filter(u => u.role === "rescuer").length,
+      },
+      recentRegistrations: {
+        last24Hours: 0,
+        lastWeek: 0,
+        lastMonth: 0
+      }
+    };
+
+    // Calculate time-based stats
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    users.forEach(user => {
+      const createdAt = user.createdAt?.toDate() || new Date(0);
+      if (createdAt > oneDayAgo) stats.recentRegistrations.last24Hours++;
+      if (createdAt > oneWeekAgo) stats.recentRegistrations.lastWeek++;
+      if (createdAt > oneMonthAgo) stats.recentRegistrations.lastMonth++;
+    });
+
+    return {
+      success: true,
+      stats,
+      generatedAt: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    logger.error("Error getting user management stats:", error);
+    throw new Error("Failed to generate user management statistics");
+  }
+});
+
+// NEW: Get pending users for admin dashboard
+exports.getPendingUsers = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  try {
+    const { limit = 50, startAfter } = request.data || {};
+    
+    let query = admin.firestore()
+      .collection("users")
+      .where("status", "==", "pending")
+      .orderBy("createdAt", "desc")
+      .limit(limit);
+    
+    if (startAfter) {
+      const startAfterDoc = await admin.firestore().collection("users").doc(startAfter).get();
+      if (startAfterDoc.exists) {
+        query = query.startAfter(startAfterDoc);
+      }
+    }
+
+    const snapshot = await query.get();
+    const pendingUsers = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        uid: doc.id,
+        name: data.name,
+        email: data.email,
+        number: data.number,
+        barangay: data.barangay,
+        createdAt: data.createdAt,
+        idFileUrl: data.idFileUrl,
+        // Don't return sensitive information
+      };
+    });
+
+    return {
+      success: true,
+      users: pendingUsers,
+      hasMore: snapshot.docs.length === limit,
+      lastDoc: snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null
+    };
+    
+  } catch (error) {
+    logger.error("Error getting pending users:", error);
+    throw new Error("Failed to retrieve pending users");
   }
 });
 
@@ -462,6 +1131,80 @@ exports.setNewPassword = onCall({
   } catch (error) {
     logger.error("Error in setNewPassword:", error);
     throw new Error(error.message || "Failed to update password. Please try again.");
+  }
+});
+
+exports.onAlertStatusUpdate = onDocumentUpdated({
+  document: "alerts/{alertId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
+  const alertId = event.params.alertId;
+
+  // Only process if status changed from pending to approved
+  if (!before || !after || before.status === after.status) {
+    return;
+  }
+
+  if (after.status === 'approved' && before.status === 'pending') {
+    try {
+      logger.info(`Processing approved alert: ${alertId}`);
+
+      // Create corresponding weather_alerts document for mobile app compatibility
+      await admin.firestore().collection("weather_alerts").add({
+        title: after.title,
+        description: after.description,
+        severity: after.severity || 'info',
+        type: after.type,
+        approved: true,
+        isActive: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdBy: after.approvedBy || 'system',
+        source: after.source,
+        alertId: alertId // Reference to original alert
+      });
+
+      // Send push notifications to all users
+      await sendAlertPushNotifications(after, alertId);
+
+      logger.info(`Alert ${alertId} processed and notifications sent`);
+
+    } catch (error) {
+      logger.error(`Error processing alert ${alertId}:`, error);
+    }
+  }
+});
+
+// Automated weather data fetching (scheduled)
+exports.fetchWeatherAlerts = onSchedule({
+  schedule: "*/15 * * * *", // Every 15 minutes
+  timeZone: "Asia/Manila",
+  region: "asia-southeast1"
+}, async (context) => {
+  try {
+    logger.info("Starting automated weather data fetch");
+
+    const results = await Promise.allSettled([
+      fetchOpenWeatherData(),
+      fetchUSGSEarthquakeData()
+    ]);
+
+    const successfulFetches = results.filter(r => r.status === 'fulfilled').length;
+    const failedFetches = results.filter(r => r.status === 'rejected').length;
+
+    logger.info(`Automated fetch completed: ${successfulFetches} successful, ${failedFetches} failed`);
+
+    // Log results
+    await logSystemEvent("automated_weather_fetch", {
+      successful: successfulFetches,
+      failed: failedFetches,
+      timestamp: new Date().toISOString()
+    }, failedFetches === 0);
+
+  } catch (error) {
+    logger.error("Error in automated weather fetch:", error);
+    await logSystemEvent("automated_weather_fetch", { error: error.message }, false);
   }
 });
 
@@ -671,7 +1414,10 @@ async function sendPushNotificationBatches(messages) {
 =================================================================== */
 exports.processIncidentPhoto = onObjectFinalized({
   bucket: "lipaalerthub.firebasestorage.app",
-  region: "asia-southeast1" // Fixed: Added explicit region
+  region: "asia-southeast1",
+  cpu: 1,                    // Add this line
+  memory: "512MiB",          // Add this line
+  timeoutSeconds: 300        // Add this line
 }, async (event) => {
   const filePath = event.data.name;
   
@@ -2058,6 +2804,326 @@ exports.validateRegionConfiguration = onCall({
   }
 });
 
+exports.checkEmailExists = onCall({
+  region: "asia-southeast1",
+  cors: true,
+  enforceAppCheck: false,
+  cpu: 0.5,              // Add this line
+  memory: "256MiB"     
+}, async (request) => {
+  const { email } = request.data;
+  
+  if (!email || typeof email !== "string") {
+    throw new Error("Valid email address is required");
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  
+  try {
+    validateEmail(normalizedEmail);
+    
+    logger.info(`Checking email existence for password reset: ${normalizedEmail}`);
+
+    let userExists = false;
+
+    // Method 1: Check Firebase Auth first
+    try {
+      const userRecord = await admin.auth().getUserByEmail(normalizedEmail);
+      if (userRecord) {
+        userExists = true;
+        logger.info(`Email found in Firebase Auth: ${userRecord.uid}`);
+      }
+    } catch (authError) {
+      logger.info(`Email not found in Firebase Auth: ${authError.code}`);
+      
+      // Method 2: If not found in Auth, check Firestore as fallback
+      try {
+        const usersQuery = await admin
+          .firestore()
+          .collection("users")
+          .where("email", "==", normalizedEmail)
+          .limit(1)
+          .get();
+        
+        if (!usersQuery.empty) {
+          userExists = true;
+          logger.info("Email found in Firestore database");
+        } else {
+          logger.info("Email not found in Firestore");
+        }
+      } catch (firestoreError) {
+        logger.error("Error checking Firestore:", firestoreError);
+        // Continue without throwing - we'll return false
+      }
+    }
+
+    // Add rate limiting for email checking to prevent abuse
+    await checkRateLimit(normalizedEmail, 'email_check');
+
+    return { 
+      success: true,
+      exists: userExists,
+      message: userExists 
+        ? "Email found in system" 
+        : "Email not found in system"
+    };
+    
+  } catch (error) {
+    logger.error("Error in checkEmailExists:", error);
+    
+    // Return user-friendly error messages
+    if (error.message.includes("Rate limit")) {
+      throw new Error(error.message);
+    }
+    if (error.message.includes("Invalid email")) {
+      throw new Error(error.message);
+    }
+    
+    throw new Error("Unable to verify email. Please check your connection and try again.");
+  }
+});
+
+// Fetch OpenWeather data
+async function fetchOpenWeatherData() {
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${LIPA_LAT}&lon=${LIPA_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`OpenWeather API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const alertData = processOpenWeatherData(data);
+    
+    if (alertData) {
+      await createPendingAlert(alertData);
+      logger.info("OpenWeather alert created");
+    }
+    
+    return data;
+  } catch (error) {
+    logger.error("Error fetching OpenWeather data:", error);
+    throw error;
+  }
+}
+
+// Fetch USGS earthquake data
+async function fetchUSGSEarthquakeData() {
+  try {
+    const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=${LIPA_LAT}&longitude=${LIPA_LON}&maxradiuskm=${USGS_RADIUS}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`USGS API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    let alertsCreated = 0;
+    
+    for (const earthquake of data.features) {
+      const alertData = processUSGSEarthquake(earthquake);
+      if (alertData) {
+        await createPendingAlert(alertData);
+        alertsCreated++;
+      }
+    }
+
+    if (alertsCreated > 0) {
+      logger.info(`Created ${alertsCreated} earthquake alerts`);
+    }
+    
+    return data;
+  } catch (error) {
+    logger.error("Error fetching USGS data:", error);
+    throw error;
+  }
+}
+
+// Process OpenWeather data into alert format
+function processOpenWeatherData(data) {
+  const weather = data.weather[0];
+  const main = data.main;
+  const wind = data.wind;
+  const rain = data.rain;
+
+  let shouldAlert = false;
+  let title = "";
+  let description = "";
+  let severity = "info";
+
+  // Check for severe weather conditions
+  if (weather.id < 300) { // Thunderstorm
+    shouldAlert = true;
+    title = "Thunderstorm Warning";
+    description = `Thunderstorm conditions detected in Lipa area. ${weather.description}. Take appropriate precautions.`;
+    severity = "warning";
+  } else if (weather.id >= 500 && weather.id < 600 && rain) { // Rain
+    if (rain["1h"] > 10 || rain["3h"] > 25) {
+      shouldAlert = true;
+      title = "Heavy Rain Advisory";
+      description = `Heavy rainfall detected: ${rain["1h"] || 0}mm in the last hour. Risk of flooding in low-lying areas.`;
+      severity = "warning";
+    }
+  } else if (wind.speed > 10) { // Strong winds
+    shouldAlert = true;
+    title = "Strong Wind Advisory";
+    description = `Strong winds detected: ${wind.speed} m/s (${Math.round(wind.speed * 3.6)} km/h). Secure loose objects.`;
+    severity = "info";
+  } else if (main.temp > 35) { // Extreme heat
+    shouldAlert = true;
+    title = "Heat Advisory";
+    description = `High temperature alert: ${Math.round(main.temp)}°C. Stay hydrated and avoid prolonged sun exposure.`;
+    severity = "info";
+  }
+
+  if (!shouldAlert) {
+    return null;
+  }
+
+  return {
+    type: "weather",
+    title,
+    description,
+    source: "OpenWeather",
+    raw: data,
+    severity,
+    location: { lat: LIPA_LAT, lon: LIPA_LON }
+  };
+}
+
+// Process USGS earthquake data
+function processUSGSEarthquake(earthquake) {
+  const props = earthquake.properties;
+  const coords = earthquake.geometry.coordinates;
+  const magnitude = props.mag;
+
+  // Only create alerts for significant earthquakes
+  if (magnitude < 3.0) {
+    return null;
+  }
+
+  let severity = "info";
+  if (magnitude >= 5.0) severity = "warning";
+  if (magnitude >= 6.0) severity = "danger";
+
+  return {
+    type: "earthquake",
+    title: `Magnitude ${magnitude} Earthquake`,
+    description: `Earthquake detected: M${magnitude} at ${props.place}. Depth: ${Math.abs(coords[2])}km. Time: ${new Date(props.time).toLocaleString()}.`,
+    source: "USGS",
+    raw: earthquake,
+    severity,
+    location: { lat: coords[1], lon: coords[0] },
+    magnitude
+  };
+}
+
+// Create pending alert in Firestore
+async function createPendingAlert(alertData) {
+  try {
+    // Check for recent duplicate alerts
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const duplicateQuery = await admin
+      .firestore()
+      .collection("alerts")
+      .where("source", "==", alertData.source)
+      .where("type", "==", alertData.type)
+      .where("timestamp", ">", admin.firestore.Timestamp.fromDate(oneDayAgo))
+      .limit(1)
+      .get();
+
+    if (!duplicateQuery.empty) {
+      logger.info(`Duplicate ${alertData.type} alert from ${alertData.source} detected, skipping`);
+      return;
+    }
+
+    const alertDoc = {
+      ...alertData,
+      status: "pending",
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      isActive: true,
+      approved: false
+    };
+
+    await admin.firestore().collection("alerts").add(alertDoc);
+    logger.info(`Created pending ${alertData.type} alert from ${alertData.source}`);
+
+  } catch (error) {
+    logger.error("Error creating pending alert:", error);
+    throw error;
+  }
+}
+
+// Send push notifications for alerts
+async function sendAlertPushNotifications(alertData, alertId) {
+  try {
+    const usersSnapshot = await admin.firestore().collection("users")
+      .where("expoPushToken", "!=", null)
+      .where("notificationsEnabled", "!=", false)
+      .get();
+
+    if (usersSnapshot.empty) {
+      logger.info("No users with push tokens found");
+      return;
+    }
+
+    const severityEmoji = {
+      info: "🔵",
+      watch: "🟡", 
+      warning: "🟠",
+      danger: "🔴",
+    }[alertData.severity] || "⚠️";
+
+    const messages = [];
+
+    usersSnapshot.forEach((doc) => {
+      const user = doc.data();
+      const token = user.expoPushToken;
+      
+      if (token && token.trim() && typeof token === 'string') {
+        messages.push({
+          to: token,
+          sound: "default",
+          title: `${severityEmoji} ${String(alertData.severity || 'ALERT').toUpperCase()}`,
+          body: `${alertData.title || 'Weather Alert'} - ${String(alertData.description || "Check the app for details").substring(0, 120)}${(alertData.description || "").length > 120 ? "..." : ""}`,
+          data: {
+            type: "weather_alert",
+            alertId,
+            severity: alertData.severity,
+            alertType: alertData.type,
+            timestamp: Date.now()
+          },
+          channelId: "weather_alerts",
+          priority: alertData.severity === "danger" ? "high" : "default",
+          ttl: 3600,
+        });
+      }
+    });
+
+    logger.info(`Prepared ${messages.length} push messages`);
+
+    const results = await sendPushNotificationBatches(messages);
+    
+    const successful = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+    
+    logger.info(`Push notification results: ${successful} successful, ${failed} failed`);
+    
+    // Update alert document with notification stats
+    await admin.firestore().collection("alerts").doc(alertId).update({
+      notificationStats: {
+        sent: successful,
+        failed: failed,
+        sentAt: admin.firestore.FieldValue.serverTimestamp()
+      }
+    });
+
+  } catch (error) {
+    logger.error("Error sending alert push notifications:", error);
+  }
+}
 /* ===================================================================
    ENHANCED CLEANUP WITH PERFORMANCE OPTIMIZATION
 =================================================================== */
@@ -2173,7 +3239,7 @@ async function generateUsageStatistics() {
   };
 
   // Get document counts for key collections
-  const collections = ['users', 'incident_reports', 'notifications', 'forumPosts', 'forumReplies'];
+const collections = ['users', 'incident_reports', 'notifications', 'forumPosts', 'forumReplies', 'alerts', 'weather_alerts'];
   
   for (const collection of collections) {
     try {
@@ -2225,6 +3291,107 @@ async function validateSystemIntegrity() {
   logger.info(`System integrity check completed. Found ${issues.length} issues.`);
   return issues;
 }
+
+
+// Admin weather alert functions
+exports.approveWeatherAlert = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  const { alertId } = request.data;
+  
+  if (!alertId) {
+    throw new Error("Alert ID is required");
+  }
+
+  try {
+    const alertRef = admin.firestore().collection("alerts").doc(alertId);
+    const alertDoc = await alertRef.get();
+    
+    if (!alertDoc.exists) {
+      throw new Error("Alert not found");
+    }
+
+    const alertData = alertDoc.data();
+    
+    if (alertData.status === 'approved') {
+      return {
+        success: true,
+        message: "Alert is already approved"
+      };
+    }
+
+    // Update alert status
+    await alertRef.update({
+      status: "approved",
+      approved: true,
+      isActive: true,
+      approvedBy: request.auth.uid,
+      approvedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    logger.info(`Weather alert ${alertId} approved by admin ${request.auth.uid}`);
+
+    return {
+      success: true,
+      message: "Alert approved and activated successfully",
+      alertId
+    };
+
+  } catch (error) {
+    logger.error("Error approving weather alert:", error);
+    throw new Error(error.message || "Failed to approve alert");
+  }
+});
+
+exports.getWeatherAlertStats = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  try {
+    const alertsSnapshot = await admin.firestore().collection("alerts").get();
+    const alerts = alertsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const stats = {
+      total: alerts.length,
+      byStatus: {
+        pending: alerts.filter(a => a.status === "pending").length,
+        approved: alerts.filter(a => a.status === "approved").length,
+      },
+      byType: {
+        weather: alerts.filter(a => a.type === "weather").length,
+        earthquake: alerts.filter(a => a.type === "earthquake").length,
+        volcano: alerts.filter(a => a.type === "volcano").length,
+        flood: alerts.filter(a => a.type === "flood").length,
+      },
+      bySource: {
+        OpenWeather: alerts.filter(a => a.source === "OpenWeather").length,
+        USGS: alerts.filter(a => a.source === "USGS").length,
+        PAGASA: alerts.filter(a => a.source === "PAGASA").length,
+        PHIVOLCS: alerts.filter(a => a.source === "PHIVOLCS").length,
+        Manual: alerts.filter(a => a.source === "Manual").length,
+      }
+    };
+
+    return {
+      success: true,
+      stats,
+      generatedAt: new Date().toISOString()
+    };
+
+  } catch (error) {
+    logger.error("Error getting weather alert stats:", error);
+    throw new Error("Failed to generate weather alert statistics");
+  }
+});
 
 /* ===================================================================
    END OF ENHANCED FIREBASE FUNCTIONS

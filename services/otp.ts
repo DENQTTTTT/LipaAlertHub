@@ -1,258 +1,249 @@
-// services/otp.ts - Fixed OTP service with correct region configuration
-import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/functions";
+// services/otp.ts - Complete OTP Service for Reset Password Flow
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "./firebase";
 
-// IMPORTANT: Specify the correct region where your functions are deployed
-const functions = getFunctions(app, "asia-southeast1");
+// Initialize Firebase Functions
+const functions = getFunctions(app, "asia-southeast1"); // Match your Cloud Function region
 
-// Connect to emulator in development (only if using emulator)
-if (process.env.NODE_ENV === "development" && process.env.EXPO_PUBLIC_USE_EMULATOR === "true") {
-  try {
-    connectFunctionsEmulator(functions, "localhost", 5001);
-    console.log("Connected to Functions emulator");
-  } catch (error) {
-    console.log("Functions emulator connection failed or already connected");
-  }
-}
-
-export interface RequestOtpResponse {
+// OTP Service Types
+export interface OtpRequestResponse {
   success: boolean;
-  sessionId: string;
-  message: string;
+  sessionId?: string;
+  message?: string;
   expiresIn?: string;
 }
 
-export interface VerifyOtpResponse {
+export interface OtpVerifyResponse {
   success: boolean;
-  message: string;
+  message?: string;
   passwordResetWindow?: string;
 }
 
-export interface SetNewPasswordResponse {
+export interface SetPasswordResponse {
   success: boolean;
-  message: string;
+  message?: string;
 }
+
+/**
+ * Email validation function
+ */
+export const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  return emailRegex.test(email) && email.length <= 254;
+};
+
+/**
+ * OTP code validation function
+ */
+export const isValidOtpCode = (code: string): boolean => {
+  return /^\d{6}$/.test(code);
+};
 
 /**
  * Request OTP for password reset
+ * Calls the Cloud Function: requestOtp
  */
-export async function requestOtp(email: string): Promise<RequestOtpResponse> {
+export const requestOtp = async (email: string): Promise<OtpRequestResponse> => {
   try {
-    console.log(`Requesting OTP for email: ${email}`);
-    console.log(`Using functions region: asia-southeast1`);
-    
-    const requestOtpFunction = httpsCallable<{email: string}, RequestOtpResponse>(
-      functions, 
+    if (!email || typeof email !== "string") {
+      throw new Error("Valid email address is required");
+    }
+
+    if (!isValidEmail(email.trim())) {
+      throw new Error("Please enter a valid email address");
+    }
+
+    console.log("Requesting OTP for email:", email);
+
+    const requestOtpFunction = httpsCallable<{ email: string }, OtpRequestResponse>(
+      functions,
       "requestOtp"
     );
+
+    const result = await requestOtpFunction({ email: email.trim().toLowerCase() });
     
-    const result = await requestOtpFunction({ email });
-    console.log("OTP request successful:", result.data);
-    
+    console.log("OTP request result:", result.data);
+
+    if (!result.data.success) {
+      throw new Error(result.data.message || "Failed to request OTP");
+    }
+
     return result.data;
   } catch (error: any) {
     console.error("Error requesting OTP:", error);
-    console.error("Error code:", error.code);
-    console.error("Error message:", error.message);
     
-    throw mapFirebaseError(error);
+    // Handle Firebase Function errors
+    if (error.code === 'functions/unauthenticated') {
+      throw new Error("Authentication error. Please try again.");
+    } else if (error.code === 'functions/permission-denied') {
+      throw new Error("Permission denied. Please try again.");
+    } else if (error.code === 'functions/unavailable') {
+      throw new Error("Service temporarily unavailable. Please try again later.");
+    } else if (error.code === 'functions/deadline-exceeded') {
+      throw new Error("Request timeout. Please check your connection and try again.");
+    }
+    
+    // Return user-friendly error message
+    throw new Error(error.message || "Failed to send verification code. Please try again.");
   }
-}
+};
 
 /**
  * Verify OTP code
+ * Calls the Cloud Function: verifyOtp
  */
-export async function verifyOtp(
-  sessionId: string,
-  code: string
-): Promise<VerifyOtpResponse> {
+export const verifyOtp = async (sessionId: string, code: string): Promise<OtpVerifyResponse> => {
   try {
-    console.log(`Verifying OTP with sessionId: ${sessionId.substring(0, 8)}...`);
-    
-    const verifyOtpFunction = httpsCallable<{sessionId: string, code: string}, VerifyOtpResponse>(
-      functions, 
-      "verifyOtp"
-    );
-    
-    const result = await verifyOtpFunction({ sessionId, code });
-    console.log("OTP verification successful");
-    
+    if (!sessionId || typeof sessionId !== "string") {
+      throw new Error("Session ID is required");
+    }
+
+    if (!code || typeof code !== "string") {
+      throw new Error("Verification code is required");
+    }
+
+    if (!isValidOtpCode(code.trim())) {
+      throw new Error("Please enter a valid 6-digit verification code");
+    }
+
+    console.log("Verifying OTP with sessionId:", sessionId.substring(0, 8) + "...");
+
+    const verifyOtpFunction = httpsCallable<
+      { sessionId: string; code: string },
+      OtpVerifyResponse
+    >(functions, "verifyOtp");
+
+    const result = await verifyOtpFunction({
+      sessionId,
+      code: code.trim(),
+    });
+
+    console.log("OTP verification result:", result.data);
+
+    if (!result.data.success) {
+      throw new Error(result.data.message || "Invalid verification code");
+    }
+
     return result.data;
   } catch (error: any) {
     console.error("Error verifying OTP:", error);
-    throw mapFirebaseError(error);
+    
+    // Handle Firebase Function errors
+    if (error.code === 'functions/unauthenticated') {
+      throw new Error("Authentication error. Please try again.");
+    } else if (error.code === 'functions/permission-denied') {
+      throw new Error("Permission denied. Please try again.");
+    } else if (error.code === 'functions/unavailable') {
+      throw new Error("Service temporarily unavailable. Please try again later.");
+    } else if (error.code === 'functions/deadline-exceeded') {
+      throw new Error("Request timeout. Please check your connection and try again.");
+    }
+    
+    // Return specific error message or fallback
+    throw new Error(error.message || "Failed to verify code. Please try again.");
   }
-}
+};
 
 /**
  * Set new password after OTP verification
+ * Calls the Cloud Function: setNewPassword
  */
-export async function setNewPassword(
-  sessionId: string,
-  newPassword: string
-): Promise<SetNewPasswordResponse> {
+export const setNewPassword = async (sessionId: string, newPassword: string): Promise<SetPasswordResponse> => {
   try {
-    console.log(`Setting new password with sessionId: ${sessionId.substring(0, 8)}...`);
-    
-    const setNewPasswordFunction = httpsCallable<{sessionId: string, newPassword: string}, SetNewPasswordResponse>(
-      functions, 
-      "setNewPassword"
-    );
-    
-    const result = await setNewPasswordFunction({ sessionId, newPassword });
-    console.log("Password reset successful");
-    
+    if (!sessionId || typeof sessionId !== "string") {
+      throw new Error("Session ID is required");
+    }
+
+    if (!newPassword || typeof newPassword !== "string") {
+      throw new Error("New password is required");
+    }
+
+    if (newPassword.length < 6) {
+      throw new Error("Password must be at least 6 characters long");
+    }
+
+    console.log("Setting new password with sessionId:", sessionId.substring(0, 8) + "...");
+
+    const setNewPasswordFunction = httpsCallable<
+      { sessionId: string; newPassword: string },
+      SetPasswordResponse
+    >(functions, "setNewPassword");
+
+    const result = await setNewPasswordFunction({
+      sessionId,
+      newPassword,
+    });
+
+    console.log("Set password result:", result.data);
+
+    if (!result.data.success) {
+      throw new Error(result.data.message || "Failed to update password");
+    }
+
     return result.data;
   } catch (error: any) {
     console.error("Error setting new password:", error);
-    throw mapFirebaseError(error);
+    
+    // Handle Firebase Function errors
+    if (error.code === 'functions/unauthenticated') {
+      throw new Error("Authentication error. Please try again.");
+    } else if (error.code === 'functions/permission-denied') {
+      throw new Error("Permission denied. Please try again.");
+    } else if (error.code === 'functions/unavailable') {
+      throw new Error("Service temporarily unavailable. Please try again later.");
+    } else if (error.code === 'functions/deadline-exceeded') {
+      throw new Error("Request timeout. Please check your connection and try again.");
+    }
+    
+    // Return specific error message or fallback
+    throw new Error(error.message || "Failed to update password. Please try again.");
   }
-}
+};
 
 /**
- * Map Firebase errors to user-friendly messages
+ * Helper function to handle common OTP flow errors
  */
-function mapFirebaseError(error: any): Error {
-  console.log("Mapping error:", error.code, error.message);
-  
-  // Handle function not found errors
-  if (error?.code === "functions/not-found") {
-    return new Error("Service temporarily unavailable. Please ensure you have the latest app version and try again.");
+export const handleOtpError = (error: any): string => {
+  if (error.message?.includes("Rate limit")) {
+    return error.message;
+  }
+  if (error.message?.includes("Invalid email")) {
+    return "Please enter a valid email address";
+  }
+  if (error.message?.includes("expired")) {
+    return "Verification code has expired. Please request a new one.";
+  }
+  if (error.message?.includes("Maximum attempts")) {
+    return "Too many attempts. Please request a new verification code.";
+  }
+  if (error.message?.includes("already used")) {
+    return "This verification code has already been used. Please request a new one.";
   }
   
-  if (error?.code === "functions/invalid-argument") {
-    return new Error(error.message || "Invalid input provided");
-  }
-  
-  if (error?.code === "functions/permission-denied") {
-    return new Error("Permission denied. Please sign in and try again.");
-  }
-  
-  if (error?.code === "functions/failed-precondition") {
-    return new Error(error.message || "Request failed. Please try again.");
-  }
-  
-  if (error?.code === "functions/unavailable") {
-    return new Error("Service temporarily unavailable. Please try again in a few moments.");
-  }
-  
-  if (error?.code === "functions/deadline-exceeded") {
-    return new Error("Request timeout. Please check your connection and try again.");
-  }
-  
-  if (error?.code === "functions/internal") {
-    return new Error("Internal server error. Please try again later.");
-  }
-  
-  if (error?.code === "functions/unauthenticated") {
-    return new Error("Authentication required. Please sign in and try again.");
-  }
-  
-  // Network errors
-  if (error?.code === "network-request-failed" || error?.code === "unavailable") {
-    return new Error("Network error. Please check your internet connection and try again.");
-  }
-  
-  // Rate limiting errors (these come from our enhanced functions)
-  if (error?.message?.includes("Rate limit")) {
-    return new Error(error.message);
-  }
-  
-  if (error?.message?.includes("Hourly limit")) {
-    return new Error(error.message);
-  }
-  
-  // Default error
-  return new Error(error?.message || "An unexpected error occurred. Please try again.");
-}
+  return error.message || "An unexpected error occurred. Please try again.";
+};
 
 /**
- * Validation functions (unchanged)
+ * Development helper to check if OTP functions are available
  */
-export function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim());
-}
-
-export function isValidOtpCode(code: string): boolean {
-  return /^\d{6}$/.test(code.trim());
-}
-
-export function validatePassword(
-  password: string
-): { isValid: boolean; message?: string } {
-  if (!password || password.length < 8) {
-    return { isValid: false, message: "Password must be at least 8 characters long" };
-  }
-  if (password.length > 128) {
-    return { isValid: false, message: "Password must be less than 128 characters" };
-  }
-  const hasNumber = /\d/.test(password);
-  const hasLetter = /[a-zA-Z]/.test(password);
-  if (!hasNumber || !hasLetter) {
-    return {
-      isValid: false,
-      message: "Password must contain at least one letter and one number",
-    };
-  }
-  return { isValid: true };
-}
-
-export function getPasswordStrength(password: string): number {
-  let score = 0;
-  if (!password) return score;
-  if (password.length >= 8) score++;
-  if (password.length >= 12) score++;
-  if (/[a-z]/.test(password)) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/\d/.test(password)) score++;
-  if (/[^a-zA-Z0-9]/.test(password)) score++;
-  return Math.min(score, 4);
-}
-
-export function getPasswordStrengthLabel(strength: number): string {
-  switch (strength) {
-    case 0:
-    case 1:
-      return "Weak";
-    case 2:
-      return "Fair";
-    case 3:
-      return "Good";
-    case 4:
-      return "Strong";
-    default:
-      return "Unknown";
-  }
-}
-
-export function getPasswordStrengthColor(strength: number): string {
-  switch (strength) {
-    case 0:
-    case 1:
-      return "#dc3545"; // red
-    case 2:
-      return "#ffc107"; // yellow
-    case 3:
-      return "#17a2b8"; // blue
-    case 4:
-      return "#28a745"; // green
-    default:
-      return "#6c757d"; // gray
-  }
-}
-
-/**
- * Test function connectivity
- */
-export async function testFunctionConnectivity(): Promise<boolean> {
+export const checkOtpServiceHealth = async (): Promise<boolean> => {
   try {
-    // Try to call a simple function to test connectivity
-    const testFunction = httpsCallable(functions, "validateRegionConfiguration");
-    await testFunction({});
+    // This is a simple connectivity test
+    // In production, you might want to create a dedicated health check function
+    const testFunction = httpsCallable(functions, "requestOtp");
+    
+    // Try with an obviously invalid email to test connectivity without triggering rate limits
+    await testFunction({ email: "test@connectivity.check" });
+    
     return true;
-  } catch (error) {
-    console.error("Function connectivity test failed:", error);
+  } catch (error: any) {
+    console.warn("OTP service health check failed:", error);
+    
+    // If we get a validation error, that means the function is reachable
+    if (error.message?.includes("Invalid email") || error.message?.includes("Rate limit")) {
+      return true;
+    }
+    
     return false;
   }
-}
+};

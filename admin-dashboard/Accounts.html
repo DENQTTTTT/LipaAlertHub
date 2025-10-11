@@ -1,0 +1,2442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LipaAlertHub - Account Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #d73527, #b92e20);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .accounts-container {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: linear-gradient(180deg, #d73527 0%, #b92e20 100%);
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            border: 3px solid white;
+        }
+
+        .brand-title {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .brand-subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 12px;
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link i {
+            width: 20px;
+            margin-right: 15px;
+            font-size: 16px;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            min-height: 100vh;
+            background: #f8f9fa;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-details {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: white;
+        }
+
+        .role-badge.admin {
+            background: linear-gradient(135deg, #d73527, #b92e20);
+        }
+
+        .role-badge.moderator {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+        }
+
+        .role-badge.agency {
+            background: linear-gradient(135deg, #6f42c1, #5a2d91);
+        }
+
+        .role-badge.rescuer {
+            background: linear-gradient(135deg, #28a745, #218838);
+        }
+
+        .role-badge.resident {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+        }
+
+        .accounts-content {
+            padding: 30px;
+        }
+
+        .filters-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            margin-bottom: 30px;
+        }
+
+        .search-controls {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto auto;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .form-control, .form-select {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 12px 15px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #d73527;
+            box-shadow: 0 0 0 0.2rem rgba(215, 53, 39, 0.25);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #d73527, #b92e20);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #b92e20, #a02819);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #218838);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #218838, #1e7e34);
+            transform: translateY(-2px);
+        }
+
+        .accounts-table-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, #d73527, #b92e20);
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .account-count {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .accounts-table {
+            margin-bottom: 0;
+        }
+
+        .accounts-table th {
+            background: #f8f9fa;
+            color: #333;
+            font-weight: 600;
+            padding: 15px;
+            border-bottom: 2px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .accounts-table td {
+            padding: 15px;
+            vertical-align: middle;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .accounts-table tbody tr:hover {
+            background: #f8f9fa;
+            transition: all 0.2s ease;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+
+        .status-badge.pending { background: #6c757d; color: white; }
+        .status-badge.under_review { background: #fd7e14; color: white; }
+        .status-badge.active { background: #198754; color: white; }
+        .status-badge.declined { background: #dc3545; color: white; }
+        .status-badge.inactive { background: #ffc107; color: black; }
+        .status-badge.suspended_3d { background: #fd7e14; color: white; }
+        .status-badge.suspended_2w { background: #8b4513; color: white; }
+        .status-badge.banned { background: #000; color: white; }
+
+        .duplicate-warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-top: 5px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .action-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .btn-success { background: linear-gradient(135deg, #28a745, #218838); color: white; }
+        .btn-danger { background: linear-gradient(135deg, #dc3545, #c82333); color: white; }
+        .btn-warning { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
+        .btn-info { background: linear-gradient(135deg, #17a2b8, #138496); color: white; }
+        .btn-secondary { background: linear-gradient(135deg, #6c757d, #5a6268); color: white; }
+
+        .btn-sm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .dropdown-menu {
+            background: white;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            min-width: 200px;
+        }
+
+        .dropdown-item {
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin: 5px;
+            transition: all 0.2s ease;
+            font-size: 13px;
+        }
+
+        .dropdown-item:hover {
+            background: #f8f9fa;
+            color: #d73527;
+        }
+
+        .accounts-cards {
+            display: none;
+        }
+
+        .account-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .account-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+
+        .card-header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .account-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .account-email {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .account-details {
+            margin-bottom: 15px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .detail-value {
+            color: #666;
+        }
+
+        .strikes-warnings {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-top: 5px;
+        }
+
+        .strike-badge {
+            background: #dc3545;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .warning-badge {
+            background: #ffc107;
+            color: black;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .loading-content, .error-content, .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .loading-spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #d73527;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        .error-content {
+            color: #dc3545;
+            background: #f8d7da;
+            border-radius: 10px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .no-data {
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px dashed #dee2e6;
+        }
+
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #d73527, #b92e20);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 20px 25px;
+        }
+
+        .modal-title {
+            font-weight: 600;
+        }
+
+        .btn-close {
+            filter: brightness(0) invert(1);
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .modal-footer {
+            padding: 20px 25px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        #idImage {
+            max-width: 100%;
+            max-height: 70vh;
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .notification {
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            min-width: 320px;
+            animation: slideIn 0.4s ease;
+        }
+
+        .notification.success { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+        .notification.error { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .notification.warning { background: linear-gradient(135deg, #f39c12, #e67e22); }
+        .notification.info { background: linear-gradient(135deg, #3498db, #2980b9); }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #d73527;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .mobile-menu-toggle:hover {
+            background-color: rgba(215, 53, 39, 0.1);
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .accounts-table-container {
+                display: none;
+            }
+
+            .accounts-cards {
+                display: block;
+            }
+
+            .search-controls {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div style="text-align: center;">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+                Loading Account Management...
+            </div>
+            <small style="opacity: 0.8;">
+                Verifying admin permissions
+            </small>
+        </div>
+    </div>
+
+    <div id="accountsContainer" class="accounts-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
+                <div class="brand-title">LipaAlertHub</div>
+                <div class="brand-subtitle">Disaster Management System</div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item">
+                    <a href="Dashboard.html" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Dashboard
+                    </a>
+                </div>
+                   <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="IncidentReportList.html" class="nav-link">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Reports
+                    </a>
+                </div>
+        <div class="nav-item" data-role="admin">
+                    <a href="Announcements.html" class="nav-link">
+                        <i class="fas fa-bullhorn"></i>
+                        Announcements
+                    </a>
+                </div>
+              <div class="nav-item" data-role="admin">
+                    <a href="EmergencyTips.html" class="nav-link">
+                        <i class="fas fa-lightbulb"></i>
+                        Emergency Tips
+                    </a>
+                </div>
+                 <div class="nav-item" data-role="admin">
+                    <a href="evacuation-centers.html" class="nav-link">
+                        <i class="fa-solid fa-tents"></i>
+                        Evacuation Centers
+                    </a>
+                </div>
+                <div class="nav-item" data-role="admin,monitor">
+                    <a href="Forums.html" class="nav-link">
+                        <i class="fas fa-comments"></i>
+                        Forums
+                    </a>
+                </div>
+           <div class="nav-item" data-role="admin">
+                    <a href="Maps.html" class="nav-link">
+                        <i class="fas fa-map"></i>
+                        Hazard Map
+                    </a>
+                </div>
+                    <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="Chats.html" class="nav-link">
+                        <i class="fas fa-comment-dots"></i>
+                        Chats
+                    </a>
+                </div>
+                  <div class="nav-item" data-role="admin,monitor">
+                    <a href="#" class="nav-link active">
+                        <i class="fas fa-users"></i>
+                        Accounts
+                    </a>
+                </div>
+                <div class="nav-item" data-role="admin">
+                    <a href="Analytics.html" class="nav-link">
+                        <i class="fas fa-chart-bar"></i>
+                        Analytics
+                    </a>
+                </div>
+                   <div class="nav-item" data-role="admin">
+                    <a href="WeatherDisasters.html" class="nav-link">
+                        <i class="fa-solid fa-cloud"></i>
+                        Weather & Disasters
+                    </a>
+                </div>
+                  <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="Contacts.html" class="nav-link">
+                        <i class="fas fa-phone"></i>
+                        Contacts
+                    </a>
+                </div>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title mb-0">Account Management</h1>
+                </div>
+                
+                <div class="user-info">
+                    <div class="user-details">
+                        <div class="user-name" data-user-info="name">Loading...</div>
+                        <div class="user-role" data-user-info="email">Loading...</div>
+                    </div>
+                    <div class="role-badge" data-user-info="role">Loading...</div>
+                    <div class="dropdown">
+                        <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle fa-2x" style="color: #d73527;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="logoutUser()">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accounts-content">
+                <div class="filters-section">
+                    <div class="search-controls">
+                        <div>
+                            <label for="searchInput" class="form-label">Search Accounts</label>
+                            <input type="text" class="form-control" id="searchInput" placeholder="Search by name, email, or barangay...">
+                        </div>
+                        <div>
+                            <label for="barangayFilter" class="form-label">Filter by Barangay</label>
+                            <select class="form-select" id="barangayFilter">
+                                <option value="">All Barangays</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="roleFilter" class="form-label">Filter by Role</label>
+                            <select class="form-select" id="roleFilter">
+                                <option value="">All Roles</option>
+                                <option value="resident">Resident</option>
+                                <option value="rescuer">Rescuer</option>
+                                <option value="monitor">Moderator</option>
+                                <option value="agency">Agency</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="statusFilter" class="form-label">Filter by Status</label>
+                            <select class="form-select" id="statusFilter">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="under_review">Under Review</option>
+                                <option value="active">Active</option>
+                                <option value="declined">Declined</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="suspended_3d">3-Day Suspension</option>
+                                <option value="suspended_2w">2-Week Suspension</option>
+                                <option value="banned">Banned</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-primary" onclick="clearFilters()">
+                                <i class="fas fa-times"></i> Clear Filters
+                            </button>
+                        </div>
+                        <div id="adminOnlyActions" style="display: none;">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-success" onclick="showCreateAccountModal()">
+                                <i class="fas fa-plus"></i> Add Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accounts-table-container">
+                    <div class="table-header">
+                        <div class="table-title">
+                            <i class="fas fa-users"></i>
+                            User Accounts
+                        </div>
+                        <div class="account-count" id="accountCount">0 accounts</div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table accounts-table" id="accountsTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Barangay</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>ID File</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accountsTableBody">
+                                <tr>
+                                    <td colspan="8" class="loading-content">
+                                        <div class="loading-spinner-small"></div>
+                                        <p>Loading user accounts...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="accounts-cards" id="accountsCards">
+                    <div class="loading-content">
+                        <div class="loading-spinner-small"></div>
+                        <p>Loading user accounts...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- View ID Modal -->
+    <div class="modal fade" id="viewIdModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-id-card me-2"></i>
+                        User ID Document
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="idImage" src="" alt="User ID Document" class="img-fluid">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Account Modal (Admin Only) -->
+    <div class="modal fade" id="createAccountModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Create New Account
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createAccountForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="newAccountName" class="form-label">Full Name *</label>
+                                <input type="text" class="form-control" id="newAccountName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="newAccountEmail" class="form-label">Email Address *</label>
+                                <input type="email" class="form-control" id="newAccountEmail" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="newAccountPhone" class="form-label">Phone Number *</label>
+                                <input type="tel" class="form-control" id="newAccountPhone" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="newAccountBarangay" class="form-label">Barangay *</label>
+                                <select class="form-select" id="newAccountBarangay" required>
+                                    <option value="">Select Barangay</option>
+                                    <option value="CDRRMO">CDRRMO</option>
+                                    <option value="Adya">Adya</option>
+                                    <option value="Anilao">Anilao</option>
+                                    <option value="Anilao-Labac">Anilao-Labac</option>
+                                    <option value="Antipolo del Norte">Antipolo del Norte</option>
+                                    <option value="Antipolo del Sur">Antipolo del Sur</option>
+                                    <option value="Bagong Pook">Bagong Pook</option>
+                                    <option value="Balintawak">Balintawak</option>
+                                    <option value="Banaybanay">Banaybanay</option>
+                                    <option value="Bolbok">Bolbok</option>
+                                    <option value="Bugtong na Pulo">Bugtong na Pulo</option>
+                                    <option value="Bulacnin">Bulacnin</option>
+                                    <option value="Bulaklakan">Bulaklakan</option>
+                                    <option value="Calamias">Calamias</option>
+                                    <option value="Cumba">Cumba</option>
+                                    <option value="Dagatan">Dagatan</option>
+                                    <option value="Duhatan">Duhatan</option>
+                                    <option value="Halang">Halang</option>
+                                    <option value="Inosluban">Inosluban</option>
+                                    <option value="Kayumanggi">Kayumanggi</option>
+                                    <option value="Latag">Latag</option>
+                                    <option value="Lodlod">Lodlod</option>
+                                    <option value="Lumbang">Lumbang</option>
+                                    <option value="Mabini">Mabini</option>
+                                    <option value="Malagonlong">Malagonlong</option>
+                                    <option value="Malitlit">Malitlit</option>
+                                    <option value="Marauoy">Marauoy</option>
+                                    <option value="Mataas na Lupa">Mataas na Lupa</option>
+                                    <option value="Munting Pulo">Munting Pulo</option>
+                                    <option value="Pagolinan">Pagolinan</option>
+                                    <option value="Pallocan">Pallocan</option>
+                                    <option value="Pangao">Pangao</option>
+                                    <option value="Paninsingin">Paninsingin</option>
+                                    <option value="Pinagkawitan">Pinagkawitan</option>
+                                    <option value="Pinagtongulan">Pinagtongulan</option>
+                                    <option value="Plaridel">Plaridel</option>
+                                    <option value="Poblacion Barangay 1">Poblacion Barangay 1</option>
+                                    <option value="Poblacion Barangay 2">Poblacion Barangay 2</option>
+                                    <option value="Poblacion Barangay 3">Poblacion Barangay 3</option>
+                                    <option value="Poblacion Barangay 4">Poblacion Barangay 4</option>
+                                    <option value="Poblacion Barangay 5">Poblacion Barangay 5</option>
+                                    <option value="Poblacion Barangay 6">Poblacion Barangay 6</option>
+                                    <option value="Poblacion Barangay 7">Poblacion Barangay 7</option>
+                                    <option value="Poblacion Barangay 8">Poblacion Barangay 8</option>
+                                    <option value="Poblacion Barangay 9">Poblacion Barangay 9</option>
+                                    <option value="Poblacion Barangay 9-A">Poblacion Barangay 9-A</option>
+                                    <option value="Poblacion Barangay 10">Poblacion Barangay 10</option>
+                                    <option value="Poblacion Barangay 11">Poblacion Barangay 11</option>
+                                    <option value="Poblacion Barangay 12">Poblacion Barangay 12</option>
+                                    <option value="Pusil">Pusil</option>
+                                    <option value="Quezon">Quezon</option>
+                                    <option value="Rizal">Rizal</option>
+                                    <option value="Sabang">Sabang</option>
+                                    <option value="Sampaguita">Sampaguita</option>
+                                    <option value="San Benito">San Benito</option>
+                                    <option value="San Carlos">San Carlos</option>
+                                    <option value="San Celestino">San Celestino</option>
+                                    <option value="San Francisco">San Francisco</option>
+                                    <option value="San Guillermo">San Guillermo</option>
+                                    <option value="San Jose">San Jose</option>
+                                    <option value="San Lucas">San Lucas</option>
+                                    <option value="San Salvador">San Salvador</option>
+                                    <option value="San Sebastian">San Sebastian</option>
+                                    <option value="Santo Nino">Santo Nino</option>
+                                    <option value="Santo Toribio">Santo Toribio</option>
+                                    <option value="Sapac">Sapac</option>
+                                    <option value="Sico">Sico</option>
+                                    <option value="Siniloan">Siniloan</option>
+                                    <option value="Talisay">Talisay</option>
+                                    <option value="Tambo">Tambo</option>
+                                    <option value="Tangob">Tangob</option>
+                                    <option value="Tanguay">Tanguay</option>
+                                    <option value="Tibig">Tibig</option>
+                                    <option value="Tipacan">Tipacan</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="newAccountRole" class="form-label">Role *</label>
+                                <select class="form-select" id="newAccountRole" required>
+                                    <option value="">Select Role</option>
+                                    <option value="resident">Resident</option>
+                                    <option value="rescuer">Rescuer</option>
+                                    <option value="monitor">Moderator</option>
+                                    <option value="agency">Agency</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="newAccountPassword" class="form-label">Temporary Password *</label>
+                                <input type="password" class="form-control" id="newAccountPassword" minlength="6" required>
+                                <div class="form-text">Minimum 6 characters. User can change this in their profile settings.</div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="sendWelcomeEmail" checked>
+                                <label class="form-check-label" for="sendWelcomeEmail">
+                                    Send welcome notification to user
+                                </label>
+                            </div>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Note:</strong> Account will be created as <strong>ACTIVE</strong> and fully functional immediately. 
+                            The user can log in right away and change their password in their profile settings.
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="confirmCreateAccount()">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Role Modal (Admin Only) -->
+    <div class="modal fade" id="changeRoleModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-tag me-2"></i>
+                        Change User Role
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Select new role for this user:</p>
+                    <div class="mb-3">
+                        <label for="newRole" class="form-label">New Role</label>
+                        <select class="form-select" id="newRole" required>
+                            <option value="resident">Resident</option>
+                            <option value="rescuer">Rescuer</option>
+                            <option value="monitor">Moderator</option>
+                            <option value="agency">Agency</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> Changing roles may affect user permissions and access levels.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmRoleChange()">
+                        <i class="fas fa-user-tag"></i> Change Role
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Decline Modal -->
+    <div class="modal fade" id="declineModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-times-circle me-2"></i>
+                        Decline Account
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Please provide a reason for declining this account:</p>
+                    <textarea class="form-control" id="declineReason" rows="4" 
+                              placeholder="Enter the reason for declining this account request..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDecline()">
+                        <i class="fas fa-times"></i> Decline Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Modal -->
+    <div class="modal fade" id="warningModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Issue Warning
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Please provide a reason for issuing this warning:</p>
+                    <textarea class="form-control" id="warningReason" rows="4" 
+                              placeholder="Enter the reason for this warning..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" onclick="confirmWarning()">
+                        <i class="fas fa-exclamation-triangle"></i> Issue Warning
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Strike Modal -->
+    <div class="modal fade" id="strikeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-bolt me-2"></i>
+                        Add Strike
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Please provide a reason for adding this strike:</p>
+                    <textarea class="form-control" id="strikeReason" rows="4" 
+                              placeholder="Enter the reason for this strike..."></textarea>
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <small class="text-muted">
+                            <strong>Strike Policy:</strong><br>
+                            • Strike 1: 3-day suspension<br>
+                            • Strike 2: 2-week suspension<br>
+                            • Strike 3: Permanent ban
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmStrike()">
+                        <i class="fas fa-bolt"></i> Add Strike
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div class="modal fade" id="resetPasswordModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-key me-2"></i>
+                        Reset Password
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Enter a new temporary password for this user:</p>
+                    <div class="mb-3">
+                        <label for="tempPassword" class="form-label">Temporary Password</label>
+                        <input type="password" class="form-control" id="tempPassword" 
+                               placeholder="Enter new temporary password..." minlength="6" required>
+                        <div class="form-text">Password must be at least 6 characters long. User can change this in their profile settings.</div>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="notifyPasswordReset" checked>
+                        <label class="form-check-label" for="notifyPasswordReset">
+                            Send password reset notification to user
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmResetPassword()">
+                        <i class="fas fa-key"></i> Reset Password
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+      import { 
+  getFirestore, collection, query, where, getDocs, orderBy, onSnapshot, 
+  updateDoc, doc, getDoc, serverTimestamp, addDoc, increment, deleteDoc, setDoc 
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        const firebaseConfig = {
+            apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+            authDomain: "lipaalerthub.firebaseapp.com",
+            projectId: "lipaalerthub",
+            storageBucket: "lipaalerthub.firebasestorage.app",
+            messagingSenderId: "991310233066",
+            appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+       const USER_ROLES = {
+    ADMIN: 'admin',
+    MONITOR: 'monitor', 
+    RESCUER: 'rescuer',
+    RESIDENT: 'resident',
+    AGENCY: 'agency'
+};
+
+const USER_STATUS = {
+    ACTIVE: 'active',
+    PENDING: 'pending',
+    UNDER_REVIEW: 'under_review',
+    DECLINED: 'declined',
+    INACTIVE: 'inactive',
+    SUSPENDED_3D: 'suspended_3d',
+    SUSPENDED_2W: 'suspended_2w',
+    BANNED: 'banned'
+};
+
+
+
+let currentUserInfo = null;
+let usersListener = null;
+let allUsers = [];
+let filteredUsers = [];
+let currentActionUserId = null;
+let availableBarangays = new Set();
+
+    document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        console.log('🚀 Initializing Account Management...');
+        await checkAuthentication();
+        setupEventListeners();
+    } catch (error) {
+        console.error('❌ Account management initialization failed:', error);
+        showNotification('Failed to load account management. Please try again.', 'error');
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 3000);
+    }
+});
+
+    async function checkAuthentication() {
+    return new Promise((resolve, reject) => {
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                console.log('❌ No authenticated user found');
+                window.location.href = "index.html?error=auth-required";
+                reject(new Error('Not authenticated'));
+                return;
+            }
+
+            try {
+                console.log('🔍 Checking user permissions...');
+
+                // Look up user document by firebaseUID
+                const q = query(collection(db, "users"), where("firebaseUID", "==", user.uid));
+                let querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    console.log('❌ User document not found for UID:', user.uid);
+                    alert("User account not found in system. Please contact administrator.");
+                    await signOut(auth);
+                    window.location.href = "index.html?error=user-not-found";
+                    reject(new Error('User document not found'));
+                    return;
+                }
+
+                const userDoc = querySnapshot.docs[0];
+                const userData = userDoc.data();
+
+                // 🔗 Auto-link firebaseUID if it's missing in the document
+                if (!userData.firebaseUID) {
+                    await updateDoc(userDoc.ref, {
+                        firebaseUID: user.uid,
+                        accountActivatedAt: serverTimestamp()
+                    });
+                    console.log("🔗 Linked Firebase UID to Firestore user:", user.uid);
+                }
+
+                const userRole = userData.role?.toLowerCase() || USER_ROLES.RESIDENT;
+                const userStatus = userData.status?.toLowerCase() || USER_STATUS.PENDING;
+
+                if (userStatus === USER_STATUS.PENDING) {
+                    alert("Your account is pending approval. Please wait for administrator approval.");
+                    await signOut(auth);
+                    window.location.href = "index.html?error=pending-approval";
+                    reject(new Error('Account pending approval'));
+                    return;
+                }
+
+                if ([USER_STATUS.DECLINED, USER_STATUS.INACTIVE, USER_STATUS.SUSPENDED_3D, USER_STATUS.SUSPENDED_2W, USER_STATUS.BANNED].includes(userStatus)) {
+                    alert("Your account has been suspended. Please contact administrator.");
+                    await signOut(auth);
+                    window.location.href = "index.html?error=account-suspended";
+                    reject(new Error('Account suspended'));
+                    return;
+                }
+
+                // Admin and Monitor can access Account Management
+                if (userRole !== USER_ROLES.ADMIN && userRole !== USER_ROLES.MONITOR) {
+                    alert(`Access denied. Account Management requires Admin or Moderator role. Your role: ${userRole}`);
+                    await signOut(auth);
+                    window.location.href = "index.html?error=insufficient-permissions";
+                    reject(new Error('Insufficient permissions'));
+                    return;
+                }
+
+                currentUserInfo = {
+                    user,
+                    role: userRole,
+                    status: userStatus,
+                    userData
+                };
+
+                console.log('✅ Account Management access granted:', {
+                    email: user.email,
+                    role: userRole
+                });
+
+                await initializeAccountManagement();
+                resolve(currentUserInfo);
+
+            } catch (error) {
+                console.error('Error checking user role:', error);
+                alert("Error verifying permissions. Please try again.");
+                await signOut(auth);
+                window.location.href = "index.html?error=auth-error";
+                reject(error);
+            }
+        });
+    });
+}
+
+     async function initializeAccountManagement() {
+    try {
+        updateUserInfo();
+        if (currentUserInfo.role === USER_ROLES.ADMIN) {
+            document.getElementById('adminOnlyActions').style.display = 'block';
+        }
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('accountsContainer').style.display = 'block';
+        await loadUsersRealtime();
+        showNotification(`Welcome, ${currentUserInfo.userData?.name || currentUserInfo.user.email}!`, 'success');
+    } catch (error) {
+        console.error('Error initializing account management:', error);
+        showNotification('Error loading account data', 'warning');
+    }
+}
+
+
+        function updateUserInfo() {
+            const nameElement = document.querySelector('[data-user-info="name"]');
+            const emailElement = document.querySelector('[data-user-info="email"]');
+            const roleElement = document.querySelector('[data-user-info="role"]');
+            
+            if (nameElement) {
+                nameElement.textContent = currentUserInfo.userData?.name || 
+                                        currentUserInfo.user.displayName || 
+                                        'User';
+            }
+            
+            if (emailElement) {
+                emailElement.textContent = currentUserInfo.user.email;
+            }
+            
+            if (roleElement) {
+                const roleDisplayName = {
+                    [USER_ROLES.ADMIN]: 'Administrator',
+                    [USER_ROLES.MONITOR]: 'Moderator'
+                }[currentUserInfo.role] || currentUserInfo.role.toUpperCase();
+                
+                roleElement.textContent = roleDisplayName;
+                roleElement.className = `role-badge ${currentUserInfo.role === USER_ROLES.MONITOR ? 'moderator' : currentUserInfo.role}`;
+            }
+        }
+
+        function setupEventListeners() {
+            const searchInput = document.getElementById('searchInput');
+            const barangayFilter = document.getElementById('barangayFilter');
+            const roleFilter = document.getElementById('roleFilter');
+            const statusFilter = document.getElementById('statusFilter');
+
+            searchInput.addEventListener('input', debounce(filterUsers, 300));
+            barangayFilter.addEventListener('change', filterUsers);
+            roleFilter.addEventListener('change', filterUsers);
+            statusFilter.addEventListener('change', filterUsers);
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        async function loadUsersRealtime() {
+            try {
+                const q = query(
+                    collection(db, "users"),
+                    orderBy("createdAt", "desc")
+                );
+
+                if (usersListener) {
+                    usersListener();
+                }
+
+                usersListener = onSnapshot(q, async (snapshot) => {
+                    allUsers = [];
+                    availableBarangays.clear();
+                    
+                    snapshot.forEach((docSnap) => {
+                        const userData = docSnap.data();
+                     allUsers.push({
+    docId: docSnap.id,      // Firestore Document ID
+    ...userData             // includes firebaseUID
+});
+                        
+                        // Collect barangays for filter
+                        if (userData.barangay) {
+                            availableBarangays.add(userData.barangay);
+                        }
+                    });
+                    
+                    // Check for duplicates
+                    await checkDuplicates();
+                    
+                    // Update barangay filter dropdown
+                    updateBarangayFilter();
+                    
+                    console.log(`📊 Loaded ${allUsers.length} user accounts`);
+                    filterUsers();
+                }, (error) => {
+                    console.error('Error loading users:', error);
+                    showError('Error loading user accounts');
+                });
+
+            } catch (error) {
+                console.error('Error setting up users listener:', error);
+                showError('Error loading user accounts');
+            }
+        }
+
+        function updateBarangayFilter() {
+            const barangayFilter = document.getElementById('barangayFilter');
+            const currentValue = barangayFilter.value;
+            
+            // Clear existing options except the first one
+            barangayFilter.innerHTML = '<option value="">All Barangays</option>';
+            
+            // Add sorted barangays
+            Array.from(availableBarangays).sort().forEach(barangay => {
+                const option = document.createElement('option');
+                option.value = barangay;
+                option.textContent = barangay;
+                barangayFilter.appendChild(option);
+            });
+            
+            // Restore selected value if still available
+            if (Array.from(availableBarangays).includes(currentValue)) {
+                barangayFilter.value = currentValue;
+            }
+        }
+
+        async function checkDuplicates() {
+            const nameBarangayMap = new Map();
+            
+            allUsers.forEach(user => {
+                const key = `${user.name?.toLowerCase()}_${user.barangay?.toLowerCase()}`;
+                if (nameBarangayMap.has(key)) {
+                    const existingUser = nameBarangayMap.get(key);
+                    // Mark the newer user as duplicate
+                    if (user.createdAt && existingUser.createdAt) {
+                        if (user.createdAt.seconds > existingUser.createdAt.seconds) {
+                            user.duplicateFlag = true;
+                            user.duplicateOf = existingUser.docId;
+                            user.status = USER_STATUS.UNDER_REVIEW;
+                        } else {
+                            existingUser.duplicateFlag = true;
+                         existingUser.duplicateOf = user.docId;
+                            existingUser.status = USER_STATUS.UNDER_REVIEW;
+                        }
+                    }
+                } else {
+                    nameBarangayMap.set(key, user);
+                }
+            });
+        }
+
+        function filterUsers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const barangayFilter = document.getElementById('barangayFilter').value;
+            const roleFilter = document.getElementById('roleFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            filteredUsers = allUsers.filter(user => {
+                const matchesSearch = !searchTerm || 
+                    user.name?.toLowerCase().includes(searchTerm) ||
+                    user.email?.toLowerCase().includes(searchTerm) ||
+                    user.barangay?.toLowerCase().includes(searchTerm);
+
+                const matchesBarangay = !barangayFilter || user.barangay === barangayFilter;
+                const matchesRole = !roleFilter || user.role === roleFilter;
+                const matchesStatus = !statusFilter || user.status === statusFilter;
+
+                return matchesSearch && matchesBarangay && matchesRole && matchesStatus;
+            });
+
+            renderUsers();
+        }
+
+        function renderUsers() {
+            renderTable();
+            renderCards();
+            updateAccountCount();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('accountsTableBody');
+            
+            if (filteredUsers.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="no-data">
+                            <i class="fas fa-users fa-2x mb-3"></i>
+                            <p>No accounts found</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            
+            filteredUsers.forEach(user => {
+                const row = createUserTableRow(user);
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderCards() {
+            const cardsContainer = document.getElementById('accountsCards');
+            
+            if (filteredUsers.length === 0) {
+                cardsContainer.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-users fa-2x mb-3"></i>
+                        <p>No accounts found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            cardsContainer.innerHTML = '';
+            
+            filteredUsers.forEach(user => {
+                const card = createUserCard(user);
+                cardsContainer.appendChild(card);
+            });
+        }
+
+        function createUserTableRow(user) {
+            const row = document.createElement('tr');
+            
+            const duplicateWarning = user.duplicateFlag ? 
+                `<div class="duplicate-warning">⚠️ Possible duplicate: "${user.name}" (Barangay ${user.barangay})</div>` : '';
+            
+            const strikesWarnings = createStrikesWarningsDisplay(user);
+            
+            row.innerHTML = `
+                <td>
+                    <strong>${user.name || 'Unknown'}</strong>
+                    ${duplicateWarning}
+                    ${strikesWarnings}
+                </td>
+                <td>${user.barangay || 'N/A'}</td>
+                <td>${user.email || 'N/A'}</td>
+                <td>${user.number || user.phone || 'N/A'}</td>
+                <td>
+                    <span class="badge bg-info text-dark">${getRoleDisplayName(user.role || 'resident')}</span>
+                </td>
+                <td>
+                    <span class="status-badge ${user.status || 'pending'}">${getStatusDisplayName(user.status || 'pending')}</span>
+                </td>
+                <td>
+                    ${user.idFileUrl ? 
+                        `<button class="btn btn-info btn-sm" onclick="viewID('${user.idFileUrl}')">
+                            <i class="fas fa-eye"></i> View ID
+                        </button>` : 
+                        '<span class="text-muted">No ID</span>'
+                    }
+                </td>
+                <td>
+                    ${createActionDropdown(user)}
+                </td>
+            `;
+            
+            return row;
+        }
+
+        function createUserCard(user) {
+            const card = document.createElement('div');
+            card.className = 'account-card';
+            
+            const duplicateWarning = user.duplicateFlag ? 
+                `<div class="duplicate-warning">⚠️ Possible duplicate: "${user.name}" (Barangay ${user.barangay})</div>` : '';
+            
+            const strikesWarnings = createStrikesWarningsDisplay(user);
+            
+            card.innerHTML = `
+                <div class="card-header-info">
+                    <div>
+                        <div class="account-name">${user.name || 'Unknown'}</div>
+                        <div class="account-email">${user.email || 'N/A'}</div>
+                    </div>
+                    <span class="status-badge ${user.status || 'pending'}">${getStatusDisplayName(user.status || 'pending')}</span>
+                </div>
+                
+                ${duplicateWarning}
+                ${strikesWarnings}
+                
+                <div class="account-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Barangay:</span>
+                        <span class="detail-value">${user.barangay || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Phone:</span>
+                        <span class="detail-value">${user.number || user.phone || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Role:</span>
+                        <span class="detail-value">
+                            <span class="badge bg-info text-dark">${getRoleDisplayName(user.role || 'resident')}</span>
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">ID Document:</span>
+                        <span class="detail-value">
+                            ${user.idFileUrl ? 
+                                `<button class="btn btn-info btn-sm" onclick="viewID('${user.idFileUrl}')">
+                                    <i class="fas fa-eye"></i> View ID
+                                </button>` : 
+                                '<span class="text-muted">No ID uploaded</span>'
+                            }
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    ${createActionDropdown(user)}
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function createStrikesWarningsDisplay(user) {
+            let html = '';
+            const strikes = user.strikes || 0;
+            const warnings = user.warnings || 0;
+            
+            if (strikes > 0 || warnings > 0) {
+                html = '<div class="strikes-warnings mt-2">';
+                
+                if (warnings > 0) {
+                    html += `<span class="warning-badge">⚠️ ${warnings} Warning${warnings > 1 ? 's' : ''}</span>`;
+                }
+                
+                if (strikes > 0) {
+                    html += `<span class="strike-badge">⚡ ${strikes} Strike${strikes > 1 ? 's' : ''}</span>`;
+                }
+                
+                html += '</div>';
+            }
+            
+            return html;
+        }
+
+        function createActionDropdown(user) {
+            const isAdmin = currentUserInfo.role === USER_ROLES.ADMIN;
+            const isMonitor = currentUserInfo.role === USER_ROLES.MONITOR;
+            const status = user.status || 'pending';
+            
+            let approveDecline = '';
+            let otherActions = '';
+            
+            // Approve/Decline buttons for pending and under review (Admin and Monitor can do this)
+            if (status === USER_STATUS.PENDING || status === USER_STATUS.UNDER_REVIEW) {
+                approveDecline = `
+                    <button class="btn btn-success btn-sm me-1" onclick="approveUser('${user.docId}')"
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    <button class="btn btn-danger btn-sm me-1" onclick="declineUser('${user.docId}')"
+                        <i class="fas fa-times"></i> Decline
+                    </button>
+                `;
+            }
+            
+            // Other actions dropdown - Admin gets more options
+            let dropdownActions = [];
+            
+            // Reset password - both Admin and Monitor can do this
+            if (isAdmin || isMonitor) {
+                dropdownActions.push(`
+                    <li><a class="dropdown-item" href="#" onclick="resetPassword('${user.docId}')"
+                        <i class="fas fa-key me-2"></i>Reset Password
+                    </a></li>
+                `);
+            }
+            
+            // Admin-only actions
+            if (isAdmin) {
+                // Role change
+                dropdownActions.push(`
+                    <li><a class="dropdown-item" href="#" onclick="changeUserRole('${user.docId}', '${user.role || 'resident'}')"
+                        <i class="fas fa-user-tag me-2"></i>Change Role
+                    </a></li>
+                `);
+                
+                // Activate/Deactivate
+                if (status === USER_STATUS.ACTIVE) {
+                    dropdownActions.push(`
+                        <li><a class="dropdown-item" href="#"onclick="deactivateUser('${user.docId}')"
+                            <i class="fas fa-pause me-2"></i>Deactivate
+                        </a></li>
+                    `);
+                } else if (status === USER_STATUS.INACTIVE) {
+                    dropdownActions.push(`
+                        <li><a class="dropdown-item" href="#" onclick="activateUser('${user.docId}')"
+                            <i class="fas fa-play me-2"></i>Activate
+                        </a></li>
+                    `);
+                }
+                
+                // Warning and Strike for active users
+                if (status === USER_STATUS.ACTIVE) {
+                    dropdownActions.push(`
+                        <li><a class="dropdown-item" href="#" onclick="issueWarning('${user.docId}')"
+                            <i class="fas fa-exclamation-triangle me-2"></i>Issue Warning
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" onclick="addStrike('${user.docId}')"
+                            <i class="fas fa-bolt me-2"></i>Add Strike
+                        </a></li>
+                    `);
+                }
+                
+                // Delete user
+                dropdownActions.push(`
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="#"onclick="deleteUser('${user.docId}')"
+                        <i class="fas fa-trash me-2"></i>Delete User
+                    </a></li>
+                `);
+            }
+            
+            if (dropdownActions.length > 0) {
+                otherActions = `
+                    <div class="dropdown d-inline">
+                        <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-cog"></i> More
+                        </button>
+                        <ul class="dropdown-menu">
+                            ${dropdownActions.join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            return approveDecline + otherActions;
+        }
+
+        function getRoleDisplayName(role) {
+            const roleNames = {
+                resident: 'RESIDENT',
+                rescuer: 'RESCUER',
+                monitor: 'MODERATOR',
+                agency: 'AGENCY',
+                admin: 'ADMIN'
+            };
+            return roleNames[role] || role.toUpperCase();
+        }
+
+        function getStatusDisplayName(status) {
+            const statusNames = {
+                pending: 'PENDING',
+                under_review: 'UNDER REVIEW',
+                active: 'ACTIVE',
+                declined: 'DECLINED', 
+                inactive: 'INACTIVE',
+                suspended_3d: '3-DAY SUSPENSION',
+                suspended_2w: '2-WEEK SUSPENSION',
+                banned: 'BANNED'
+            };
+            return statusNames[status] || status.toUpperCase();
+        }
+
+        function updateAccountCount() {
+            const countElement = document.getElementById('accountCount');
+            countElement.textContent = `${filteredUsers.length} account${filteredUsers.length !== 1 ? 's' : ''}`;
+        }
+
+        function showError(message) {
+            const tbody = document.getElementById('accountsTableBody');
+            const cardsContainer = document.getElementById('accountsCards');
+            
+            const errorContent = `
+                <div class="error-content">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                    <p>${message}</p>
+                </div>
+            `;
+            
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8">${errorContent}</td>
+                </tr>
+            `;
+            
+            cardsContainer.innerHTML = errorContent;
+        }
+
+        async function createNotification(docId, title, message, type) {
+            try {
+                await addDoc(collection(db, "notifications"), {
+                    userId: docId,
+                    title: title,
+                    message: message,
+                    type: type,
+                    isRead: false,
+                    createdAt: serverTimestamp()
+                });
+            } catch (error) {
+                console.error('Error creating notification:', error);
+            }
+        }
+
+
+        window.viewID = function(idFileUrl) {
+            if (!idFileUrl) {
+                showNotification('No ID document available', 'warning');
+                return;
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('viewIdModal'));
+            document.getElementById('idImage').src = idFileUrl;
+            modal.show();
+        };
+
+        window.showCreateAccountModal = function() {
+            if (currentUserInfo.role !== USER_ROLES.ADMIN) {
+                showNotification('Access denied. Only administrators can create new accounts.', 'error');
+                return;
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('createAccountModal'));
+            
+            // Reset form
+            document.getElementById('createAccountForm').reset();
+            document.getElementById('sendWelcomeEmail').checked = true;
+            
+            modal.show();
+        };
+
+        // REVISED: Create account WITHOUT isInvite - All accounts are legitimate and ACTIVE
+        window.confirmCreateAccount = async function() {
+            if (!currentUserInfo || currentUserInfo.role !== USER_ROLES.ADMIN) {
+                showNotification('Access denied. Only administrators can create accounts.', 'error');
+                return;
+            }
+            
+            const name = document.getElementById('newAccountName').value.trim();
+            const email = document.getElementById('newAccountEmail').value.trim();
+            const phone = document.getElementById('newAccountPhone').value.trim();
+            const barangay = document.getElementById('newAccountBarangay').value;
+            const role = document.getElementById('newAccountRole').value;
+            const password = document.getElementById('newAccountPassword').value;
+            const sendWelcome = document.getElementById('sendWelcomeEmail').checked;
+            
+            if (!name || !email || !phone || !barangay || !role || !password) {
+                showNotification('Please fill in all required fields', 'warning');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showNotification('Password must be at least 6 characters long', 'warning');
+                return;
+            }
+            
+            try {
+                console.log('✨ Creating ACTIVE account (no invite system)...');
+                
+                // Generate a unique ID for the user document
+                const newUserDocRef = doc(collection(db, "users"));
+                const newUserUID = newUserDocRef.id;
+              const userData = {
+                uid: newUserUID,
+             firebaseUID: null, // will be filled when actual Firebase Auth user is created
+               name: name,
+                email: email,
+             number: phone,
+      phone: phone,
+    barangay: barangay,
+    role: role,
+    status: USER_STATUS.ACTIVE,
+    tempPassword: password,
+    createdAt: serverTimestamp(),
+    createdBy: currentUserInfo.user.email,
+    adminCreated: true,
+    strikes: 0,
+    warnings: 0,
+    accountType: 'admin-created'
+};
+                
+                // Create user document in Firestore
+             
+                await setDoc(newUserDocRef, userData);
+                console.log('✅ ACTIVE account created successfully');
+                
+                // Send welcome notification
+                if (sendWelcome) {
+                    const roleDisplayName = getRoleDisplayName(role);
+                    await createNotification(newUserUID, "Welcome to LipaAlertHub", 
+                        `Welcome to LipaAlertHub! Your ${roleDisplayName} account is now ACTIVE and ready to use. Login with your email (${email}) and the provided password. You can change your password in your profile settings anytime.`, "account");
+                }
+                
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('createAccountModal')).hide();
+                
+                // Show success message
+                showNotification(`✅ ACTIVE account created for ${name}! User can login immediately and change password in profile settings.`, 'success');
+                
+                console.log('🎉 Account creation completed - Fully functional ACTIVE account created');
+                
+            } catch (error) {
+                console.error('❌ Account creation error:', error);
+                
+                let errorMessage = 'Failed to create account';
+                if (error.code === 'permission-denied') {
+                    errorMessage = 'Permission denied - check Firestore rules';
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+                
+                showNotification(errorMessage, 'error');
+            }
+        };
+
+        window.changeUserRole = function(userId, currentRole) {
+            if (currentUserInfo.role !== USER_ROLES.ADMIN) {
+                showNotification('Only administrators can change user roles', 'warning');
+                return;
+            }
+            
+            currentActionUserId = userId;
+            const modal = new bootstrap.Modal(document.getElementById('changeRoleModal'));
+            document.getElementById('newRole').value = currentRole;
+            modal.show();
+        };
+
+        window.confirmRoleChange = async function() {
+            const newRole = document.getElementById('newRole').value;
+            
+            if (!newRole) {
+                showNotification('Please select a role', 'warning');
+                return;
+            }
+            
+            try {
+                await updateDoc(doc(db, "users", currentActionUserId), {
+                    role: newRole,
+                    roleUpdatedAt: serverTimestamp(),
+                    roleUpdatedBy: currentUserInfo.user.email
+                });
+                
+                const roleDisplayName = getRoleDisplayName(newRole);
+                await createNotification(currentActionUserId, "Role Updated", 
+                    `Your role has been updated to: ${roleDisplayName}`, "account");
+                
+                bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
+                showNotification(`User role updated to ${roleDisplayName}`, 'success');
+                currentActionUserId = null;
+            } catch (error) {
+                console.error('Error changing role:', error);
+                showNotification('Failed to change user role: ' + error.message, 'error');
+            }
+        };
+
+        window.approveUser = async function(docId) {
+            if (!confirm('Are you sure you want to approve this account?')) return;
+            
+            try {
+                await updateDoc(doc(db, "users", docId), {
+                    status: USER_STATUS.ACTIVE,
+                    statusUpdatedAt: serverTimestamp(),
+                    statusUpdatedBy: currentUserInfo.user.email,
+                    previousStatus: 'pending'
+                });
+                
+                await createNotification(docId, "Account Approved", 
+                    "Your account has been approved. You may now use LipaAlertHub.", "account");
+                
+                showNotification('Account approved successfully!', 'success');
+            } catch (error) {
+                console.error('Error approving user:', error);
+                showNotification('Failed to approve account: ' + error.message, 'error');
+            }
+        };
+
+        window.declineUser = function(docId) {
+            currentActionUserId = docId;
+            const modal = new bootstrap.Modal(document.getElementById('declineModal'));
+            document.getElementById('declineReason').value = '';
+            modal.show();
+        };
+
+        window.confirmDecline = async function() {
+            const reason = document.getElementById('declineReason').value.trim();
+            
+            if (!reason) {
+                showNotification('Please provide a reason for declining', 'warning');
+                return;
+            }
+            
+            try {
+                await updateDoc(doc(db, "users", currentActionUserId), {
+                    status: USER_STATUS.DECLINED,
+                    declineReason: reason,
+                    statusUpdatedAt: serverTimestamp(),
+                    statusUpdatedBy: currentUserInfo.user.email,
+                    previousStatus: 'pending'
+                });
+                
+                await createNotification(currentActionUserId, "Account Declined", 
+                    `Your account has been declined. Reason: ${reason}`, "account");
+                
+                bootstrap.Modal.getInstance(document.getElementById('declineModal')).hide();
+                showNotification('Account declined successfully', 'warning');
+                currentActionUserId = null;
+            } catch (error) {
+                console.error('Error declining user:', error);
+                showNotification('Failed to decline account: ' + error.message, 'error');
+            }
+        };
+
+        window.deactivateUser = async function(userId) {
+            if (currentUserInfo.role !== USER_ROLES.ADMIN) {
+                showNotification('Only administrators can deactivate accounts', 'warning');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to deactivate this account?')) return;
+            
+            try {
+                await updateDoc(doc(db, "users", userId), {
+                    status: USER_STATUS.INACTIVE,
+                    statusUpdatedAt: serverTimestamp(),
+                    statusUpdatedBy: currentUserInfo.user.email,
+                    previousStatus: 'active'
+                });
+                
+                await createNotification(userId, "Account Deactivated", 
+                    "Your account has been deactivated by an administrator.", "account");
+                
+                showNotification('Account deactivated successfully', 'warning');
+            } catch (error) {
+                console.error('Error deactivating user:', error);
+                showNotification('Failed to deactivate account: ' + error.message, 'error');
+            }
+        };
+
+        window.activateUser = async function(userId) {
+            if (currentUserInfo.role !== USER_ROLES.ADMIN) {
+                showNotification('Only administrators can activate accounts', 'warning');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to activate this account?')) return;
+            
+            try {
+                await updateDoc(doc(db, "users", userId), {
+                    status: USER_STATUS.ACTIVE,
+                    statusUpdatedAt: serverTimestamp(),
+                    statusUpdatedBy: currentUserInfo.user.email,
+                    previousStatus: 'inactive'
+                });
+                
+                await createNotification(userId, "Account Activated", 
+                    "Your account has been activated. You may now use LipaAlertHub.", "account");
+                
+                showNotification('Account activated successfully!', 'success');
+            } catch (error) {
+                console.error('Error activating user:', error);
+                showNotification('Failed to activate account: ' + error.message, 'error');
+            }
+        };
+
+        window.issueWarning = function(userId) {
+            if (currentUserInfo.role !== USER_ROLES.ADMIN) {
+                showNotification('Only administrators can issue warnings', 'warning');
+                return;
+            }
+            
+            currentActionUserId = userId;
+            const modal = new bootstrap.Modal(document.getElementById('warningModal'));
+            document.getElementById('warningReason').value = '';
+            modal.show();
+        };
+
+       window.confirmWarning = async function() {
+    const reason = document.getElementById('warningReason').value.trim();
+    
+    if (!reason) {
+        showNotification('Please provide a reason for the warning', 'warning');
+        return;
+    }
+    
+    try {
+        const userDoc = await getDoc(doc(db, "users", currentActionUserId));
+        const currentWarnings = (userDoc.data().warnings || 0) + 1;
+        const currentStrikes = userDoc.data().strikes || 0;
+        
+        await updateDoc(doc(db, "users", currentActionUserId), {
+            warnings: increment(1),
+            lastViolationReason: reason,
+            lastViolationDate: serverTimestamp()
+        });
+        
+        // Create notification matching mobile app format
+        await addDoc(collection(db, "notifications"), {
+            userId: currentActionUserId,
+            title: "⚠️ Account Warning",
+            body: `You have received a warning for: ${reason}. Current warnings: ${currentWarnings}`,
+            type: 'violation_warning',
+            status: 'unread',
+            priority: 'high',
+            createdAt: serverTimestamp(),
+            data: {
+                violationType: 'warning',
+                reason: reason,
+                warnings: currentWarnings,
+                strikes: currentStrikes
+            }
+        });
+        
+        bootstrap.Modal.getInstance(document.getElementById('warningModal')).hide();
+        showNotification(`Warning issued successfully. User now has ${currentWarnings} warning(s).`, 'warning');
+        currentActionUserId = null;
+    } catch (error) {
+        console.error('Error issuing warning:', error);
+        showNotification('Failed to issue warning: ' + error.message, 'error');
+    }
+};
+
+        window.addStrike = function(userId) {
+            if (currentUserInfo.role !== USER_ROLES.ADMIN) {
+                showNotification('Only administrators can add strikes', 'warning');
+                return;
+            }
+            
+            currentActionUserId = userId;
+            const modal = new bootstrap.Modal(document.getElementById('strikeModal'));
+            document.getElementById('strikeReason').value = '';
+            modal.show();
+        };
+
+        window.confirmStrike = async function() {
+    const reason = document.getElementById('strikeReason').value.trim();
+    
+    if (!reason) {
+        showNotification('Please provide a reason for the strike', 'warning');
+        return;
+    }
+    
+    try {
+        const userDoc = await getDoc(doc(db, "users", currentActionUserId));
+        const currentStrikes = userDoc.data().strikes || 0;
+        const currentWarnings = userDoc.data().warnings || 0;
+        const newStrikes = currentStrikes + 1;
+        
+        let newStatus = USER_STATUS.ACTIVE;
+        let suspensionUntil = null;
+        let suspensionDays = 0;
+        
+        // Match mobile app logic: suspended with date, not suspended_3d/suspended_2w
+        if (newStrikes === 1) {
+            newStatus = 'suspended';
+            suspensionUntil = new Date();
+            suspensionUntil.setDate(suspensionUntil.getDate() + 3); // 3 days
+            suspensionDays = 3;
+        } else if (newStrikes === 2) {
+            newStatus = 'suspended';
+            suspensionUntil = new Date();
+            suspensionUntil.setDate(suspensionUntil.getDate() + 14); // 14 days
+            suspensionDays = 14;
+        } else if (newStrikes >= 3) {
+            newStatus = 'banned';
+        }
+        
+        // Update user document
+        const updateData = {
+            strikes: increment(1),
+            status: newStatus,
+            lastViolationReason: reason,
+            lastViolationDate: serverTimestamp()
+        };
+        
+        // Only add suspensionUntil if suspended
+        if (suspensionUntil) {
+            updateData.suspensionUntil = suspensionUntil;
+        }
+        
+        await updateDoc(doc(db, "users", currentActionUserId), updateData);
+        
+        // Create notification matching mobile app format
+        const notificationTitle = newStrikes >= 3 ? "🚫 Account Permanently Banned" : 
+                                 suspensionDays > 0 ? "⏸️ Account Suspended" : 
+                                 "🔺 Account Strike";
+        
+        const notificationBody = newStrikes >= 3 ? 
+            `Your account has been permanently banned due to: ${reason}. You have accumulated ${newStrikes} strikes.` :
+            suspensionDays > 0 ?
+            `Your account has been suspended for ${suspensionDays} days due to: ${reason}. Suspension ends on ${suspensionUntil.toLocaleDateString()}.` :
+            `You have received a strike for: ${reason}. Total strikes: ${newStrikes}`;
+        
+        const notificationType = newStrikes >= 3 ? 'violation_ban' :
+                                suspensionDays > 0 ? 'violation_suspension' :
+                                'violation_strike';
+        
+        // Create notification with proper structure for mobile app
+        await addDoc(collection(db, "notifications"), {
+            userId: currentActionUserId,
+            title: notificationTitle,
+            body: notificationBody,
+            type: notificationType,
+            status: 'unread',
+            priority: 'urgent',
+            createdAt: serverTimestamp(),
+            data: {
+                violationType: newStrikes >= 3 ? 'ban' : suspensionDays > 0 ? 'suspension' : 'strike',
+                reason: reason,
+                strikes: newStrikes,
+                warnings: currentWarnings,
+                suspensionDays: suspensionDays || 0,
+                suspensionUntil: suspensionUntil ? suspensionUntil.toISOString() : null
+            }
+        });
+        
+        bootstrap.Modal.getInstance(document.getElementById('strikeModal')).hide();
+        
+        const statusMessage = newStrikes >= 3 ? 'User has been permanently banned.' :
+                             suspensionDays > 0 ? `User suspended for ${suspensionDays} days.` :
+                             `Strike added. User now has ${newStrikes}/3 strikes.`;
+        
+        showNotification(statusMessage, newStrikes >= 3 ? 'error' : 'warning');
+        currentActionUserId = null;
+    } catch (error) {
+        console.error('Error adding strike:', error);
+        showNotification('Failed to add strike: ' + error.message, 'error');
+    }
+};
+        // REVISED: Reset password (stores tempPassword for profile change)
+        window.resetPassword = function(userId) {
+            currentActionUserId = userId;
+            const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+            document.getElementById('tempPassword').value = '';
+            document.getElementById('notifyPasswordReset').checked = true;
+            modal.show();
+        };
+
+        window.confirmResetPassword = async function() {
+            const tempPassword = document.getElementById('tempPassword').value.trim();
+            const notify = document.getElementById('notifyPasswordReset').checked;
+            
+            if (!tempPassword || tempPassword.length < 6) {
+                showNotification('Password must be at least 6 characters long', 'warning');
+                return;
+            }
+            
+            try {
+                await updateDoc(doc(db, "users", currentActionUserId), {
+                    tempPassword: tempPassword,
+                    passwordResetAt: serverTimestamp(),
+                    passwordResetBy: currentUserInfo.user.email
+                });
+                
+                if (notify) {
+                    await createNotification(currentActionUserId, "Password Reset", 
+                        `Your password has been reset by an administrator. Your new temporary password is: ${tempPassword}. You can change this password in your profile settings anytime.`, "account");
+                }
+                
+                bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+                showNotification('Password reset successfully! User can change it in their profile settings.', 'success');
+                currentActionUserId = null;
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                showNotification('Failed to reset password: ' + error.message, 'error');
+            }
+        };
+
+        window.deleteUser = async function(userId) {
+            if (currentUserInfo.role !== USER_ROLES.ADMIN) {
+                showNotification('Only administrators can delete users', 'warning');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) return;
+            if (!confirm('This will delete all user data permanently. Are you absolutely sure?')) return;
+            
+            try {
+                await deleteDoc(doc(db, "users", userId));
+                showNotification('User deleted successfully', 'info');
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                showNotification('Failed to delete user: ' + error.message, 'error');
+            }
+        };
+
+        window.clearFilters = function() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('barangayFilter').value = '';
+            document.getElementById('roleFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            filterUsers();
+            showNotification('Filters cleared', 'info');
+        };
+
+        window.toggleSidebar = function() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+        };
+
+        window.closeSidebar = function() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        };
+
+        // Close sidebar when clicking on nav links on mobile
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeSidebar();
+                }
+            });
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                closeSidebar();
+            }
+        });
+
+        window.logoutUser = async function() {
+            if (confirm("Are you sure you want to logout?")) {
+                try {
+                    await signOut(auth);
+                    showNotification("Logged out successfully", "info");
+                    window.location.href = "index.html";
+                } catch (error) {
+                    console.error("Logout error:", error);
+                    showNotification("Error logging out", "error");
+                }
+            }
+        };
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            let container = document.getElementById('notificationContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'notificationContainer';
+                container.className = 'notification-container';
+                document.body.appendChild(container);
+            }
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+            
+            notification.addEventListener('click', () => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            });
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (usersListener) usersListener();
+        });
+
+    </script>
+</body>
+</html>

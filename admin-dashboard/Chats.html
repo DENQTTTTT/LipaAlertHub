@@ -1,83 +1,2548 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chats</title>
-  <style>
-    body { margin: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; background: #f2f2f2; }
-    .container { display: flex; width: 100%; }
-    .sidebar { width: 220px; background: #d53b2c; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
-    .logo { width: 60px; margin-bottom: 10px; }
-    .main { flex: 1; display: flex; flex-direction: column; }
-    .chat-box { flex: 1; padding: 20px; overflow-y: auto; background: white; }
-    .chat-message { margin-bottom: 15px; padding: 10px; border-radius: 8px; background: #eee; }
-    .chat-message.admin { background: #d53b2c; color: white; }
-    form { display: flex; padding: 10px; background: #fff; }
-    input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-right: 10px; }
-    button { padding: 10px 15px; background: #d53b2c; color: white; border: none; border-radius: 8px; cursor: pointer; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>LipaAlertHub - Chats</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .chat-container {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            border: 3px solid white;
+        }
+
+        .brand-title {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .brand-subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 12px;
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link i {
+            width: 20px;
+            margin-right: 15px;
+            font-size: 16px;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #f8f9fa;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #dee2e6;
+            flex-shrink: 0;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-details {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: white;
+        }
+
+        .role-badge.admin {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .role-badge.monitor {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+        }
+
+        .role-badge.rescuer {
+            background: linear-gradient(135deg, #fd7e14, #e85d04);
+        }
+
+        .role-badge.agency {
+            background: linear-gradient(135deg, #6f42c1, #5a3ba7);
+        }
+
+        .role-badge.resident {
+            background: linear-gradient(135deg, #28a745, #218838);
+        }
+
+        .chat-wrapper {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 100px);
+            overflow: hidden;
+        }
+
+        .chat-list {
+            width: 350px;
+            background: white;
+            border-right: 1px solid #e1e8ed;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-list-header {
+            padding: 20px;
+            border-bottom: 1px solid #e1e8ed;
+            background: #f8f9fa;
+        }
+
+        .chat-search {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .chat-search input {
+            width: 100%;
+            padding: 12px 15px 12px 45px;
+            border: 1px solid #e1e8ed;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .chat-search input:focus {
+            border-color: #d73527;
+            box-shadow: 0 0 0 2px rgba(215, 53, 39, 0.1);
+        }
+
+        .chat-search i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+
+        .btn-new-conversation {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #d73527, #b92e20);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-new-conversation:hover {
+            background: linear-gradient(135deg, #b92e20, #a02419);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(215, 53, 39, 0.3);
+        }
+
+        .chat-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .chat-rooms-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .chat-room-item {
+            padding: 20px;
+            border-bottom: 1px solid #f1f3f4;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            background: white;
+        }
+
+        .chat-room-item:hover {
+            background: #f8f9fa;
+        }
+
+        .chat-room-item.active {
+            background: #e3f2fd;
+            border-left: 4px solid #d73527;
+        }
+
+        .chat-room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .chat-participant {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .participant-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+        }
+
+        .participant-avatar.resident {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .participant-avatar.rescuer {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
+
+        .participant-avatar.agency {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+
+        .participant-avatar.admin {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .participant-avatar.monitor {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+        }
+
+        .participant-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .participant-role {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .chat-time {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .chat-preview {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .chat-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .unread-badge {
+            background: #d73527;
+            color: white;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.online {
+            background: #4CAF50;
+        }
+
+        .status-indicator.offline {
+            background: #ccc;
+        }
+
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            position: relative;
+        }
+
+        .chat-main.empty {
+            justify-content: center;
+            align-items: center;
+            background: #f8f9fa;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #666;
+            max-width: 400px;
+        }
+
+        .empty-state i {
+            font-size: 60px;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .chat-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid #e1e8ed;
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .chat-participant-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .chat-participant-info .participant-avatar {
+            width: 50px;
+            height: 50px;
+            font-size: 18px;
+        }
+
+        .chat-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-chat-action {
+            padding: 8px 12px;
+            border: 1px solid #e1e8ed;
+            background: white;
+            border-radius: 6px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-chat-action:hover {
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .message.own {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .message-avatar.admin {
+            background: linear-gradient(135deg, #d73527, #b92e20);
+        }
+
+        .message-avatar.monitor {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+        }
+
+        .message-avatar.resident {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .message-avatar.rescuer {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
+
+        .message-avatar.agency {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+
+        .message-content {
+            flex: 1;
+            max-width: 70%;
+        }
+
+        .message.own .message-content {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .message-bubble {
+            background: white;
+            border-radius: 18px;
+            padding: 12px 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e1e8ed;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .message.own .message-bubble {
+            background: #d73527;
+            color: white;
+            border: none;
+        }
+
+        .message-text {
+            font-size: 15px;
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .message.own .message-time {
+            color: rgba(255, 255, 255, 0.8);
+            text-align: right;
+        }
+
+        .message-sender {
+            font-size: 12px;
+            font-weight: 600;
+            color: #d73527;
+            margin-bottom: 4px;
+        }
+
+        .message.own .message-sender {
+            display: none;
+        }
+
+        .system-message {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .system-message .message-bubble {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            color: #1976d2;
+            display: inline-block;
+            font-size: 13px;
+            padding: 8px 16px;
+        }
+
+        .chat-input {
+            padding: 20px 30px;
+            background: white;
+            border-top: 1px solid #e1e8ed;
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        #chatMessage {
+            width: 100%;
+            min-height: 44px;
+            max-height: 120px;
+            padding: 12px 50px 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 25px;
+            font-size: 15px;
+            resize: none;
+            outline: none;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        #chatMessage:focus {
+            border-color: #d73527;
+            box-shadow: 0 0 0 3px rgba(215, 53, 39, 0.1);
+        }
+
+        #sendMessageBtn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #d73527;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #sendMessageBtn:hover {
+            background: #b92e20;
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        #sendMessageBtn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: translateY(-50%) scale(1);
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px 20px;
+            font-style: italic;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .loading-messages {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .loading-spinner-small {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #d73527;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #dc3545;
+        }
+
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .notification {
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            min-width: 320px;
+            animation: slideIn 0.4s ease;
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .notification.info {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 20px 30px;
+            background: linear-gradient(135deg, #d73527, #b92e20);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-header .close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-header .close:hover {
+            opacity: 1;
+        }
+
+        #availableUsersList {
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .rescuer-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .rescuer-item:hover {
+            background: #f8f9fa;
+            border-color: #d73527;
+        }
+
+        .rescuer-info h6 {
+            margin: 0 0 5px 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .rescuer-info small {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .rescuer-status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: white;
+        }
+
+        .rescuer-status-badge.admin {
+            background: #dc3545;
+        }
+
+        .rescuer-status-badge.monitor {
+            background: #17a2b8;
+        }
+
+        .rescuer-status-badge.rescuer {
+            background: #fd7e14;
+        }
+
+        .rescuer-status-badge.agency {
+            background: #6f42c1;
+        }
+
+        .rescuer-status-badge.resident {
+            background: #28a745;
+        }
+
+        .assign-rescuer-btn {
+            padding: 8px 16px;
+            background: #d73527;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .assign-rescuer-btn:hover {
+            background: #b92e20;
+            transform: translateY(-2px);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .loading-content {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .filter-btn {
+            padding: 6px 14px;
+            border: 1px solid #e1e8ed;
+            background: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .filter-btn:hover {
+            border-color: #d73527;
+            color: #d73527;
+        }
+
+        .filter-btn.active {
+            background: #d73527;
+            color: white;
+            border-color: #d73527;
+        }
+
+        .assigned-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .section-header {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e1e8ed;
+            border-bottom: 1px solid #e1e8ed;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-header i {
+            color: #d73527;
+        }
+
+        .permission-notice {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .permission-notice i {
+            margin-right: 10px;
+        }
+
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 2000;
+            background: #d73527;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+
+        .mobile-toggle:hover {
+            background: #b92e20;
+            transform: scale(1.1);
+        }
+
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        @media (max-width: 991px) {
+            .mobile-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 1001;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .mobile-overlay.show {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .header {
+                padding: 15px 20px 15px 70px;
+            }
+
+            .chat-list {
+                width: 300px;
+                min-width: 300px;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .chat-wrapper {
+                flex-direction: column;
+            }
+
+            .chat-list {
+                width: 100%;
+                height: 250px;
+                border-right: none;
+                border-bottom: 2px solid #e1e8ed;
+            }
+
+            .chat-main {
+                height: calc(100vh - 330px);
+            }
+
+            .page-title {
+                font-size: 20px;
+            }
+
+            .user-details {
+                display: none;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <aside class="sidebar">
-      <div class="logo-section">
-        <img src="images/Logo.png" class="logo" />
-        <h2>LipaAlertHub</h2>
-      </div>
-    </aside>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div style="text-align: center;">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+                Loading Secure Chat...
+            </div>
+            <small style="opacity: 0.8;">
+                Initializing private messaging system
+            </small>
+        </div>
+    </div>
 
-    <main class="main">
-      <div class="chat-box" id="chatBox"></div>
-      <form id="chatForm">
-        <input type="text" id="chatInput" placeholder="Type a message..." required />
-        <button type="submit">Send</button>
-      </form>
-    </main>
-  </div>
+    <div id="chatContainer" class="chat-container">
+        <button id="mobileToggle" class="mobile-toggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot, orderBy, query } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        <div id="mobileOverlay" class="mobile-overlay" onclick="closeSidebar()"></div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
-      authDomain: "lipaalerthub.firebaseapp.com",
-      projectId: "lipaalerthub",
-      storageBucket: "lipaalerthub.firebasestorage.app",
-      messagingSenderId: "991310233066",
-      appId: "1:991310233066:web:7e836a60e5c4a302de0693"
-    };
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
+                <div class="brand-title">LipaAlertHub</div>
+                <div class="brand-subtitle">Disaster Management System</div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="dashboard.html" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Dashboard
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="IncidentReportList.html" class="nav-link">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Reports
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="Announcements.html" class="nav-link">
+                        <i class="fas fa-bullhorn"></i>
+                        Announcements
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="EmergencyTips.html" class="nav-link">
+                        <i class="fas fa-lightbulb"></i>
+                        Emergency Tips
+                    </a>
+                </div>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+                <div class="nav-item" data-role="admin">
+                    <a href="evacuation-centers.html" class="nav-link">
+                        <i class="fa-solid fa-tents"></i>
+                        Evacuation Centers
+                    </a>
+                </div>
 
-    const chatBox = document.getElementById("chatBox");
-    const chatForm = document.getElementById("chatForm");
+                <div class="nav-item" data-role="admin,monitor">
+                    <a href="Forums.html" class="nav-link">
+                        <i class="fas fa-comments"></i>
+                        Forums
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="Maps.html" class="nav-link">
+                        <i class="fas fa-map"></i>
+                        Map
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="#" class="nav-link active">
+                        <i class="fas fa-comments"></i>
+                        Chats
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin,monitor">
+                    <a href="Accounts.html" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        Accounts
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin">
+                    <a href="Analytics.html" class="nav-link">
+                        <i class="fas fa-chart-bar"></i>
+                        Analytics
+                    </a>
+                </div>
 
-    chatForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("chatInput").value;
-      await addDoc(collection(db, "chats"), {
-        sender: "Admin",
-        message: msg,
-        createdAt: serverTimestamp()
-      });
-      chatForm.reset();
-    });
+                <div class="nav-item" data-role="admin">
+                    <a href="WeatherDisasters.html" class="nav-link">
+                        <i class="fas fa-cloud-rain"></i>
+                        Weather & Disasters
+                    </a>
+                </div>
+                
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="Contacts.html" class="nav-link">
+                        <i class="fas fa-phone"></i>
+                        Contacts
+                    </a>
+                </div>
+            </nav>
+        </div>
 
-    const q = query(collection(db, "chats"), orderBy("createdAt", "asc"));
-    onSnapshot(q, (snapshot) => {
-      chatBox.innerHTML = "";
-      snapshot.forEach((doc) => {
-        const d = doc.data();
-        const div = document.createElement("div");
-        div.className = "chat-message" + (d.sender === "Admin" ? " admin" : "");
-        div.innerHTML = `<strong>${d.sender}:</strong> ${d.message}`;
-        chatBox.appendChild(div);
-      });
-      chatBox.scrollTop = chatBox.scrollHeight;
-    });
-  </script>
+        <div class="main-content">
+            <div class="header">
+                <h1 class="page-title">Chats</h1>
+                
+                <div class="user-info">
+                    <div class="user-details">
+                        <div class="user-name" data-user-info="name">Loading...</div>
+                        <div class="user-role" data-user-info="email">Loading...</div>
+                    </div>
+                    <div class="role-badge" data-user-info="role">Loading...</div>
+                    <div class="dropdown">
+                        <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle fa-2x" style="color: #d53b2c;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="logoutUser()">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="permissionNotice" class="permission-notice" style="display: none;">
+                <i class="fas fa-lock"></i>
+                <span id="permissionText">Loading permissions...</span>
+            </div>
+
+            <div class="chat-wrapper">
+                <div class="chat-list">
+                    <div class="chat-list-header">
+                        <div class="chat-search">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="chatSearch" placeholder="Search conversations...">
+                        </div>
+                        
+                        <button class="btn-new-conversation" onclick="showNewConversationModal()">
+                            <i class="fas fa-plus"></i> New Conversation
+                        </button>
+                        
+                        <div class="chat-stats">
+                            <span id="totalChats">0 Conversations</span>
+                            <span id="unreadChats">0 Unread</span>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-rooms-container" id="chatRoomsList">
+                        <div class="loading-messages">
+                            <div class="loading-spinner-small"></div>
+                            <p>Loading conversations...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-main empty" id="chatMain">
+                    <div class="empty-state">
+                        <i class="fas fa-lock"></i>
+                        <h3>Secure Private Messaging</h3>
+                        <p>Select a conversation to start messaging. All chats are private and encrypted.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="newConversationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-comment-dots"></i> Start New Conversation</h3>
+                <button class="close" onclick="closeNewConversationModal()">&times;</button>
+            </div>
+            <div style="padding: 15px 20px; border-bottom: 1px solid #e1e8ed; background: #f8f9fa;">
+                <div style="position: relative; margin-bottom: 12px;">
+                    <i class="fas fa-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #999;"></i>
+                    <input 
+                        type="text" 
+                        id="userSearchInput" 
+                        placeholder="Search by name or email..."
+                        style="width: 100%; padding: 10px 15px 10px 45px; border: 1px solid #e1e8ed; border-radius: 25px; font-size: 14px; outline: none;"
+                    >
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="filter-btn active" data-filter="all" onclick="filterUsers('all')">All Users</button>
+                    <button class="filter-btn" data-filter="admin" onclick="filterUsers('admin')">Admins</button>
+                    <button class="filter-btn" data-filter="monitor" onclick="filterUsers('monitor')">Monitors</button>
+                    <button class="filter-btn" data-filter="rescuer" onclick="filterUsers('rescuer')">Rescuers</button>
+                    <button class="filter-btn" data-filter="agency" onclick="filterUsers('agency')">Agencies</button>
+                    <button class="filter-btn" data-filter="resident" onclick="filterUsers('resident')">Residents</button>
+                </div>
+            </div>
+            <div id="availableUsersList">
+                <div class="loading-content">
+                    <div class="loading-spinner-small"></div>
+                    <p>Loading available users...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            query, 
+            orderBy, 
+            onSnapshot, 
+            addDoc, 
+            doc, 
+            updateDoc,
+            getDoc,
+            getDocs,
+            where,
+            serverTimestamp,
+            setDoc
+        } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+            authDomain: "lipaalerthub.firebaseapp.com",
+            projectId: "lipaalerthub",
+            storageBucket: "lipaalerthub.firebasestorage.app",
+            messagingSenderId: "991310233066",
+            appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const CHAT_PERMISSIONS = {
+            'admin': ['resident', 'monitor', 'rescuer', 'agency'],
+            'monitor': ['resident', 'admin', 'rescuer', 'agency'],
+            'rescuer': ['admin', 'monitor'],
+            'agency': ['admin'],
+            'resident': ['admin', 'monitor']
+        };
+
+        const USER_ROLES = {
+            ADMIN: 'admin',
+            MONITOR: 'monitor', 
+            RESCUER: 'rescuer',
+            AGENCY: 'agency',
+            RESIDENT: 'resident'
+        };
+
+        let currentUserInfo = null;
+        let chatRoomsListener = null;
+        let messagesListener = null;
+        let selectedChatRoom = null;
+        let allAvailableUsers = [];
+        let currentFilter = 'all';
+        let assignedRescuerIds = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                console.log('Initializing Privacy-Protected Chat System...');
+                await checkAuthentication();
+            } catch (error) {
+                console.error('Chat system initialization failed:', error);
+                showNotification('Failed to load chat system. Please try again.', 'error');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 3000);
+            }
+        });
+
+        function parseURLParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                userId: urlParams.get('userId'),
+                userName: urlParams.get('userName')
+            };
+        }
+ 
+        async function checkAuthentication() {
+            return new Promise((resolve, reject) => {
+                onAuthStateChanged(auth, async (user) => {
+                    if (!user) {
+                        window.location.href = "index.html";
+                        reject(new Error('User not authenticated'));
+                        return;
+                    }
+
+                    try {
+                        const userDocRef = doc(db, 'users', user.uid);
+                        const userDoc = await getDoc(userDocRef);
+                        
+                        if (!userDoc.exists()) {
+                            alert("User profile not found. Please contact administrator.");
+                            await signOut(auth);
+                            window.location.href = "index.html?error=no-profile";
+                            reject(new Error('User profile not found'));
+                            return;
+                        }
+
+                        const userData = userDoc.data();
+                        const userRole = userData.role;
+
+                        if (!Object.values(USER_ROLES).includes(userRole)) {
+                            alert(`Access denied. Invalid role: ${userRole}`);
+                            await signOut(auth);
+                            window.location.href = "index.html?error=invalid-role";
+                            reject(new Error('Invalid role'));
+                            return;
+                        }
+
+                        if (!CHAT_PERMISSIONS[userRole]) {
+                            alert(`Chat access not available for role: ${userRole}`);
+                            await signOut(auth);
+                            window.location.href = "dashboard.html?error=no-chat-access";
+                            reject(new Error('No chat access'));
+                            return;
+                        }
+
+                        currentUserInfo = {
+                            user,
+                            role: userRole,
+                            userData
+                        };
+
+                        console.log('Privacy-protected chat access granted');
+
+                        await initializeChatSystem();
+                        resolve(currentUserInfo);
+
+                    } catch (error) {
+                        console.error('Error checking user role:', error);
+                        alert("Error verifying permissions. Please try again.");
+                        await signOut(auth);
+                        window.location.href = "index.html?error=auth-error";
+                        reject(error);
+                    }
+                });
+            });
+        }
+
+        async function initializeChatSystem() {
+            try {
+                const urlParams = parseURLParameters();
+                
+                applyRoleBasedUI();
+                updateUserInfo();
+                
+                if (urlParams.userId) {
+                    console.log('Opening direct chat with user:', urlParams.userId);
+                    await loadChatRooms();
+                    await openDirectChat(urlParams.userId, urlParams.userName);
+                } else {
+                    showPermissionNotice();
+                    await loadChatRooms();
+                }
+                
+                setupChatSearch();
+                
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('chatContainer').style.display = 'block';
+                
+                showNotification('Secure chat loaded', 'success');
+            } catch (error) {
+                console.error('Error initializing chat system:', error);
+                showNotification('Error loading chat system', 'error');
+            }
+        }
+
+        async function openDirectChat(userId, userName) {
+            try {
+                showNotification(`Opening chat with ${userName || 'user'}...`, 'info');
+                
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (!userDoc.exists()) {
+                    showNotification('User not found', 'error');
+                    return;
+                }
+                
+                const userData = userDoc.data();
+                const userRole = userData.role;
+                
+                const allowedRoles = CHAT_PERMISSIONS[currentUserInfo.role] || [];
+                if (!allowedRoles.includes(userRole)) {
+                    showNotification(`You cannot chat with ${userRole}s`, 'error');
+                    return;
+                }
+                
+                const roomId = await createOrFindChatRoom(userId, userRole);
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await loadChatRooms();
+                
+                setTimeout(() => {
+                    const roomElement = document.querySelector(`[data-room-id="${roomId}"]`);
+                    if (roomElement) {
+                        roomElement.click();
+                        showNotification(`Chat opened with ${userName || userData.name || 'user'}`, 'success');
+                    } else {
+                        setTimeout(() => {
+                            const retryElement = document.querySelector(`[data-room-id="${roomId}"]`);
+                            if (retryElement) {
+                                retryElement.click();
+                                showNotification(`Chat opened with ${userName || userData.name || 'user'}`, 'success');
+                            } else {
+                                showNotification('Chat created. Please refresh and select from list.', 'warning');
+                            }
+                        }, 1000);
+                    }
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error opening direct chat:', error);
+                showNotification('Failed to open chat: ' + error.message, 'error');
+            }
+        }
+
+        window.showNewConversationModal = async function() {
+            try {
+                const modal = document.getElementById('newConversationModal');
+                const usersList = document.getElementById('availableUsersList');
+                
+                modal.style.display = 'block';
+                usersList.innerHTML = '<div class="loading-content"><div class="loading-spinner-small"></div><p>Loading available users...</p></div>';
+                
+                currentFilter = 'all';
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.filter === 'all');
+                });
+                document.getElementById('userSearchInput').value = '';
+                
+                const allowedRoles = CHAT_PERMISSIONS[currentUserInfo.role] || [];
+                
+                if (allowedRoles.length === 0) {
+                    usersList.innerHTML = '<div class="no-data"><p>You cannot start new conversations</p></div>';
+                    return;
+                }
+                
+                assignedRescuerIds = [];
+                if (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor') {
+                    try {
+                        const reportsQuery = query(
+                            collection(db, "incident_reports"),
+                            where("status", "in", ["pending", "in-progress"]),
+                            where("assignedRescuer", "!=", null)
+                        );
+                        const reportsSnapshot = await getDocs(reportsQuery);
+                        assignedRescuerIds = [...new Set(reportsSnapshot.docs.map(doc => doc.data().assignedRescuer))];
+                    } catch (error) {
+                        console.error('Error fetching assigned rescuers:', error);
+                    }
+                }
+                
+                const usersQuery = query(
+                    collection(db, "users"),
+                    where("role", "in", allowedRoles),
+                    where("status", "==", "active")
+                );
+                
+                const snapshot = await getDocs(usersQuery);
+                
+                if (snapshot.empty) {
+                    usersList.innerHTML = '<div class="no-data"><p>No available users to chat with</p></div>';
+                    return;
+                }
+                
+                allAvailableUsers = [];
+                snapshot.forEach((doc) => {
+                    if (doc.id !== currentUserInfo.user.uid) {
+                        const userData = doc.data();
+                        allAvailableUsers.push({
+                            id: doc.id,
+                            name: userData.name || userData.displayName || userData.email,
+                            email: userData.email,
+                            role: userData.role,
+                            isAssigned: assignedRescuerIds.includes(doc.id)
+                        });
+                    }
+                });
+                
+                allAvailableUsers.sort((a, b) => {
+                    if (a.isAssigned && !b.isAssigned) return -1;
+                    if (!a.isAssigned && b.isAssigned) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+                
+                renderUsersList();
+                
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showNotification('Failed to load users', 'error');
+            }
+        };
+
+        function renderUsersList() {
+            const usersList = document.getElementById('availableUsersList');
+            const searchTerm = document.getElementById('userSearchInput').value.toLowerCase();
+            
+            const filteredUsers = allAvailableUsers.filter(user => {
+                const matchesSearch = user.name.toLowerCase().includes(searchTerm) || 
+                                    user.email.toLowerCase().includes(searchTerm);
+                const matchesFilter = currentFilter === 'all' || user.role === currentFilter;
+                return matchesSearch && matchesFilter;
+            });
+            
+            if (filteredUsers.length === 0) {
+                usersList.innerHTML = '<div class="no-data"><p>No users found matching your criteria</p></div>';
+                return;
+            }
+            
+            usersList.innerHTML = '';
+            
+            const assignedUsers = filteredUsers.filter(u => u.isAssigned);
+            const unassignedUsers = filteredUsers.filter(u => !u.isAssigned);
+            
+            if (assignedUsers.length > 0) {
+                const assignedHeader = document.createElement('div');
+                assignedHeader.className = 'section-header';
+                assignedHeader.innerHTML = '<i class="fas fa-star"></i> Assigned to Active Reports';
+                usersList.appendChild(assignedHeader);
+                
+                assignedUsers.forEach(user => {
+                    usersList.appendChild(createUserItem(user));
+                });
+            }
+            
+            if (unassignedUsers.length > 0) {
+                if (assignedUsers.length > 0) {
+                    const otherHeader = document.createElement('div');
+                    otherHeader.className = 'section-header';
+                    otherHeader.innerHTML = '<i class="fas fa-users"></i> Other Available Users';
+                    usersList.appendChild(otherHeader);
+                }
+                
+                unassignedUsers.forEach(user => {
+                    usersList.appendChild(createUserItem(user));
+                });
+            }
+        }
+
+        function createUserItem(user) {
+            const userItem = document.createElement('div');
+            userItem.className = 'rescuer-item';
+            userItem.dataset.userId = user.id;
+            userItem.dataset.userRole = user.role;
+            
+            userItem.innerHTML = `
+                <div class="rescuer-info">
+                    <h6>
+                        ${user.name}
+                        ${user.isAssigned ? '<span class="assigned-badge"><i class="fas fa-star"></i> ASSIGNED</span>' : ''}
+                    </h6>
+                    <small>${user.email}</small>
+                    <div style="margin-top: 8px;">
+                        <span class="rescuer-status-badge ${user.role}">${user.role.toUpperCase()}</span>
+                    </div>
+                </div>
+                <button class="assign-rescuer-btn" onclick="startChatWithUser('${user.id}', '${user.name.replace(/'/g, "\\'")}', '${user.role}')">
+                    <i class="fas fa-comment"></i>
+                    Start Chat
+                </button>
+            `;
+            
+            return userItem;
+        }
+
+        window.filterUsers = function(filter) {
+            currentFilter = filter;
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filter);
+            });
+            
+            renderUsersList();
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('userSearchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    renderUsersList();
+                });
+            }
+        });
+
+        window.startChatWithUser = async function(userId, userName, userRole) {
+            try {
+                showNotification(`Creating chat with ${userName}...`, 'info');
+                closeNewConversationModal();
+                
+                const roomId = await createOrFindChatRoom(userId, userRole);
+                
+                await loadChatRooms();
+                
+                setTimeout(() => {
+                    const roomElement = document.querySelector(`[data-room-id="${roomId}"]`);
+                    if (roomElement) {
+                        roomElement.click();
+                        showNotification(`Chat started with ${userName}`, 'success');
+                    } else {
+                        setTimeout(() => {
+                            const retryElement = document.querySelector(`[data-room-id="${roomId}"]`);
+                            if (retryElement) {
+                                retryElement.click();
+                                showNotification(`Chat started with ${userName}`, 'success');
+                            } else {
+                                showNotification('Chat created. Please select it from the list.', 'info');
+                            }
+                        }, 1000);
+                    }
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error starting chat:', error);
+                showNotification('Failed to start chat: ' + error.message, 'error');
+            }
+        };
+
+        window.closeNewConversationModal = function() {
+            document.getElementById('newConversationModal').style.display = 'none';
+        };
+
+        function applyRoleBasedUI() {
+            const roleElements = document.querySelectorAll('[data-role]');
+            roleElements.forEach(element => {
+                const allowedRoles = element.getAttribute('data-role').split(',');
+                if (!allowedRoles.includes(currentUserInfo.role)) {
+                    element.style.display = 'none';
+                }
+            });
+        }
+
+        function updateUserInfo() {
+            const nameElement = document.querySelector('[data-user-info="name"]');
+            const emailElement = document.querySelector('[data-user-info="email"]');
+            const roleElement = document.querySelector('[data-user-info="role"]');
+            
+            if (nameElement) {
+                nameElement.textContent = currentUserInfo.userData?.name || 
+                                        currentUserInfo.user.displayName || 
+                                        'User';
+            }
+            
+            if (emailElement) {
+                emailElement.textContent = currentUserInfo.user.email;
+            }
+            
+            if (roleElement) {
+                const roleDisplayName = {
+                    [USER_ROLES.ADMIN]: 'Administrator',
+                    [USER_ROLES.MONITOR]: 'Monitor',
+                    [USER_ROLES.RESCUER]: 'Rescuer',
+                    [USER_ROLES.AGENCY]: 'Agency',
+                    [USER_ROLES.RESIDENT]: 'Resident'
+                }[currentUserInfo.role] || currentUserInfo.role.toUpperCase();
+                
+                roleElement.textContent = roleDisplayName;
+                roleElement.className = `role-badge ${currentUserInfo.role}`;
+            }
+        }
+
+        function showPermissionNotice() {
+            const notice = document.getElementById('permissionNotice');
+            const textElement = document.getElementById('permissionText');
+            
+            if (!notice || !textElement) return;
+
+            let noticeText = '';
+
+            switch (currentUserInfo.role) {
+                case 'admin':
+                    noticeText = 'You can communicate with all users. All conversations are private and secure.';
+                    break;
+                case 'monitor':
+                    noticeText = 'You can communicate with residents, admins, rescuers, and agencies. All conversations are private.';
+                    break;
+                case 'rescuer':
+                    noticeText = 'You can communicate with administrators and monitors. Your conversations are private.';
+                    break;
+                case 'agency':
+                    noticeText = 'You can communicate with administrators. All conversations are private.';
+                    break;
+                case 'resident':
+                    noticeText = 'You can communicate with administrators and monitors. Your conversations are private and secure.';
+                    break;
+                default:
+                    noticeText = 'Your conversations are private. Only you and your chat partner can see your messages.';
+            }
+
+            textElement.textContent = noticeText;
+            notice.style.display = 'block';
+        }
+
+        async function loadChatRooms() {
+            const container = document.getElementById('chatRoomsList');
+            
+            try {
+                console.log('Loading ONLY your private conversations');
+                
+                const q = query(
+                    collection(db, "chatRooms"),
+                    where("participants", "array-contains", currentUserInfo.user.uid),
+                    orderBy("lastUpdated", "desc")
+                );
+
+                if (chatRoomsListener) {
+                    chatRoomsListener();
+                }
+
+                chatRoomsListener = onSnapshot(q, async (snapshot) => {
+                    container.innerHTML = '';
+                    
+                    if (snapshot.empty) {
+                        container.innerHTML = `
+                            <div class="loading-messages">
+                                <i class="fas fa-inbox fa-2x mb-3"></i>
+                                <p>No conversations found</p>
+                                <small>Start a new conversation using the button above</small>
+                            </div>
+                        `;
+                        updateChatStats(0, 0);
+                        return;
+                    }
+
+                    let totalUnread = 0;
+                    const chatRooms = [];
+
+                    for (const docSnap of snapshot.docs) {
+                        const data = docSnap.data();
+                        
+                        const roomElement = await createChatRoomElement(docSnap.id, data);
+                        if (roomElement) {
+                            chatRooms.push({ element: roomElement, data });
+                            
+                            const unreadCount = getUnreadCountForUser(data);
+                            if (unreadCount > 0) {
+                                totalUnread += unreadCount;
+                            }
+                        }
+                    }
+
+                    chatRooms.sort((a, b) => {
+                        const aUnread = getUnreadCountForUser(a.data);
+                        const bUnread = getUnreadCountForUser(b.data);
+                        
+                        if (aUnread !== bUnread) {
+                            return bUnread - aUnread;
+                        }
+                        
+                        const aTime = a.data.lastUpdated?.seconds || 0;
+                        const bTime = b.data.lastUpdated?.seconds || 0;
+                        return bTime - aTime;
+                    });
+
+                    chatRooms.forEach(room => {
+                        container.appendChild(room.element);
+                    });
+
+                    updateChatStats(chatRooms.length, totalUnread);
+                    
+                }, (error) => {
+                    console.error('Error loading chat rooms:', error);
+                    container.innerHTML = `
+                        <div class="error-state">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                            <p>Error loading conversations</p>
+                            <small>${error.message}</small>
+                        </div>
+                    `;
+                    updateChatStats(0, 0);
+                });
+
+            } catch (error) {
+                console.error('Error setting up chat rooms listener:', error);
+                container.innerHTML = `
+                    <div class="error-state">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Error loading chat system</p>
+                    </div>
+                `;
+                updateChatStats(0, 0);
+            }
+        }
+
+        function getUnreadCountForUser(roomData) {
+            const userRole = currentUserInfo.role;
+            if (!roomData.unreadCount) return 0;
+            return roomData.unreadCount[userRole] || 0;
+        }
+
+        async function createChatRoomElement(roomId, data) {
+            const roomDiv = document.createElement('div');
+            roomDiv.className = 'chat-room-item';
+            roomDiv.dataset.roomId = roomId;
+            
+            let participantName = 'Unknown User';
+            let participantRole = 'user';
+            let participantAvatar = 'U';
+            
+            try {
+                if (!data.participants || !Array.isArray(data.participants)) {
+                    console.warn('Invalid participants in room:', roomId);
+                    return null;
+                }
+                
+                const otherParticipants = data.participants.filter(id => id !== currentUserInfo.user.uid);
+                
+                if (otherParticipants.length === 0) {
+                    console.warn('Room has no other participants:', roomId);
+                    return null;
+                }
+                
+                const otherUserId = otherParticipants[0];
+                participantRole = data.participantRoles?.[otherUserId] || 'user';
+                
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', otherUserId));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        participantName = userData.name || userData.displayName || userData.email || 'User';
+                        participantRole = userData.role || participantRole;
+                    } else {
+                        participantName = participantRole.charAt(0).toUpperCase() + participantRole.slice(1);
+                    }
+                } catch (err) {
+                    console.error('Error fetching participant:', err);
+                    participantName = participantRole.charAt(0).toUpperCase() + participantRole.slice(1);
+                }
+                
+                participantAvatar = participantName.charAt(0).toUpperCase();
+                
+            } catch (error) {
+                console.error('Error processing participant data for room:', roomId, error);
+                return null;
+            }
+
+            const unreadCount = getUnreadCountForUser(data);
+            const lastMessageTime = formatTimestamp(data.lastMessageTime || data.lastUpdated);
+            const lastMessagePreview = data.lastMessage || 'No messages yet';
+            const lastMessageSender = data.lastMessageSender || '';
+
+            let displaySender = '';
+            
+            if (lastMessageSender === currentUserInfo.user.uid) {
+                displaySender = 'You: ';
+            } else if (lastMessageSender === currentUserInfo.role) {
+                displaySender = 'You: ';
+            } else if (data.participants && data.participants.includes(lastMessageSender)) {
+                displaySender = `${participantName}: `;
+            } else if (lastMessageSender) {
+                displaySender = `${participantName}: `;
+            }
+
+            roomDiv.innerHTML = `
+                <div class="chat-room-header">
+                    <div class="chat-participant">
+                        <div class="participant-avatar ${participantRole}">
+                            ${participantAvatar}
+                        </div>
+                        <div>
+                            <div class="participant-name">${participantName}</div>
+                            <div class="participant-role">${participantRole.toUpperCase()}</div>
+                        </div>
+                    </div>
+                    <div class="chat-time">${lastMessageTime}</div>
+                </div>
+                
+                <div class="chat-preview">
+                    ${displaySender}${lastMessagePreview}
+                </div>
+                
+                <div class="chat-meta">
+                    <div class="status-indicator ${Math.random() > 0.5 ? 'online' : 'offline'}"></div>
+                    ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
+                </div>
+            `;
+
+            roomDiv.addEventListener('click', () => selectChatRoom(roomId, data));
+            
+            return roomDiv;
+        }
+
+        async function fetchFreshParticipantData(roomData) {
+            let participantName = 'Unknown User';
+            let participantRole = 'user';
+            let participantAvatar = 'U';
+            
+            try {
+                const otherParticipants = roomData.participants?.filter(id => id !== currentUserInfo.user.uid) || [];
+                
+                if (otherParticipants.length === 0) {
+                    return { name: participantName, role: participantRole, avatar: participantAvatar };
+                }
+                
+                const otherUserId = otherParticipants[0];
+                participantRole = roomData.participantRoles?.[otherUserId] || 'user';
+                
+                const userDoc = await getDoc(doc(db, 'users', otherUserId));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    participantName = userData.name || userData.displayName || userData.email || 'User';
+                    participantRole = userData.role || participantRole;
+                } else {
+                    participantName = participantRole.charAt(0).toUpperCase() + participantRole.slice(1);
+                }
+                
+                participantAvatar = participantName.charAt(0).toUpperCase();
+                
+            } catch (error) {
+                console.error('Error fetching fresh participant data:', error);
+            }
+            
+            return { name: participantName, role: participantRole, avatar: participantAvatar };
+        }
+
+        async function selectChatRoom(roomId, roomData) {
+            document.querySelectorAll('.chat-room-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            const clickedRoom = document.querySelector(`[data-room-id="${roomId}"]`);
+            if (clickedRoom) {
+                clickedRoom.classList.add('active');
+            }
+
+            selectedChatRoom = { id: roomId, data: roomData };
+            
+            try {
+                const updateData = {};
+                updateData[`unreadCount.${currentUserInfo.role}`] = 0;
+                await updateDoc(doc(db, 'chatRooms', roomId), updateData);
+            } catch (error) {
+                console.error('Error marking messages as read:', error);
+            }
+
+            await loadChatInterface(roomId, roomData);
+        }
+
+        async function loadChatInterface(roomId, roomData) {
+            const chatMain = document.getElementById('chatMain');
+            chatMain.className = 'chat-main';
+            
+            const participantData = await fetchFreshParticipantData(roomData);
+            
+            chatMain.innerHTML = `
+                <div class="chat-header">
+                    <div class="chat-participant-info">
+                        <div class="participant-avatar ${participantData.role}">
+                            ${participantData.avatar}
+                        </div>
+                        <div>
+                            <div class="participant-name">${participantData.name}</div>
+                            <div class="participant-role">${participantData.role.toUpperCase()}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-actions">
+                        <button class="btn-chat-action" onclick="refreshChat()" title="Refresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="messages" id="messagesContainer">
+                    <div class="loading-messages">
+                        <div class="loading-spinner-small"></div>
+                        <p>Loading messages...</p>
+                    </div>
+                </div>
+                
+                <div class="typing-indicator" id="typingIndicator">
+                    <i class="fas fa-ellipsis-h"></i> Someone is typing...
+                </div>
+                
+                <div class="chat-input">
+                    <div class="input-wrapper">
+                        <textarea 
+                            id="chatMessage" 
+                            placeholder="Type your message..."
+                            maxlength="1000"
+                        ></textarea>
+                        <button id="sendMessageBtn" onclick="sendMessage()">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            await loadMessages(roomId);
+            setupMessageInput();
+        }
+
+        async function loadMessages(roomId) {
+            const container = document.getElementById('messagesContainer');
+            
+            try {
+                const q = query(
+                    collection(db, "chatRooms", roomId, "messages"),
+                    orderBy("createdAt", "asc")
+                );
+
+                if (messagesListener) {
+                    messagesListener();
+                }
+
+                messagesListener = onSnapshot(q, (snapshot) => {
+                    container.innerHTML = '';
+                    
+                    if (snapshot.empty) {
+                        container.innerHTML = `
+                            <div class="system-message">
+                                <div class="message-bubble">
+                                    Private chat created. Start your secure conversation!
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    snapshot.forEach((docSnap) => {
+                        const messageData = docSnap.data();
+                        const messageElement = createMessageElement(docSnap.id, messageData);
+                        container.appendChild(messageElement);
+                    });
+                    
+                    setTimeout(() => {
+                        container.scrollTop = container.scrollHeight;
+                    }, 100);
+                    
+                }, (error) => {
+                    console.error('Error loading messages:', error);
+                    container.innerHTML = `
+                        <div class="error-state">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                            <p>Error loading messages</p>
+                        </div>
+                    `;
+                });
+
+            } catch (error) {
+                console.error('Error setting up messages listener:', error);
+                container.innerHTML = `
+                    <div class="error-state">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Error loading messages</p>
+                    </div>
+                `;
+            }
+        }
+
+        function createMessageElement(messageId, data) {
+            const messageDiv = document.createElement('div');
+            const isSystemMessage = data.senderId === 'system';
+            const isOwnMessage = data.senderId === currentUserInfo.user.uid;
+            
+            if (isSystemMessage) {
+                messageDiv.className = 'system-message';
+                messageDiv.innerHTML = `
+                    <div class="message-bubble">
+                        ${data.content}
+                    </div>
+                `;
+                return messageDiv;
+            }
+
+            messageDiv.className = `message ${isOwnMessage ? 'own' : data.senderRole}`;
+            
+            let displaySenderName = getSenderDisplayName(data.senderRole, data.senderName, isOwnMessage);
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar ${data.senderRole}">
+                    ${getAvatarText(data.senderRole, data.senderName)}
+                </div>
+                <div class="message-content">
+                    ${!isOwnMessage && currentUserInfo.role !== 'resident' ? `<div class="message-sender">${displaySenderName}</div>` : ''}
+                    <div class="message-bubble">
+                        <div class="message-text">${data.content}</div>
+                        <div class="message-time">${formatTimestamp(data.createdAt)}</div>
+                    </div>
+                </div>
+            `;
+            
+            return messageDiv;
+        }
+
+        function getSenderDisplayName(senderRole, senderName, isOwnMessage) {
+            if (isOwnMessage) return 'You';
+            
+            if (currentUserInfo.role === 'resident' && (senderRole === 'admin' || senderRole === 'monitor')) {
+                return 'LipaAlertHub';
+            }
+            
+            return senderName || (senderRole.charAt(0).toUpperCase() + senderRole.slice(1));
+        }
+
+        function getAvatarText(role, name) {
+            if (name) {
+                return name.charAt(0).toUpperCase();
+            }
+            
+            const avatars = {
+                admin: 'A',
+                monitor: 'M',
+                resident: 'R',
+                rescuer: 'E',
+                agency: 'G'
+            };
+            return avatars[role] || 'U';
+        }
+
+        function setupMessageInput() {
+            const textarea = document.getElementById('chatMessage');
+            const sendBtn = document.getElementById('sendMessageBtn');
+            
+            if (!textarea || !sendBtn) return;
+
+            textarea.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+                
+                const hasText = this.value.trim().length > 0;
+                sendBtn.disabled = !hasText;
+                sendBtn.style.opacity = hasText ? '1' : '0.5';
+            });
+
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+        }
+
+        async function sendMessage() {
+            const textarea = document.getElementById('chatMessage');
+            const sendBtn = document.getElementById('sendMessageBtn');
+            
+            if (!textarea || !selectedChatRoom) return;
+            
+            const content = textarea.value.trim();
+            if (!content) return;
+
+            try {
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
+                if (!selectedChatRoom.data.participants.includes(currentUserInfo.user.uid)) {
+                    throw new Error('You are not a participant in this chat');
+                }
+                
+                const messageData = {
+                    senderId: currentUserInfo.user.uid,
+                    senderRole: currentUserInfo.role,
+                    senderName: currentUserInfo.userData?.name || currentUserInfo.user.displayName || 'User',
+                    content: content,
+                    type: 'text',
+                    createdAt: serverTimestamp()
+                };
+
+                const messagesRef = collection(db, 'chatRooms', selectedChatRoom.id, 'messages');
+                await addDoc(messagesRef, messageData);
+                
+                const updateData = {
+                    lastMessage: content,
+                    lastMessageSender: currentUserInfo.user.uid,
+                    lastMessageSenderRole: currentUserInfo.role,
+                    lastMessageTime: serverTimestamp(),
+                    lastUpdated: serverTimestamp()
+                };
+
+                const otherParticipants = selectedChatRoom.data.participants.filter(
+                    id => id !== currentUserInfo.user.uid
+                );
+                
+                for (const participantId of otherParticipants) {
+                    const participantRole = selectedChatRoom.data.participantRoles?.[participantId];
+                    if (participantRole) {
+                        updateData[`unreadCount.${participantRole}`] = 
+                            (selectedChatRoom.data.unreadCount?.[participantRole] || 0) + 1;
+                    }
+                }
+
+                await updateDoc(doc(db, 'chatRooms', selectedChatRoom.id), updateData);
+
+                textarea.value = '';
+                textarea.style.height = 'auto';
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showNotification('Failed to send message: ' + error.message, 'error');
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+            }
+        }
+
+        window.sendMessage = sendMessage;
+
+        async function createOrFindChatRoom(targetUserId, targetUserRole) {
+            try {
+                const allowedRoles = CHAT_PERMISSIONS[currentUserInfo.role] || [];
+                if (!allowedRoles.includes(targetUserRole)) {
+                    throw new Error(`${currentUserInfo.role} cannot chat with ${targetUserRole}`);
+                }
+
+                const userIds = [currentUserInfo.user.uid, targetUserId].sort();
+                const roomId = `${userIds[0]}_${userIds[1]}`;
+                
+                const participants = [currentUserInfo.user.uid, targetUserId];
+                const participantRoles = {
+                    [currentUserInfo.user.uid]: currentUserInfo.role,
+                    [targetUserId]: targetUserRole
+                };
+
+                const roomRef = doc(db, 'chatRooms', roomId);
+                
+                try {
+                    const roomDoc = await getDoc(roomRef);
+                    
+                    if (roomDoc.exists()) {
+                        console.log('Chat room already exists:', roomId);
+                        return roomId;
+                    }
+                } catch (readError) {
+                    console.log('Cannot read room (might not exist):', readError.code);
+                }
+
+                console.log('Creating new chat room:', roomId);
+                
+                const roomData = {
+                    participants: participants,
+                    participantRoles: participantRoles
+                };
+
+                try {
+                    await setDoc(roomRef, roomData);
+                    console.log('Successfully created chat room structure');
+                    
+                    await updateDoc(roomRef, {
+                        createdAt: serverTimestamp(),
+                        createdBy: currentUserInfo.user.uid,
+                        lastUpdated: serverTimestamp(),
+                        lastMessage: '',
+                        lastMessageSender: '',
+                        lastMessageTime: null,
+                        isActive: true
+                    });
+                    
+                    console.log('Chat room fully initialized');
+                    
+                    const messagesRef = collection(db, 'chatRooms', roomId, 'messages');
+                    await addDoc(messagesRef, {
+                        senderId: 'system',
+                        content: 'Private chat room created. Your conversation is secure.',
+                        createdAt: serverTimestamp()
+                    });
+                    
+                    return roomId;
+                    
+                } catch (createError) {
+                    console.error('Create error:', createError.code, createError.message);
+                    
+                    if (createError.code === 'permission-denied') {
+                        console.log('Permission denied - room likely already exists');
+                        return roomId;
+                    }
+                    
+                    throw createError;
+                }
+
+            } catch (error) {
+                console.error('Error creating/finding chat room:', error);
+                throw error;
+            }
+        }
+
+        function setupChatSearch() {
+            const searchInput = document.getElementById('chatSearch');
+            if (!searchInput) return;
+
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const chatRooms = document.querySelectorAll('.chat-room-item');
+                
+                chatRooms.forEach(room => {
+                    const participantName = room.querySelector('.participant-name')?.textContent.toLowerCase() || '';
+                    const lastMessage = room.querySelector('.chat-preview')?.textContent.toLowerCase() || '';
+                    
+                    const matches = participantName.includes(searchTerm) || lastMessage.includes(searchTerm);
+                    room.style.display = matches ? 'block' : 'none';
+                });
+            });
+        }
+
+        function updateChatStats(total, unread) {
+            const totalElement = document.getElementById('totalChats');
+            const unreadElement = document.getElementById('unreadChats');
+            
+            if (totalElement) {
+                totalElement.textContent = `${total} Conversation${total !== 1 ? 's' : ''}`;
+            }
+            
+            if (unreadElement) {
+                unreadElement.textContent = `${unread} Unread`;
+                unreadElement.style.color = unread > 0 ? '#d73527' : '#666';
+                unreadElement.style.fontWeight = unread > 0 ? '600' : '400';
+            }
+        }
+
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return 'Unknown time';
+            
+            let date;
+            
+            try {
+                if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+                    date = new Date(timestamp.seconds * 1000);
+                } else if (timestamp && typeof timestamp === 'object' && typeof timestamp.toDate === 'function') {
+                    date = timestamp.toDate();
+                } else if (timestamp instanceof Date) {
+                    date = timestamp;
+                } else if (typeof timestamp === 'string') {
+                    date = new Date(timestamp);
+                } else if (typeof timestamp === 'number') {
+                    date = timestamp < 1000000000000 ? new Date(timestamp * 1000) : new Date(timestamp);
+                } else {
+                    return 'Unknown format';
+                }
+                
+                if (isNaN(date.getTime())) {
+                    return 'Invalid date';
+                }
+                
+                const now = new Date();
+                const diffMs = now.getTime() - date.getTime();
+                const diffMins = Math.floor(diffMs / (1000 * 60));
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                
+                if (Math.abs(diffMins) < 1) {
+                    return 'Just now';
+                } else if (Math.abs(diffMins) < 60) {
+                    return diffMins > 0 ? `${diffMins}m ago` : `In ${Math.abs(diffMins)}m`;
+                } else if (Math.abs(diffHours) < 24) {
+                    return diffHours > 0 ? `${diffHours}h ago` : `In ${Math.abs(diffHours)}h`;
+                } else if (Math.abs(diffDays) < 7) {
+                    return diffDays > 0 ? `${diffDays}d ago` : `In ${Math.abs(diffDays)}d`;
+                } else {
+                    return date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error formatting timestamp:', error);
+                return 'Error formatting';
+            }
+        }
+
+        window.refreshChat = function() {
+            if (selectedChatRoom) {
+                loadChatInterface(selectedChatRoom.id, selectedChatRoom.data);
+                showNotification('Chat refreshed', 'info');
+            }
+        };
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            const toggleBtn = document.getElementById('mobileToggle');
+            
+            if (sidebar.classList.contains('show')) {
+                closeSidebar();
+            } else {
+                sidebar.classList.add('show');
+                overlay.classList.add('show');
+                toggleBtn.innerHTML = '<i class="fas fa-times"></i>';
+                document.body.style.overflow = 'hidden';
+            }
+        };
+
+        window.closeSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            const toggleBtn = document.getElementById('mobileToggle');
+            
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
+            document.body.style.overflow = '';
+        };
+
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 992) {
+                closeSidebar();
+                const sidebar = document.getElementById('sidebar');
+                sidebar.style.transform = '';
+            }
+        });
+
+        window.logoutUser = async function() {
+            if (confirm("Are you sure you want to logout?")) {
+                try {
+                    await signOut(auth);
+                    showNotification("Logged out successfully", "info");
+                    window.location.href = "index.html";
+                } catch (error) {
+                    console.error("Logout error:", error);
+                    showNotification("Error logging out", "error");
+                }
+            }
+        };
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            let container = document.getElementById('notificationContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'notificationContainer';
+                container.className = 'notification-container';
+                document.body.appendChild(container);
+            }
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+            
+            notification.addEventListener('click', () => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            });
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (chatRoomsListener) chatRoomsListener();
+            if (messagesListener) messagesListener();
+        });
+
+    </script>
 </body>
 </html>

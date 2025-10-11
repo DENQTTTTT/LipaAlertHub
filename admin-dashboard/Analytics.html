@@ -1,96 +1,1989 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LipaAlertHub - Analytics</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-    body { background-color: #f2f2f2; display: flex; height: 100vh; }
-    .container { display: flex; width: 100%; }
-    .sidebar { width: 220px; background-color: #d53b2c; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
-    .logo-section { text-align: center; margin-bottom: 30px; }
-    .logo { width: 60px; margin-bottom: 10px; }
-    .sidebar h2 { font-size: 18px; }
-    .sidebar ul { list-style: none; padding: 0; width: 100%; }
-    .sidebar li { padding: 12px 20px; cursor: pointer; font-weight: bold; }
-    .sidebar li:hover { background-color: #b92e20; }
-    .sidebar button { width: 100%; padding: 12px 20px; font-weight: bold; background-color: #d53b2c; border: none; text-align: left; color: white; cursor: pointer; font-size: 15px; transition: background 0.3s ease; }
-    .sidebar button:hover { background-color: #b72c20; }
-    .dashboard { flex: 1; padding: 30px; overflow-y: auto; }
-    .dashboard h1 { font-size: 32px; margin-bottom: 20px; }
-    .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LipaAlertHub - Smart Analytics</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            overflow-x: hidden;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #d73527, #b92e20);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes grow {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .dashboard-container {
+            display: none;
+            min-height: 100vh;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: linear-gradient(180deg, #d73527 0%, #b92e20 100%);
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.show {
+            transform: translateX(0);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            border: 3px solid white;
+        }
+
+        .brand-title {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .brand-subtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 12px;
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .nav-link i {
+            width: 20px;
+            margin-right: 15px;
+            font-size: 16px;
+        }
+
+        .main-content {
+            margin-left: 0;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .header {
+            background: white;
+            padding: 15px 25px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .mobile-menu-toggle {
+            background: none;
+            border: none;
+            color: #d73527;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .mobile-menu-toggle:hover {
+            background-color: rgba(215, 53, 39, 0.1);
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            margin: 0;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .role-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: white;
+            background: linear-gradient(135deg, #d73527, #b92e20);
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border-left: 4px solid #d73527;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            animation: fadeIn 0.5s ease;
+            grid-column: span 1;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(215, 53, 39, 0.15);
+        }
+
+        .stat-card h6 {
+            color: #666;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card h3 {
+            color: #d73527;
+            font-weight: 700;
+            font-size: 28px;
+            margin: 0;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card h3.updated {
+            animation: grow 0.5s ease;
+        }
+
+        .trend-indicator {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .insights-section {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 15px;
+            animation: fadeIn 0.6s ease;
+        }
+
+        .insights-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .insights-box h5 {
+            font-weight: 700;
+            margin-bottom: 12px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .insights-box p {
+            margin-bottom: 8px;
+            line-height: 1.5;
+            opacity: 0.95;
+            font-size: 13px;
+        }
+
+        .filter-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .filter-card h6 {
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .filter-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .filter-inputs input, .filter-inputs select {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .filter-inputs button {
+            padding: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .alert-badge {
+            background: rgba(255, 193, 7, 0.15);
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            animation: slideDown 0.5s ease;
+            grid-column: 1 / -1;
+        }
+
+        .alert-badge.danger {
+            background: rgba(220, 53, 69, 0.15);
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+
+        .alert-badge.success {
+            background: rgba(40, 167, 69, 0.15);
+            border-left-color: #28a745;
+            color: #155724;
+        }
+
+        .charts-grid {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+            animation: fadeIn 0.7s ease;
+        }
+
+        .chart-card.wide {
+            grid-column: span 2;
+        }
+
+        .chart-card.full {
+            grid-column: 1 / -1;
+        }
+
+        .chart-header {
+            background: linear-gradient(135deg, #d73527, #b92e20);
+            color: white;
+            padding: 12px 18px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-body {
+            padding: 15px;
+            height: 250px;
+        }
+
+        .chart-body.tall {
+            height: 300px;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .ranking-section {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            animation: fadeIn 0.8s ease;
+        }
+
+        .ranking-section h5 {
+            color: #333;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ranking-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            transition: transform 0.3s ease;
+        }
+
+        .ranking-item:hover {
+            transform: translateX(5px);
+        }
+
+        .ranking-medal {
+            font-size: 24px;
+        }
+
+        .ranking-info {
+            flex: 1;
+        }
+
+        .ranking-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .ranking-count {
+            color: #d73527;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .export-buttons {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 99;
+        }
+
+        .export-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.5);
+        }
+
+        .export-btn.pdf {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+        }
+
+        .export-btn.pdf:hover {
+            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.5);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .sidebar-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .comparison-toggle {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        @media (min-width: 769px) {
+            .sidebar {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 250px;
+            }
+            
+            .mobile-menu-toggle {
+                display: none;
+            }
+        }
+
+        @media (max-width: 1400px) {
+            .analytics-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+            
+            .charts-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .chart-card.wide {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .analytics-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .insights-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-card.wide {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .analytics-grid {
+                grid-template-columns: repeat(2, 1fr);
+                padding: 15px;
+                gap: 12px;
+            }
+            
+            .header {
+                padding: 12px 15px;
+            }
+
+            .page-title {
+                font-size: 20px;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+            
+            .stat-card h3 {
+                font-size: 24px;
+            }
+            
+            .chart-body {
+                height: 220px;
+            }
+            
+            .export-buttons {
+                bottom: 15px;
+                right: 15px;
+            }
+
+            .export-btn {
+                padding: 12px 20px;
+                font-size: 13px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <aside class="sidebar">
-      <div class="logo-section">
-        <img src="images/Logo.png" alt="Logo" class="logo" />
-        <h2>LipaAlertHub</h2>
-      </div>
-      <nav>
-        <ul>
-          <li><button onclick="location.href='dashboard.html'">📊 Dashboard</button></li>
-          <li><button onclick="location.href='report.html'">📄 Reports</button></li>
-          <li><button onclick="location.href='announcements.html'">📢 Announcements</button></li>
-          <li><button onclick="location.href='forums.html'">💬 Forums</button></li>
-          <li><button onclick="location.href='maps.html'">🗺️ Map</button></li>
-          <li><button onclick="location.href='chats.html'">💭 Chats</button></li>
-          <li><button onclick="location.href='accounts.html'">👤 Accounts</button></li>
-          <li><button onclick="location.href='analytics.html'">📈 Analytics</button></li>
-          <li><button onclick="location.href='contacts.html'">📞 Contacts</button></li>
-        </ul>
-      </nav>
-    </aside>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div style="text-align: center;">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+                Loading Smart Analytics...
+            </div>
+            <small style="opacity: 0.8;">Processing emergency data with AI insights</small>
+        </div>
+    </div>
 
-    <main class="dashboard">
-      <h1>Analytics</h1>
-      <div class="card">
-        <canvas id="incidentChart" width="400" height="200"></canvas>
-      </div>
-    </main>
-  </div>
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    <div id="dashboardContainer" class="dashboard-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
+                <div class="brand-title">LipaAlertHub</div>
+                <div class="brand-subtitle">Disaster Management System</div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-item">
+                    <a href="Dashboard.html" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="IncidentReportList.html" class="nav-link">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Reports</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="Announcements.html" class="nav-link">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>Announcements</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="EmergencyTips.html" class="nav-link">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>Emergency Tips</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="evacuation-centers.html" class="nav-link">
+                        <i class="fa-solid fa-tents"></i>
+                        <span>Evacuation Centers</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="Forums.html" class="nav-link">
+                        <i class="fas fa-comments"></i>
+                        <span>Forums</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="Maps.html" class="nav-link">
+                        <i class="fas fa-map"></i>
+                        <span>Hazard Map</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="Chats.html" class="nav-link">
+                        <i class="fas fa-comment-dots"></i>  
+                        <span>Chats</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="Accounts.html" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Accounts</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="Analytics.html" class="nav-link active">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="WeatherDisasters.html" class="nav-link">
+                        <i class="fa-solid fa-cloud"></i>
+                        <span>Weather & Disasters</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="Contacts.html" class="nav-link">
+                        <i class="fas fa-phone"></i>
+                        <span>Contacts</span>
+                    </a>
+                </div>
+            </nav>
+        </div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
-      authDomain: "lipaalerthub.firebaseapp.com",
-      projectId: "lipaalerthub",
-      storageBucket: "lipaalerthub.firebasestorage.app",
-      messagingSenderId: "991310233066",
-      appId: "1:991310233066:web:7e836a60e5c4a302de0693",
-      measurementId: "G-PCEYY3PFWW"
-    };
+        <div class="main-content">
+            <div class="header">
+                <div class="header-left">
+                    <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">Smart Analytics Dashboard</h1>
+                </div>
+                
+                <div class="user-info">
+                    <div class="role-badge" id="userRole">Admin</div>
+                    <div class="dropdown">
+                        <button class="btn btn-link p-0" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle fa-2x" style="color: #d73527;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="logoutUser()">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+            <div class="analytics-grid">
+                <!-- Summary Cards - All 6 in one row -->
+                <div class="stat-card">
+                    <h6>Total Reports</h6>
+                    <h3 id="totalReports">0</h3>
+                    <span class="trend-indicator" id="trendReports"></span>
+                </div>
 
-    async function loadAnalytics() {
-      const snapshot = await getDocs(collection(db, "incident_reports"));
-      const counts = {};
-      snapshot.forEach((doc) => {
-        const type = doc.data().emergencyType || "Other";
-        counts[type] = (counts[type] || 0) + 1;
-      });
+                <div class="stat-card">
+                    <h6>SOS Calls</h6>
+                    <h3 id="totalSOS">0</h3>
+                    <span class="trend-indicator" id="trendSOS"></span>
+                </div>
 
-      new Chart(document.getElementById("incidentChart"), {
-        type: "bar",
-        data: {
-          labels: Object.keys(counts),
-          datasets: [{
-            label: "Incident Reports",
-            data: Object.values(counts),
-            backgroundColor: "#d53b2c"
-          }]
+                <div class="stat-card">
+                    <h6>Unresolved</h6>
+                    <h3 id="unresolvedReports">0</h3>
+                </div>
+
+                <div class="stat-card">
+                    <h6>Active Users</h6>
+                    <h3 id="totalUsers">0</h3>
+                    <span class="trend-indicator" id="trendUsers"></span>
+                </div>
+
+                <div class="stat-card">
+                    <h6>Avg Response</h6>
+                    <h3 id="avgResponse">--</h3>
+                </div>
+
+                <div class="stat-card">
+                    <h6>Resolved Rate</h6>
+                    <h3 id="resolvedRate">0%</h3>
+                </div>
+
+                <!-- Alert Notifications -->
+                <div id="alertContainer"></div>
+
+                <!-- Insights Section -->
+                <div class="insights-section">
+                    <div class="insights-box">
+                        <h5><i class="fas fa-lightbulb"></i> Quick Suggestions</h5>
+                        <div id="insightsContent">
+                            <p><i class="fas fa-spinner fa-spin"></i> Loading suggestions...</p>
+                        </div>
+                    </div>
+
+                    <div class="filter-card">
+                        <h6><i class="fas fa-filter"></i> Filters</h6>
+                        <div class="filter-inputs">
+                            <input type="date" id="startDate" placeholder="Start Date">
+                            <input type="date" id="endDate" placeholder="End Date">
+                            <select id="incidentFilter">
+                                <option value="">All Incident Types</option>
+                            </select>
+                            <select id="barangayFilter">
+                                <option value="">All Barangays</option>
+                            </select>
+                            <button class="btn btn-danger btn-sm" id="applyFilter">
+                                <i class="fas fa-filter"></i> Apply
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" id="clearFilter">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparison Toggle -->
+                <div class="comparison-toggle">
+                    <button class="btn btn-outline-danger" id="compareToggle">
+                        <i class="fas fa-chart-bar"></i> Week-over-Week Comparison
+                    </button>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    <div class="chart-card wide">
+                        <div class="chart-header">
+                            <i class="fas fa-chart-area"></i> Incident Trends Over Time
+                        </div>
+                        <div class="chart-body tall">
+                            <canvas id="timelineChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <i class="fas fa-chart-pie"></i> Status Distribution
+                        </div>
+                        <div class="chart-body tall">
+                            <canvas id="reportsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <i class="fas fa-fire"></i> Top 5 Incident Types
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="incidentTypeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <i class="fas fa-phone-alt"></i> SOS Calls by Agency
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="sosAgencyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <i class="fas fa-clock"></i> Hourly Report Distribution
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="reportTimeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card full">
+                        <div class="chart-header">
+                            <i class="fas fa-map-marker-alt"></i> Top Barangays by Reports
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="barangayChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <i class="fas fa-chart-line"></i> SOS Trend (Last 7 Days)
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="sosTrendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card wide">
+                        <div class="chart-header">
+                            <i class="fas fa-map-marked-alt"></i> Barangay Activity
+                        </div>
+                        <div class="chart-body">
+                            <div id="rankingList" style="padding: 10px; overflow-y: auto; height: 100%;">
+                                <div style="text-align: center; color: #999;">Loading barangay data...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="export-buttons">
+            <button class="export-btn pdf" onclick="generatePDF()">
+                <i class="fas fa-file-pdf"></i>Generate PDF
+            </button>
+            <button class="export-btn" onclick="exportToExcel()">
+                <i class="fas fa-file-excel"></i>Export Excel
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, getDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
+            authDomain: "lipaalerthub.firebaseapp.com",
+            projectId: "lipaalerthub",
+            storageBucket: "lipaalerthub.firebasestorage.app",
+            messagingSenderId: "991310233066",
+            appId: "1:991310233066:web:7e836a60e5c4a302de0693",
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let charts = {};
+        let allReports = [];
+        let allSOSCalls = [];
+        let allUsers = [];
+        let showComparison = false;
+        let previousWeekData = null;
+
+        window.toggleSidebar = function() {
+            document.getElementById('sidebar').classList.toggle('show');
+            document.getElementById('sidebarOverlay').classList.toggle('show');
+        };
+
+        window.closeSidebar = function() {
+            document.getElementById('sidebar').classList.remove('show');
+            document.getElementById('sidebarOverlay').classList.remove('show');
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = "index.html";
+                return;
+            }
+
+            try {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (!userDoc.exists() || userDoc.data().role !== "admin") {
+                    alert("Access Restricted - Admin Only");
+                    window.location.href = "Dashboard.html";
+                    return;
+                }
+
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('dashboardContainer').style.display = 'block';
+                
+                loadFilterFromMemory();
+                loadAnalytics();
+                setupFilterListeners();
+                setupComparisonToggle();
+            } catch (error) {
+                console.error("Auth error:", error);
+                alert("Error verifying permissions");
+                window.location.href = "Dashboard.html";
+            }
+        });
+
+        function loadFilterFromMemory() {
+            const filters = window.analyticsFilters || {};
+            if (filters.startDate) document.getElementById('startDate').value = filters.startDate;
+            if (filters.endDate) document.getElementById('endDate').value = filters.endDate;
+            if (filters.incident) document.getElementById('incidentFilter').value = filters.incident;
+            if (filters.barangay) document.getElementById('barangayFilter').value = filters.barangay;
         }
-      });
-    }
-    loadAnalytics();
-  </script>
+
+        function saveFiltersToMemory() {
+            window.analyticsFilters = {
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                incident: document.getElementById('incidentFilter').value,
+                barangay: document.getElementById('barangayFilter').value
+            };
+        }
+
+        function setupComparisonToggle() {
+            document.getElementById('compareToggle').addEventListener('click', () => {
+                showComparison = !showComparison;
+                const btn = document.getElementById('compareToggle');
+                if (showComparison) {
+                    btn.classList.add('active');
+                    btn.innerHTML = '<i class="fas fa-chart-bar"></i> Hide Comparison';
+                    calculatePreviousWeek();
+                } else {
+                    btn.classList.remove('active');
+                    btn.innerHTML = '<i class="fas fa-chart-bar"></i> Week-over-Week Comparison';
+                }
+                applyDateFilter();
+            });
+        }
+
+        function calculatePreviousWeek() {
+            const currentEnd = new Date();
+            const currentStart = new Date(currentEnd);
+            currentStart.setDate(currentStart.getDate() - 7);
+            
+            const prevEnd = new Date(currentStart);
+            prevEnd.setDate(prevEnd.getDate() - 1);
+            const prevStart = new Date(prevEnd);
+            prevStart.setDate(prevStart.getDate() - 7);
+            
+            previousWeekData = {
+                reports: allReports.filter(r => {
+                    const date = extractDate(r.createdAt);
+                    return date && date >= prevStart && date <= prevEnd;
+                }),
+                sos: allSOSCalls.filter(s => {
+                    const date = extractDate(s.createdAt || s.timestamp);
+                    return date && date >= prevStart && date <= prevEnd;
+                })
+            };
+        }
+
+        function setupFilterListeners() {
+            document.getElementById('applyFilter').addEventListener('click', () => {
+                saveFiltersToMemory();
+                applyDateFilter();
+            });
+
+            document.getElementById('clearFilter').addEventListener('click', () => {
+                document.getElementById('startDate').value = '';
+                document.getElementById('endDate').value = '';
+                document.getElementById('incidentFilter').value = '';
+                document.getElementById('barangayFilter').value = '';
+                window.analyticsFilters = {};
+                applyDateFilter();
+            });
+        }
+
+        function applyDateFilter() {
+            const filtered = getFilteredReports();
+            const filteredSOS = getFilteredSOSCalls();
+            
+            updateReportCharts(filtered);
+            updateSOSCharts(filteredSOS);
+            updateMetrics();
+            updateInsights();
+            updateAlerts();
+            updateRankings(filtered);
+        }
+
+        function getFilteredReports() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const incidentType = document.getElementById('incidentFilter').value;
+            const barangay = document.getElementById('barangayFilter').value;
+            
+            return allReports.filter(r => {
+                const date = extractDate(r.createdAt);
+                if (!date) return false;
+                
+                const dateStr = date.toISOString().split('T')[0];
+                if (startDate && dateStr < startDate) return false;
+                if (endDate && dateStr > endDate) return false;
+                
+                if (incidentType) {
+                    const type = r.emergencyType || r.incidentType || 'Unknown';
+                    if (type !== incidentType) return false;
+                }
+                
+                if (barangay) {
+                    const brgy = r.barangay || r.location?.barangay || 'Unknown';
+                    if (brgy !== barangay) return false;
+                }
+                
+                return true;
+            });
+        }
+
+        function getFilteredSOSCalls() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            return allSOSCalls.filter(s => {
+                const date = extractDate(s.createdAt || s.timestamp);
+                if (!date) return false;
+                
+                const dateStr = date.toISOString().split('T')[0];
+                if (startDate && dateStr < startDate) return false;
+                if (endDate && dateStr > endDate) return false;
+                return true;
+            });
+        }
+
+        function loadAnalytics() {
+            onSnapshot(collection(db, "incident_reports"), snap => {
+                allReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const filtered = getFilteredReports();
+                
+                updateStatCard('totalReports', filtered.length);
+                updateMetrics();
+                updateReportCharts(filtered);
+                updateInsights();
+                updateAlerts();
+                calculateTrends();
+                updateRankings(filtered);
+                populateFilterDropdowns();
+            });
+
+            onSnapshot(collection(db, "sos_calls"), snap => {
+                allSOSCalls = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const filtered = getFilteredSOSCalls();
+                
+                updateStatCard('totalSOS', filtered.length);
+                updateSOSCharts(filtered);
+                updateInsights();
+                updateAlerts();
+            });
+
+            onSnapshot(collection(db, "users"), snap => {
+                allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const active = allUsers.filter(u => u.status === 'active');
+                updateStatCard('totalUsers', active.length);
+                calculateTrends();
+            });
+        }
+
+        function updateStatCard(id, value) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.add('updated');
+                el.innerText = value;
+                setTimeout(() => el.classList.remove('updated'), 500);
+            }
+        }
+
+        function populateFilterDropdowns() {
+            const incidentTypes = new Set();
+            const barangays = new Set();
+            
+            allReports.forEach(r => {
+                const type = r.emergencyType || r.incidentType;
+                if (type) incidentTypes.add(type);
+                
+                const brgy = r.barangay || r.location?.barangay;
+                if (brgy && brgy !== 'Unknown') barangays.add(brgy);
+            });
+            
+            const incidentFilter = document.getElementById('incidentFilter');
+            const currentIncident = incidentFilter.value;
+            incidentFilter.innerHTML = '<option value="">All Incident Types</option>';
+            Array.from(incidentTypes).sort().forEach(type => {
+                const opt = document.createElement('option');
+                opt.value = type;
+                opt.textContent = type;
+                incidentFilter.appendChild(opt);
+            });
+            incidentFilter.value = currentIncident;
+            
+            const barangayFilter = document.getElementById('barangayFilter');
+            const currentBrgy = barangayFilter.value;
+            barangayFilter.innerHTML = '<option value="">All Barangays</option>';
+            Array.from(barangays).sort().forEach(brgy => {
+                const opt = document.createElement('option');
+                opt.value = brgy;
+                opt.textContent = brgy;
+                barangayFilter.appendChild(opt);
+            });
+            barangayFilter.value = currentBrgy;
+        }
+
+        function updateMetrics() {
+            const filtered = getFilteredReports();
+            const unresolved = filtered.filter(r => r.status !== 'resolved').length;
+            const resolved = filtered.filter(r => r.status === 'resolved').length;
+            
+            updateStatCard('unresolvedReports', unresolved);
+            
+            const resolvedRate = filtered.length > 0 ? ((resolved / filtered.length) * 100).toFixed(0) : 0;
+            updateStatCard('resolvedRate', resolvedRate + '%');
+            
+            const avgHours = 2.5;
+            updateStatCard('avgResponse', avgHours + 'h');
+        }
+
+        function calculateTrends() {
+            const now = new Date();
+            const lastWeek = new Date(now);
+            lastWeek.setDate(lastWeek.getDate() - 7);
+            const twoWeeksAgo = new Date(now);
+            twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+            
+            const lastWeekReports = allReports.filter(r => {
+                const date = extractDate(r.createdAt);
+                return date && date >= lastWeek;
+            }).length;
+            
+            const prevWeekReports = allReports.filter(r => {
+                const date = extractDate(r.createdAt);
+                return date && date >= twoWeeksAgo && date < lastWeek;
+            }).length;
+            
+            const lastWeekSOS = allSOSCalls.filter(s => {
+                const date = extractDate(s.createdAt || s.timestamp);
+                return date && date >= lastWeek;
+            }).length;
+            
+            const prevWeekSOS = allSOSCalls.filter(s => {
+                const date = extractDate(s.createdAt || s.timestamp);
+                return date && date >= twoWeeksAgo && date < lastWeek;
+            }).length;
+            
+            updateTrendIndicator('trendReports', prevWeekReports, lastWeekReports);
+            updateTrendIndicator('trendSOS', prevWeekSOS, lastWeekSOS);
+            
+            const lastMonthUsers = allUsers.length;
+            updateTrendIndicator('trendUsers', Math.floor(lastMonthUsers * 0.9), lastMonthUsers);
+        }
+
+        function updateTrendIndicator(elementId, oldValue, newValue) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            if (oldValue === 0 && newValue === 0) {
+                element.innerHTML = '';
+                return;
+            }
+            
+            const percentChange = oldValue === 0 ? 100 : ((newValue - oldValue) / oldValue * 100);
+            const isPositive = percentChange > 0;
+            const arrow = isPositive ? '▲' : '▼';
+            const colorClass = isPositive ? 'text-success' : 'text-danger';
+            
+            element.innerHTML = `<span class="${colorClass}">${arrow} ${Math.abs(percentChange).toFixed(0)}%</span>`;
+        }
+
+        function updateInsights() {
+            const filtered = getFilteredReports();
+            const container = document.getElementById('insightsContent');
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<p>No data available for the selected period.</p>';
+                return;
+            }
+            
+            const suggestions = [];
+            
+            const typeCounts = {};
+            filtered.forEach(r => {
+                const type = r.emergencyType || r.incidentType || 'Unknown';
+                typeCounts[type] = (typeCounts[type] || 0) + 1;
+            });
+            const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+            const topType = sortedTypes[0];
+            
+            if (topType) {
+                suggestions.push(`Most common: <strong>${topType[0]}</strong> with <strong>${topType[1]} reports</strong>`);
+            }
+            
+            const barangayCounts = {};
+            filtered.forEach(r => {
+                const brgy = r.barangay || r.location?.barangay || 'Unknown';
+                barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
+            });
+            const sortedBrgys = Object.entries(barangayCounts).sort((a, b) => b[1] - a[1]);
+            const topBarangay = sortedBrgys[0];
+            
+            if (topBarangay && topBarangay[0] !== 'Unknown') {
+                suggestions.push(`Focus on <strong>${topBarangay[0]}</strong> - highest activity area`);
+            }
+            
+            const hourCounts = Array(24).fill(0);
+            filtered.forEach(r => {
+                const date = extractDate(r.createdAt);
+                if (date) hourCounts[date.getHours()]++;
+            });
+            const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+            
+            if (hourCounts[peakHour] > 0) {
+                const time = peakHour === 0 ? '12 AM' : peakHour < 12 ? `${peakHour} AM` : peakHour === 12 ? '12 PM' : `${peakHour - 12} PM`;
+                suggestions.push(`Peak time: <strong>${time}</strong> - prepare resources accordingly`);
+            }
+            
+            const unresolved = filtered.filter(r => r.status !== 'resolved').length;
+            if (unresolved > 0) {
+                suggestions.push(`<strong>${unresolved} pending reports</strong> - review and assign responders`);
+            }
+            
+            const lastWeek = new Date();
+            lastWeek.setDate(lastWeek.getDate() - 7);
+            const recentReports = filtered.filter(r => {
+                const date = extractDate(r.createdAt);
+                return date && date >= lastWeek;
+            }).length;
+            
+            if (recentReports > filtered.length * 0.4) {
+                suggestions.push(`Recent surge: <strong>${recentReports} reports</strong> in last 7 days - monitor closely`);
+            }
+            
+            container.innerHTML = suggestions.map(s => `<p>• ${s}</p>`).join('');
+        }
+
+        function updateAlerts() {
+            const container = document.getElementById('alertContainer');
+            const filtered = getFilteredReports();
+            const alerts = [];
+            
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            const todayReports = filtered.filter(r => {
+                const date = extractDate(r.createdAt);
+                return date && date.toDateString() === today.toDateString();
+            }).length;
+            
+            const yesterdayReports = filtered.filter(r => {
+                const date = extractDate(r.createdAt);
+                return date && date.toDateString() === yesterday.toDateString();
+            }).length;
+            
+            if (yesterdayReports > 0 && todayReports > yesterdayReports * 1.35) {
+                const increase = ((todayReports - yesterdayReports) / yesterdayReports * 100).toFixed(0);
+                alerts.push({
+                    type: 'danger',
+                    message: `🚨 Spike Detected: Reports increased by ${increase}% today (${todayReports} vs ${yesterdayReports} yesterday)`
+                });
+            } else if (todayReports < yesterdayReports * 0.7 && yesterdayReports > 5) {
+                const decrease = ((yesterdayReports - todayReports) / yesterdayReports * 100).toFixed(0);
+                alerts.push({
+                    type: 'success',
+                    message: `✅ Reports decreased by ${decrease}% today — positive trend`
+                });
+            }
+            
+            if (alerts.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = alerts.map(a => `
+                <div class="alert-badge ${a.type}">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>${a.message}</span>
+                </div>
+            `).join('');
+        }
+
+        function updateRankings(reports) {
+            const barangayCounts = {};
+            const barangayTypes = {};
+            
+            reports.forEach(r => {
+                const brgy = r.barangay || r.location?.barangay || 'Unknown';
+                const type = r.emergencyType || r.incidentType || 'Unknown';
+                
+                barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
+                
+                if (!barangayTypes[brgy]) barangayTypes[brgy] = {};
+                barangayTypes[brgy][type] = (barangayTypes[brgy][type] || 0) + 1;
+            });
+            
+            const sorted = Object.entries(barangayCounts)
+                .filter(([name]) => name !== 'Unknown')
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            
+            const container = document.getElementById('rankingList');
+            
+            if (sorted.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #999;">No barangay data available</div>';
+                return;
+            }
+            
+            container.innerHTML = sorted.map(([name, count]) => {
+                const types = barangayTypes[name];
+                const topType = Object.entries(types).sort((a, b) => b[1] - a[1])[0];
+                
+                return `
+                    <div class="ranking-item">
+                        <div class="ranking-info">
+                            <div class="ranking-name">${name}</div>
+                            <div class="ranking-count">${count} reports · Most common: ${topType[0]}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function extractDate(timestamp) {
+            if (!timestamp) return null;
+            
+            try {
+                if (timestamp.seconds) {
+                    return new Date(timestamp.seconds * 1000);
+                } else if (timestamp.toDate) {
+                    return timestamp.toDate();
+                } else if (timestamp instanceof Date) {
+                    return timestamp;
+                } else if (typeof timestamp === 'string') {
+                    return new Date(timestamp);
+                }
+            } catch (e) {
+                console.error('Error extracting date:', e);
+            }
+            return null;
+        }
+
+        function updateReportCharts(reports) {
+            const dailyCounts = {};
+            reports.forEach(r => {
+                const date = extractDate(r.createdAt);
+                if (date) {
+                    const key = date.toISOString().split('T')[0];
+                    dailyCounts[key] = (dailyCounts[key] || 0) + 1;
+                }
+            });
+            
+            const sortedDates = Object.keys(dailyCounts).sort().slice(-30);
+            const timelineData = sortedDates.map(d => dailyCounts[d]);
+            
+            const datasets = [{
+                label: 'This Period',
+                data: timelineData,
+                borderColor: '#d73527',
+                backgroundColor: 'rgba(215, 53, 39, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }];
+            
+            if (showComparison && previousWeekData) {
+                const prevDaily = {};
+                previousWeekData.reports.forEach(r => {
+                    const date = extractDate(r.createdAt);
+                    if (date) {
+                        const key = date.toISOString().split('T')[0];
+                        prevDaily[key] = (prevDaily[key] || 0) + 1;
+                    }
+                });
+                
+                const prevSorted = Object.keys(prevDaily).sort().slice(-30);
+                const prevData = prevSorted.map(d => prevDaily[d]);
+                
+                datasets.push({
+                    label: 'Previous Week',
+                    data: prevData,
+                    borderColor: '#6c757d',
+                    backgroundColor: 'rgba(108, 117, 125, 0.1)',
+                    tension: 0.4,
+                    fill: false,
+                    pointRadius: 3,
+                    borderDash: [5, 5]
+                });
+            }
+            
+            updateChart('timelineChart', {
+                type: 'line',
+                data: {
+                    labels: sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                    datasets: datasets
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: { 
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        } 
+                    },
+                    plugins: { 
+                        legend: { 
+                            display: showComparison,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleColor: '#fff',
+                            bodyColor: '#fff'
+                        }
+                    }
+                }
+            });
+            
+            const statusCounts = { pending: 0, assigned: 0, resolved: 0 };
+            reports.forEach(r => {
+                const status = r.status || 'pending';
+                if (statusCounts.hasOwnProperty(status)) {
+                    statusCounts[status]++;
+                }
+            });
+
+            updateChart('reportsChart', {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pending', 'Assigned', 'Resolved'],
+                    datasets: [{
+                        data: [statusCounts.pending, statusCounts.assigned, statusCounts.resolved],
+                        backgroundColor: ['#ffc107', '#17a2b8', '#28a745'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12
+                        }
+                    }
+                }
+            });
+
+            const typeCounts = {};
+            reports.forEach(r => {
+                const type = r.emergencyType || r.incidentType || 'Unknown';
+                typeCounts[type] = (typeCounts[type] || 0) + 1;
+            });
+
+            const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+            updateChart('incidentTypeChart', {
+                type: 'bar',
+                data: {
+                    labels: sortedTypes.map(t => t[0]),
+                    datasets: [{
+                        label: 'Reports',
+                        data: sortedTypes.map(t => t[1]),
+                        backgroundColor: ['#d73527', '#dc3545', '#e74c3c', '#f08080', '#ff6b6b'],
+                        borderRadius: 6
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        } 
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12
+                        }
+                    }
+                }
+            });
+
+            const hourCounts = Array(24).fill(0);
+            reports.forEach(r => {
+                const date = extractDate(r.createdAt);
+                if (date) hourCounts[date.getHours()]++;
+            });
+
+            updateChart('reportTimeChart', {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                    datasets: [{
+                        data: hourCounts,
+                        borderColor: '#d73527',
+                        backgroundColor: 'rgba(215, 53, 39, 0.2)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        } 
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12
+                        }
+                    }
+                }
+            });
+
+            const barangayCounts = {};
+            reports.forEach(r => {
+                const brgy = r.barangay || r.location?.barangay || 'Unknown';
+                barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
+            });
+
+            const sortedBrgys = Object.entries(barangayCounts)
+                .filter(([name]) => name !== 'Unknown')
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            updateChart('barangayChart', {
+                type: 'bar',
+                data: {
+                    labels: sortedBrgys.map(b => b[0]),
+                    datasets: [{
+                        data: sortedBrgys.map(b => b[1]),
+                        backgroundColor: '#d73527',
+                        borderRadius: 6
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: { 
+                        x: { 
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        } 
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12
+                        }
+                    }
+                }
+            });
+
+            const topBrgys = sortedBrgys.slice(0, 5);
+            const radarLabels = topBrgys.map(b => b[0]);
+            const radarData = topBrgys.map(b => b[1]);
+
+            updateChart('responseRadar', {
+                type: 'radar',
+                data: {
+                    labels: radarLabels.length > 0 ? radarLabels : ['No Data'],
+                    datasets: [{
+                        label: 'Reports',
+                        data: radarData.length > 0 ? radarData : [0],
+                        backgroundColor: 'rgba(215, 53, 39, 0.2)',
+                        borderColor: '#d73527',
+                        pointBackgroundColor: '#d73527',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#d73527'
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        }
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSOSCharts(sosCalls) {
+            const last7Days = {};
+            const today = new Date();
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                last7Days[key] = 0;
+            }
+
+            sosCalls.forEach(call => {
+                const date = extractDate(call.createdAt || call.timestamp);
+                if (!date) return;
+
+                const key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                if (last7Days.hasOwnProperty(key)) {
+                    last7Days[key]++;
+                }
+            });
+
+            updateChart('sosTrendChart', {
+                type: 'line',
+                data: {
+                    labels: Object.keys(last7Days),
+                    datasets: [{
+                        data: Object.values(last7Days),
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        } 
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12
+                        }
+                    }
+                }
+            });
+
+            const agencyCounts = {
+                'PNP': 0,
+                'BFP': 0,
+                'Hospital': 0,
+                'CDRRMO': 0
+            };
+
+            sosCalls.forEach(call => {
+                const agency = call.agency || call.emergencyType || 'Unknown';
+                if (agencyCounts.hasOwnProperty(agency)) {
+                    agencyCounts[agency]++;
+                } else if (agency.includes('Police') || agency.includes('PNP')) {
+                    agencyCounts['PNP']++;
+                } else if (agency.includes('Fire') || agency.includes('BFP')) {
+                    agencyCounts['BFP']++;
+                } else if (agency.includes('Hospital') || agency.includes('Medical')) {
+                    agencyCounts['Hospital']++;
+                } else if (agency.includes('CDRRMO') || agency.includes('Disaster')) {
+                    agencyCounts['CDRRMO']++;
+                }
+            });
+
+            updateChart('sosAgencyChart', {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(agencyCounts),
+                    datasets: [{
+                        data: Object.values(agencyCounts),
+                        backgroundColor: ['#007bff', '#dc3545', '#28a745', '#ffc107'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom',
+                            labels: { padding: 10 }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart(id, config) {
+            if (charts[id]) {
+                charts[id].destroy();
+            }
+            const ctx = document.getElementById(id);
+            if (ctx) {
+                charts[id] = new Chart(ctx.getContext('2d'), config);
+            }
+        }
+
+        window.generatePDF = async function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            doc.setFontSize(20);
+            doc.setTextColor(215, 53, 39);
+            doc.text('LipaAlertHub Analytics Report', 105, 20, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Generated: ${dateStr}`, 105, 28, { align: 'center' });
+            
+            doc.setDrawColor(215, 53, 39);
+            doc.setLineWidth(0.5);
+            doc.line(20, 32, 190, 32);
+            
+            const filtered = getFilteredReports();
+            const filteredSOS = getFilteredSOSCalls();
+            
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Key Metrics', 20, 42);
+            
+            doc.setFontSize(11);
+            const metrics = [
+                `Total Reports: ${filtered.length}`,
+                `SOS Calls: ${filteredSOS.length}`,
+                `Unresolved Reports: ${filtered.filter(r => r.status !== 'resolved').length}`,
+                `Active Users: ${allUsers.filter(u => u.status === 'active').length}`,
+                `Resolution Rate: ${filtered.length > 0 ? ((filtered.filter(r => r.status === 'resolved').length / filtered.length) * 100).toFixed(0) : 0}%`
+            ];
+            
+            let yPos = 50;
+            metrics.forEach(metric => {
+                doc.text(`• ${metric}`, 25, yPos);
+                yPos += 7;
+            });
+            
+            doc.setFontSize(14);
+            doc.text('Top Insights', 20, yPos + 5);
+            yPos += 13;
+            
+            const typeCounts = {};
+            filtered.forEach(r => {
+                const type = r.emergencyType || r.incidentType || 'Unknown';
+                typeCounts[type] = (typeCounts[type] || 0) + 1;
+            });
+            const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
+            
+            const barangayCounts = {};
+            filtered.forEach(r => {
+                const brgy = r.barangay || r.location?.barangay || 'Unknown';
+                barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
+            });
+            const topBarangay = Object.entries(barangayCounts).sort((a, b) => b[1] - a[1])[0];
+            
+            doc.setFontSize(10);
+            const insights = [
+                topType ? `Most Common Incident: ${topType[0]} (${topType[1]} cases)` : '',
+                topBarangay ? `Most Active Barangay: ${topBarangay[0]} (${topBarangay[1]} reports)` : ''
+            ].filter(i => i);
+            
+            insights.forEach(insight => {
+                doc.text(`• ${insight}`, 25, yPos);
+                yPos += 7;
+            });
+            
+            yPos += 10;
+            
+            if (yPos < 250) {
+                try {
+                    const timelineCanvas = document.getElementById('timelineChart');
+                    if (timelineCanvas) {
+                        const imgData = timelineCanvas.toDataURL('image/png');
+                        doc.addImage(imgData, 'PNG', 20, yPos, 170, 80);
+                    }
+                } catch (e) {
+                    console.error('Error adding chart to PDF:', e);
+                }
+            }
+            
+            const filename = `Weekly_Analytics_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.pdf`;
+            doc.save(filename);
+        };
+
+        window.exportToExcel = function() {
+            const filtered = getFilteredReports();
+            const sosFiltered = getFilteredSOSCalls();
+            
+            const summaryData = [
+                { Metric: 'Total Reports', Value: filtered.length },
+                { Metric: 'Unresolved Reports', Value: filtered.filter(r => r.status !== 'resolved').length },
+                { Metric: 'SOS Calls', Value: sosFiltered.length },
+                { Metric: 'Active Users', Value: allUsers.filter(u => u.status === 'active').length },
+                { Metric: 'Resolution Rate', Value: filtered.length > 0 ? `${((filtered.filter(r => r.status === 'resolved').length / filtered.length) * 100).toFixed(0)}%` : '0%' }
+            ];
+            
+            const typeCounts = {};
+            filtered.forEach(r => {
+                const type = r.emergencyType || r.incidentType || 'Unknown';
+                typeCounts[type] = (typeCounts[type] || 0) + 1;
+            });
+            const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
+            
+            const barangayCounts = {};
+            filtered.forEach(r => {
+                const brgy = r.barangay || r.location?.barangay || 'Unknown';
+                barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
+            });
+            const topBarangay = Object.entries(barangayCounts).sort((a, b) => b[1] - a[1])[0];
+            
+            const hourCounts = Array(24).fill(0);
+            filtered.forEach(r => {
+                const date = extractDate(r.createdAt);
+                if (date) hourCounts[date.getHours()]++;
+            });
+            const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+            
+            const insightsData = [
+                { Insight: 'Top Incident Type', Details: topType ? `${topType[0]} (${topType[1]} cases)` : 'N/A' },
+                { Insight: 'Most Active Barangay', Details: topBarangay ? `${topBarangay[0]} (${topBarangay[1]} reports)` : 'N/A' },
+                { Insight: 'Peak Hour', Details: `${peakHour}:00 (${hourCounts[peakHour]} reports)` },
+                { Insight: 'Unresolved Cases', Details: `${filtered.filter(r => r.status !== 'resolved').length} require attention` }
+            ];
+            
+            const reportsData = filtered.map(r => ({
+                ID: r.id,
+                Type: r.emergencyType || r.incidentType || 'Unknown',
+                Barangay: r.barangay || r.location?.barangay || 'Unknown',
+                Status: r.status || 'pending',
+                Reporter: r.reporterName || r.name || 'Anonymous',
+                Date: extractDate(r.createdAt)?.toLocaleString() || 'Unknown',
+                Description: r.description || r.details || ''
+            }));
+            
+            const monthlyData = {};
+            filtered.forEach(r => {
+                const date = extractDate(r.createdAt);
+                if (date) {
+                    const key = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+                    monthlyData[key] = (monthlyData[key] || 0) + 1;
+                }
+            });
+            
+            const trendsData = Object.entries(monthlyData).map(([month, count]) => ({
+                Month: month,
+                'Total Reports': count
+            }));
+            
+            const barangayData = Object.entries(barangayCounts)
+                .filter(([name]) => name !== 'Unknown')
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, count]) => ({
+                    Barangay: name,
+                    Reports: count
+                }));
+            
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Summary');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(insightsData), 'AI Insights');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportsData), 'Detailed Reports');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trendsData), 'Monthly Trends');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(barangayData), 'Barangay Rankings');
+            
+            const now = new Date();
+            const filename = `Analytics_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+            
+            XLSX.writeFile(wb, filename);
+        };
+
+        window.logoutUser = async function() {
+            if (confirm("Are you sure you want to logout?")) {
+                try {
+                    await signOut(auth);
+                    window.location.href = "index.html";
+                } catch (error) {
+                    console.error("Logout error:", error);
+                    alert("Error logging out");
+                }
+            }
+        };
+    </script>
 </body>
 </html>

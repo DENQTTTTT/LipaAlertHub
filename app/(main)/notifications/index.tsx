@@ -1,7 +1,18 @@
-// app/(main)/notifications/index.tsx - Updated Compact Design
+// app/(main)/notifications/index.tsx - Complete with Violation Notifications
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  Image,
+  Platform,
+  RefreshControl,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { useAuth } from "../../../hooks/useAuth";
 import { NotificationData, notificationService } from "../../../services/notifications";
 
@@ -13,14 +24,21 @@ export default function NotificationsScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) {
+      setLoading(false);
+      return;
+    }
 
     const unsubscribe = notificationService.getUserNotifications(user.uid, (notificationsList) => {
       setNotifications(notificationsList);
       setLoading(false);
     });
 
-    return () => unsubscribe && unsubscribe();
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [user?.uid]);
 
   const onRefresh = async () => {
@@ -35,7 +53,13 @@ export default function NotificationsScreen() {
       }
 
       // Navigate based on notification type
-      if (notification.type.startsWith('report_')) {
+      if (notification.type === 'violation' || 
+          notification.type === 'violation_warning' || 
+          notification.type === 'violation_strike' ||
+          notification.type === 'violation_suspension' ||
+          notification.type === 'violation_ban') {
+        router.push('/(main)/profile/strikes');
+      } else if (notification.type.startsWith('report_')) {
         if (notification.reportId) {
           router.push({
             pathname: '/(main)/report/status',
@@ -59,7 +83,6 @@ export default function NotificationsScreen() {
           });
         }
       } else {
-        // For account updates or other types, show a simple alert
         Alert.alert("Notification", notification.body);
       }
     } catch (error) {
@@ -68,28 +91,33 @@ export default function NotificationsScreen() {
   };
 
   const getNotificationIcon = (type: string) => {
+    if (type.startsWith('violation')) return '⚠️';
     if (type.startsWith('report_')) return '🚨';
     if (type.startsWith('forum_')) return '💬';
     if (type.startsWith('chat_')) return '📱';
-    return '👤'; // account updates or default
+    return '👤';
   };
 
   const getIconColor = (type: string, status: string) => {
     const opacity = status === 'unread' ? 1 : 0.6;
     
-    if (type.startsWith('report_')) {
-      if (type.includes('approved') || type.includes('verified') || type.includes('resolved')) {
-        return `rgba(34, 197, 94, ${opacity})`; // green
-      }
-      if (type.includes('rejected') || type.includes('failed')) {
-        return `rgba(239, 68, 68, ${opacity})`; // red  
-      }
-      return `rgba(59, 130, 246, ${opacity})`; // blue
+    if (type.startsWith('violation')) {
+      return `rgba(231, 76, 60, ${opacity})`;
     }
     
-    if (type.startsWith('forum_')) return `rgba(156, 39, 176, ${opacity})`; // purple
-    if (type.startsWith('chat_')) return `rgba(52, 152, 219, ${opacity})`; // light blue
-    return `rgba(107, 114, 128, ${opacity})`; // gray for account
+    if (type.startsWith('report_')) {
+      if (type.includes('approved') || type.includes('verified') || type.includes('resolved')) {
+        return `rgba(34, 197, 94, ${opacity})`;
+      }
+      if (type.includes('rejected') || type.includes('failed')) {
+        return `rgba(239, 68, 68, ${opacity})`;
+      }
+      return `rgba(59, 130, 246, ${opacity})`;
+    }
+    
+    if (type.startsWith('forum_')) return `rgba(156, 39, 176, ${opacity})`;
+    if (type.startsWith('chat_')) return `rgba(52, 152, 219, ${opacity})`;
+    return `rgba(107, 114, 128, ${opacity})`;
   };
 
   const formatTime = (timestamp: any) => {
@@ -130,48 +158,54 @@ export default function NotificationsScreen() {
     }
   };
 
-  const renderNotification = ({ item }: { item: NotificationData }) => (
-    <TouchableOpacity
-      style={[
-        styles.notificationItem,
-        item.status === 'unread' && styles.unreadItem
-      ]}
-      onPress={() => handleNotificationPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={[
-        styles.iconContainer, 
-        { backgroundColor: getIconColor(item.type, item.status) }
-      ]}>
-        <Text style={styles.iconText}>
-          {getNotificationIcon(item.type)}
-        </Text>
-      </View>
-      
-      <View style={styles.contentContainer}>
-        <View style={styles.titleRow}>
-          <Text style={[
-            styles.title,
-            item.status === 'unread' && styles.unreadTitle
-          ]} numberOfLines={1}>
-            {item.title}
+  const renderNotification = ({ item }: { item: NotificationData }) => {
+    const isViolation = item.type.startsWith('violation');
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.notificationItem,
+          item.status === 'unread' && styles.unreadItem,
+          isViolation && styles.violationItem
+        ]}
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={[
+          styles.iconContainer, 
+          { backgroundColor: getIconColor(item.type, item.status) }
+        ]}>
+          <Text style={styles.iconText}>
+            {getNotificationIcon(item.type)}
           </Text>
-          {item.status === 'unread' && <View style={styles.unreadDot} />}
         </View>
-        <Text style={styles.message} numberOfLines={2}>
-          {item.body}
+        
+        <View style={styles.contentContainer}>
+          <View style={styles.titleRow}>
+            <Text style={[
+              styles.title,
+              item.status === 'unread' && styles.unreadTitle,
+              isViolation && styles.violationTitle
+            ]} numberOfLines={1}>
+              {item.title}
+            </Text>
+            {item.status === 'unread' && <View style={styles.unreadDot} />}
+          </View>
+          <Text style={styles.message} numberOfLines={2}>
+            {item.body}
+          </Text>
+        </View>
+        
+        <Text style={styles.timestamp}>
+          {formatTime(item.createdAt)}
         </Text>
-      </View>
-      
-      <Text style={styles.timestamp}>
-        {formatTime(item.createdAt)}
-      </Text>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
+      <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Loading notifications...</Text>
       </View>
     );
@@ -179,21 +213,25 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar backgroundColor="#f8f9fa" barStyle="dark-content" />
+      
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Image 
             source={require('../../../assets/images/logo.png')} 
             style={styles.logoImage}
+            resizeMode="contain"
           />
           <Text style={styles.logoTitle}>LipaAlertHub</Text>
         </View>
-        <View style={styles.titleRow}>
+        <View style={styles.headerBottom}>
           <Text style={styles.pageTitle}>Notifications</Text>
           {notifications.length > 0 && (
             <TouchableOpacity
               style={styles.markAllButton}
               onPress={markAllAsRead}
+              activeOpacity={0.7}
             >
               <Text style={styles.markAllText}>Mark All Read</Text>
             </TouchableOpacity>
@@ -205,15 +243,20 @@ export default function NotificationsScreen() {
       <FlatList
         data={notifications}
         renderItem={renderNotification}
-        keyExtractor={(item) => item.id || 'temp'}
+        keyExtractor={(item) => item.id || `temp-${Math.random()}`}
         style={styles.listContainer}
         contentContainerStyle={[
           styles.listContent,
-          notifications.length === 0 && styles.centered
+          notifications.length === 0 && styles.emptyList
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={["#e74c3c"]}
+            tintColor="#e74c3c"
+          />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -234,68 +277,75 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8f9fa",
   },
-  centered: {
+  loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#666",
+    fontWeight: "500",
   },
   header: {
+    backgroundColor: "#fff",
+    paddingTop: Platform.OS === 'ios' ? 50 : 25,
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: "#ffffff",
+    paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#e0e0e0",
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   logoImage: {
     width: 28,
     height: 28,
-    borderRadius: 6,
     marginRight: 8,
-    resizeMode: 'contain',
   },
   logoTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1f2937",
+    color: "#333",
   },
-  titleRow: {
+  headerBottom: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 2,
   },
   pageTitle: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#1f2937",
+    fontWeight: "700",
+    color: "#333",
     flex: 1,
   },
   markAllButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: "#3b82f6",
+    borderRadius: 8,
+    backgroundColor: "#e74c3c",
   },
   markAllText: {
     color: "#fff",
     fontSize: 12,
     fontWeight: "600",
   },
-  loadingText: {
-    fontSize: 16,
-    color: "#6b7280",
-  },
   listContainer: {
     flex: 1,
   },
   listContent: {
     paddingBottom: 100,
+  },
+  emptyList: {
+    flexGrow: 1,
   },
   notificationItem: {
     flexDirection: 'row',
@@ -311,6 +361,11 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: '#3b82f6',
   },
+  violationItem: {
+    backgroundColor: '#fff5f5',
+    borderLeftWidth: 3,
+    borderLeftColor: '#e74c3c',
+  },
   iconContainer: {
     width: 36,
     height: 36,
@@ -325,7 +380,11 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     marginRight: 8,
-  // Removed duplicate titleRow style, merged into the previous definition.
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
   },
   title: {
     fontSize: 15,
@@ -335,6 +394,10 @@ const styles = StyleSheet.create({
   },
   unreadTitle: {
     color: '#1f2937',
+    fontWeight: '700',
+  },
+  violationTitle: {
+    color: '#e74c3c',
     fontWeight: '700',
   },
   unreadDot: {
@@ -361,7 +424,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
-    paddingVertical: 80,
+    paddingTop: 100,
   },
   emptyIcon: {
     fontSize: 48,

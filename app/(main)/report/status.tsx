@@ -203,7 +203,7 @@ export default function ReportStatus() {
       </Text>
       <Text style={styles.detailText}>
         <Text style={styles.detailLabel}>Time Submitted: </Text>
-        <Text>{report ? formatReportTime(report.timestamp) : 'Loading...'}</Text>
+        <Text>{report ? formatReportTime(report.createdAt) : 'Loading...'}</Text>
       </Text>
       <Text style={styles.detailText}>
         <Text style={styles.detailLabel}>Status: </Text>
