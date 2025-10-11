@@ -4,498 +4,486 @@ import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Dimensions,
   Image,
+  Linking,
+  Platform,
   ScrollView,
-  Share,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { db } from '../../../services/firebase';
+
+const { width } = Dimensions.get('window');
+const isSmallDevice = width < 375;
 
 interface WeatherAlert {
   id: string;
   title: string;
   description: string;
   severity: 'info' | 'watch' | 'warning' | 'danger';
-  type: 'weather' | 'disaster';
+  type: 'weather' | 'earthquake' | 'volcano' | 'flood' | 'disaster';
   approved: boolean;
   isActive: boolean;
   createdAt: Timestamp;
   createdBy: string;
-  imageUrl?: string;
+  source?: string;
 }
 
-const WeatherAlertDetailScreen = () => {
+const DetailedAlertScreen = () => {
+  const { alertId } = useLocalSearchParams();
   const [alert, setAlert] = useState<WeatherAlert | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { alertId } = useLocalSearchParams<{ alertId: string }>();
 
   useEffect(() => {
-    const fetchAlert = async () => {
-      if (!alertId) {
-        Alert.alert('Error', 'No alert ID provided');
-        router.back();
-        return;
-      }
-
+    const fetchAlertDetails = async () => {
       try {
-        const alertDoc = await getDoc(doc(db, 'weather_alerts', alertId));
+        setError(null);
         
-        if (alertDoc.exists()) {
-          const alertData = {
-            id: alertDoc.id,
-            ...alertDoc.data(),
-          } as WeatherAlert;
-          
-          // Check if alert is approved and active
-          if (!alertData.approved || !alertData.isActive) {
-            Alert.alert('Alert Not Available', 'This alert is no longer active.');
-            router.back();
-            return;
-          }
-          
-          setAlert(alertData);
-        } else {
-          Alert.alert('Alert Not Found', 'The requested alert could not be found.');
-          router.back();
+        if (!alertId) {
+          setError('Alert ID not found');
+          setLoading(false);
+          return;
         }
+
+        const alertDoc = await getDoc(doc(db, 'alerts', alertId as string));
+        
+        if (!alertDoc.exists()) {
+          setError('Alert not found');
+          setLoading(false);
+          return;
+        }
+
+        const data = alertDoc.data();
+        
+        if (data.approved && data.isActive) {
+          setAlert({
+            id: alertDoc.id,
+            title: data.title || 'Alert',
+            description: data.description || 'No description available',
+            severity: data.severity || 'info',
+            type: data.type || 'weather',
+            approved: data.approved || false,
+            isActive: data.isActive || false,
+            createdAt: data.createdAt || Timestamp.now(),
+            createdBy: data.createdBy || 'system',
+            source: data.source || 'CDRRMO Lipa',
+          } as WeatherAlert);
+        } else {
+          setError('This alert is no longer active');
+        }
+        
+        setLoading(false);
       } catch (error) {
-        console.error('Error fetching alert:', error);
-        Alert.alert('Error', 'Failed to fetch alert details');
-        router.back();
-      } finally {
+        console.error('Error fetching alert details:', error);
+        setError('Unable to load alert details. Please check your connection.');
         setLoading(false);
       }
     };
 
-    fetchAlert();
+    fetchAlertDetails();
   }, [alertId]);
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'info': return '#3498db';
-      case 'watch': return '#f39c12';
-      case 'warning': return '#e67e22';
-      case 'danger': return '#e74c3c';
-      default: return '#95a5a6';
-    }
-  };
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'info': return 'information-circle';
-      case 'watch': return 'eye';
-      case 'warning': return 'warning';
-      case 'danger': return 'alert-circle';
-      default: return 'help-circle';
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    return type === 'weather' ? 'cloud' : 'warning';
+  const handleEmergencyCall = (phoneNumber: string) => {
+    Linking.openURL(`tel:${phoneNumber}`);
   };
 
   const formatDate = (timestamp: Timestamp) => {
-    const date = timestamp.toDate();
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
-    if (diffInHours < 24) {
-      return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      });
-    } else {
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      });
-    }
-  };
-
-  const getSeverityTextColor = (severity: string) => {
-    switch (severity) {
-      case 'danger': return '#ffffff';
-      case 'warning': return '#ffffff';
-      default: return '#ffffff';
-    }
-  };
-
-  const handleShare = async () => {
-    if (!alert) return;
-    
-    try {
-      const message = `🚨 ${alert.severity.toUpperCase()} ALERT\n\n${alert.title}\n\n${alert.description}\n\nIssued: ${formatDate(alert.createdAt)}\n\nStay safe! - LipaAlertHub`;
-      
-      await Share.share({
-        message,
-        title: `${alert.severity.toUpperCase()} Alert: ${alert.title}`,
-      });
-    } catch (error) {
-      console.error('Error sharing alert:', error);
-    }
+    return timestamp.toDate().toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingHeader}>
-          <View style={styles.headerLeft}>
-            <View style={styles.logoContainer}>
-              <Ionicons name="shield" size={24} color="#D32F2F" />
-            </View>
-            <Text style={styles.appName}>LipaAlertHub</Text>
+      <View style={styles.container}>
+        <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('../../../assets/images/logo.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.logoTitle}>LipaAlertHub</Text>
           </View>
-          <Text style={styles.headerTitle}>Alert Details</Text>
-          <View style={styles.shareButton} />
+          <Text style={styles.pageTitle}>Alert Details</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#D32F2F" />
+          <ActivityIndicator size="large" color="#e74c3c" />
           <Text style={styles.loadingText}>Loading alert details...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  if (!alert) {
+  if (error || !alert) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorHeader}>
-          <View style={styles.headerLeft}>
-            <View style={styles.logoContainer}>
-              <Ionicons name="shield" size={24} color="#D32F2F" />
-            </View>
-            <Text style={styles.appName}>LipaAlertHub</Text>
+      <View style={styles.container}>
+        <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('../../../assets/images/logo.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.logoTitle}>LipaAlertHub</Text>
           </View>
-          <Text style={styles.headerTitle}>Alert Details</Text>
-          <View style={styles.shareButton} />
+          <Text style={styles.pageTitle}>Alert Details</Text>
         </View>
         <View style={styles.errorContainer}>
-          <Ionicons name="warning-outline" size={80} color="#e74c3c" />
-          <Text style={styles.errorTitle}>Alert Not Found</Text>
-          <Text style={styles.errorSubtitle}>
-            The requested alert could not be loaded.
+          <Ionicons name="alert-circle-outline" size={48} color="#e74c3c" />
+          <Text style={styles.errorTitle}>
+            {error || 'Alert not found'}
           </Text>
+          <Text style={styles.errorText}>
+            {error === 'Alert not found' 
+              ? 'The requested alert could not be found.' 
+              : 'Please check your connection and try again.'}
+          </Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.retryButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
+      
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="shield" size={24} color="#D32F2F" />
-          </View>
-          <Text style={styles.appName}>LipaAlertHub</Text>
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('../../../assets/images/logo.png')} 
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+          <Text style={styles.logoTitle}>LipaAlertHub</Text>
         </View>
-        <Text style={styles.headerTitle}>Alert Details</Text>
-        <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
-          <Ionicons name="share-outline" size={24} color="#333" />
-        </TouchableOpacity>
+        <Text style={styles.pageTitle}>Alert Details</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Alert Header */}
-        <View style={[styles.alertHeaderSection, { backgroundColor: getSeverityColor(alert.severity) }]}>
-          <View style={styles.alertHeaderContent}>
-            <View style={styles.severityContainer}>
-              <Text style={styles.severityLabel}>
-                {alert.severity === 'info' ? 'Blue Information' : 
-                 alert.severity === 'watch' ? 'Yellow Warning' :
-                 alert.severity === 'warning' ? 'Orange Warning' :
-                 'Red Warning'}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Main Alert Content */}
+        <View style={styles.alertContainer}>
+          {/* Title */}
+          <Text style={styles.alertTitle}>{alert.title}</Text>
+          
+          {/* Description */}
+          <View style={styles.descriptionContainer}>
+            <Text style={styles.descriptionText}>
+              {alert.description}
+            </Text>
+          </View>
+          
+          {/* Time and Source */}
+          <View style={styles.infoContainer}>
+            <View style={styles.infoItem}>
+              <Ionicons name="time-outline" size={16} color="#666" />
+              <Text style={styles.infoLabel}>Issued</Text>
+              <Text style={styles.infoValue}>
+                {formatDate(alert.createdAt)}
               </Text>
             </View>
-            <Text style={styles.alertMainTitle}>{alert.title.toUpperCase()}</Text>
+            
+            <View style={styles.infoItem}>
+              <Ionicons name="business-outline" size={16} color="#666" />
+              <Text style={styles.infoLabel}>Source</Text>
+              <Text style={styles.infoValue}>
+                {alert.source}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Alert Image */}
-        {alert.imageUrl && (
-          <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: alert.imageUrl }}
-              style={styles.alertImage}
-              resizeMode="cover"
-            />
-          </View>
-        )}
+        {/* Emergency Contacts */}
+        <View style={styles.contactsSection}>
+          <Text style={styles.sectionTitle}>Emergency Contacts</Text>
+          
+          <View style={styles.contactsContainer}>
+            <TouchableOpacity 
+              style={styles.contactItem}
+              onPress={() => handleEmergencyCall('(043) 756-0127')}
+            >
+              <View style={styles.contactIcon}>
+                <Ionicons name="medkit" size={20} color="#e74c3c" />
+              </View>
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactName}>CDRRMO Medical</Text>
+                <Text style={styles.contactNumber}>(043) 756-0127</Text>
+              </View>
+              <Ionicons name="call" size={16} color="#e74c3c" />
+            </TouchableOpacity>
 
-        {/* Alert Content */}
-        <View style={styles.alertContent}>
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.alertDescription}>{alert.description}</Text>
-          </View>
+            <TouchableOpacity 
+              style={styles.contactItem}
+              onPress={() => handleEmergencyCall('(043) 757-4618')}
+            >
+              <View style={styles.contactIcon}>
+                <Ionicons name="flame" size={20} color="#f39c12" />
+              </View>
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactName}>LIPA BFP Fire</Text>
+                <Text style={styles.contactNumber}>(043) 757-4618</Text>
+              </View>
+              <Ionicons name="call" size={16} color="#f39c12" />
+            </TouchableOpacity>
 
-          <View style={styles.metaContainer}>
-            <Text style={styles.metaText}>
-              Issued: {formatDate(alert.createdAt)}
-            </Text>
-            <Text style={styles.metaText}>
-              Type: {alert.type.charAt(0).toUpperCase() + alert.type.slice(1)} Alert
-            </Text>
-          </View>
-
-          {/* Safety Instructions */}
-          <View style={styles.safetyContainer}>
-            <View style={styles.safetyHeader}>
-              <Ionicons name="shield-checkmark" size={20} color="#27ae60" />
-              <Text style={styles.safetyTitle}>Safety Guidelines</Text>
-            </View>
-            <View style={styles.safetyTips}>
-              <Text style={styles.safetyTip}>
-                • Stay informed through official channels
-              </Text>
-              <Text style={styles.safetyTip}>
-                • Follow instructions from local authorities
-              </Text>
-              <Text style={styles.safetyTip}>
-                • Keep emergency contacts readily available
-              </Text>
-              <Text style={styles.safetyTip}>
-                • Prepare emergency supplies if necessary
-              </Text>
-            </View>
-          </View>
-
-          {/* Emergency Contact */}
-          <View style={styles.contactContainer}>
-            <View style={styles.contactHeader}>
-              <Ionicons name="call" size={20} color="#e74c3c" />
-              <Text style={styles.contactTitle}>Emergency Contact</Text>
-            </View>
-            <TouchableOpacity style={styles.emergencyButton}>
-              <Ionicons name="call" size={18} color="white" />
-              <Text style={styles.emergencyButtonText}>CDRRMO Hotline</Text>
+            <TouchableOpacity 
+              style={styles.contactItem}
+              onPress={() => handleEmergencyCall('(043) 702-3832')}
+            >
+              <View style={styles.contactIcon}>
+                <Ionicons name="shield-checkmark" size={20} color="#3498db" />
+              </View>
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactName}>LIPA PNP Police</Text>
+                <Text style={styles.contactNumber}>(043) 702-3832</Text>
+              </View>
+              <Ionicons name="call" size={16} color="#3498db" />
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Footer Note */}
+        <View style={styles.footerNote}>
+          <Ionicons name="information-circle-outline" size={14} color="#666" />
+          <Text style={styles.footerText}>
+            For emergencies, tap on any contact to call immediately
+          </Text>
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#ffffff',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: "#ffffff",
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
+    paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e8ed',
-  },
-  loadingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e8ed',
-  },
-  errorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e8ed',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+    borderBottomColor: "#f0f0f0",
   },
   logoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  logoImage: {
     width: 32,
     height: 32,
-    backgroundColor: 'rgba(211, 47, 47, 0.1)',
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 10,
   },
-  appName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#D32F2F',
+  logoTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
-    flex: 1,
-  },
-  shareButton: {
-    padding: 4,
+  pageTitle: {
+    fontSize: isSmallDevice ? 24 : 28,
+    fontWeight: "700",
+    color: "#1a1a1a",
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 20,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 12,
     fontSize: 16,
     color: '#666',
+    fontWeight: "500",
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
+    paddingTop: 60,
   },
   errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 20,
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#e74c3c',
+    marginTop: 16,
+    marginBottom: 8,
   },
-  errorSubtitle: {
-    fontSize: 16,
+  errorText: {
+    fontSize: 15,
     color: '#666',
     textAlign: 'center',
-    marginTop: 10,
-    lineHeight: 24,
-  },
-  alertHeaderSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 25,
-  },
-  alertHeaderContent: {
-    alignItems: 'flex-start',
-  },
-  severityContainer: {
-    marginBottom: 10,
-  },
-  severityLabel: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  alertMainTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    letterSpacing: 0.5,
-    lineHeight: 26,
-  },
-  imageContainer: {
-    backgroundColor: 'white',
-  },
-  alertImage: {
-    width: '100%',
-    height: 200,
-  },
-  alertContent: {
-    backgroundColor: 'white',
-    padding: 20,
-  },
-  descriptionContainer: {
+    lineHeight: 22,
     marginBottom: 20,
   },
-  alertDescription: {
+  retryButton: {
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  alertContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+    marginBottom: 20,
+  },
+  alertTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  descriptionContainer: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  descriptionText: {
     fontSize: 16,
     color: '#444',
     lineHeight: 24,
+    textAlign: 'left',
   },
-  metaContainer: {
-    backgroundColor: '#f8f9fa',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
+  infoContainer: {
+    gap: 12,
   },
-  metaText: {
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  infoLabel: {
     fontSize: 14,
+    fontWeight: '600',
     color: '#666',
-    marginBottom: 5,
-    fontWeight: '500',
+    marginLeft: 12,
+    marginRight: 'auto',
+    width: 60,
   },
-  safetyContainer: {
-    backgroundColor: '#f8fff9',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#d5f4e6',
-  },
-  safetyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  safetyTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#27ae60',
-    marginLeft: 8,
-  },
-  safetyTips: {
-    gap: 8,
-  },
-  safetyTip: {
+  infoValue: {
     fontSize: 14,
-    color: '#2d5016',
-    lineHeight: 20,
+    fontWeight: '500',
+    color: '#1a1a1a',
+    flex: 1,
+    textAlign: 'right',
   },
-  contactContainer: {
-    backgroundColor: '#fdf2f2',
+  contactsSection: {
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#f5c6cb',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    marginBottom: 20,
   },
-  contactHeader: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 16,
+  },
+  contactsContainer: {
+    gap: 12,
+  },
+  contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 8,
+    gap: 12,
   },
-  contactTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#e74c3c',
-    marginLeft: 8,
+  contactIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
-  emergencyButton: {
-    backgroundColor: '#e74c3c',
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  contactNumber: {
+    fontSize: 12,
+    color: '#666',
+  },
+  footerNote: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
+    padding: 16,
     gap: 8,
   },
-  emergencyButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+  footerText: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 
-export default WeatherAlertDetailScreen;
+export default DetailedAlertScreen;

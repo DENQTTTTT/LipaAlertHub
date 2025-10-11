@@ -4,13 +4,25 @@ import { logout } from "@/services/auth";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Dimensions,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
+
+const { width, height } = Dimensions.get('window');
+
+const getResponsiveSize = (small: number, medium: number, large: number) => {
+  if (width > 600) return large * 1.2;
+  if (width >= 414) return large;
+  if (width >= 380) return medium;
+  return small;
+};
 
 export default function AccountStatusScreen() {
   const { userProfile, user } = useAuth();
@@ -54,19 +66,29 @@ export default function AccountStatusScreen() {
   const getStatusContent = () => {
     const status = userProfile?.status;
     const declineReason = userProfile?.declineReason;
+    const duplicateFlag = userProfile?.duplicateFlag;
 
     switch (status) {
       case "pending":
         return {
           title: "Profile Under Review",
-          message: "Your profile is still under review by the Admin. Please wait for approval. You will receive an email notification once reviewed.",
+          message: duplicateFlag 
+            ? "Your account is under additional review due to a potential duplicate name in your barangay. This process may take longer than usual."
+            : "Your profile is currently under review by our admin team. Please wait for approval. You will receive an email notification once reviewed.",
           icon: "⏳",
+          bgColor: "#f39c12",
+        };
+      case "under_review":
+        return {
+          title: "Additional Review Required",
+          message: "Your account requires additional verification due to potential duplicate information. Our team is reviewing your details carefully.",
+          icon: "🔍",
           bgColor: "#f39c12",
         };
       case "declined":
         return {
           title: "Profile Declined",
-          message: `Your profile has been declined.${declineReason ? ` Reason: ${declineReason}.` : ""} Please contact support if you believe this is a mistake.`,
+          message: `Your profile registration has been declined.${declineReason ? ` Reason: ${declineReason}` : ""} Please contact support if you believe this is a mistake.`,
           icon: "❌",
           bgColor: "#e74c3c",
         };
@@ -84,64 +106,86 @@ export default function AccountStatusScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar backgroundColor="#d73527" barStyle="light-content" />
+      
       {/* Header with logo and app name */}
       <View style={styles.header}>
         <Image
-        source={require("../../assets/images/logo.png")} 
+          source={require("../../assets/images/logo.png")} 
           style={styles.logo}
           resizeMode="contain"
         />
         <Text style={styles.appName}>LipaAlertHub</Text>
       </View>
 
-      {/* Status Card */}
-      <View style={styles.cardContainer}>
-        <View style={[styles.card, { borderTopColor: statusContent.bgColor }]}>
-          {/* Status Icon and Title */}
-          <View style={styles.statusHeader}>
-            <Text style={styles.statusIcon}>{statusContent.icon}</Text>
-            <Text style={styles.statusTitle}>{statusContent.title}</Text>
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* Status Card */}
+        <View style={styles.cardContainer}>
+          <View style={[styles.card, { borderTopColor: statusContent.bgColor }]}>
+            {/* Status Icon and Title */}
+            <View style={styles.statusHeader}>
+              <Text style={styles.statusIcon}>{statusContent.icon}</Text>
+              <Text style={styles.statusTitle}>{statusContent.title}</Text>
+            </View>
+
+            {/* Status Message */}
+            <Text style={styles.statusMessage}>{statusContent.message}</Text>
+
+            {/* User Info */}
+            <View style={styles.userInfo}>
+              <Text style={styles.userInfoLabel}>Account Email:</Text>
+              <Text style={styles.userInfoValue}>{userProfile?.email || user?.email}</Text>
+              
+              <Text style={styles.userInfoLabel}>Full Name:</Text>
+              <Text style={styles.userInfoValue}>{userProfile?.name || user?.displayName || "Not provided"}</Text>
+              
+              <Text style={styles.userInfoLabel}>Barangay:</Text>
+              <Text style={styles.userInfoValue}>{userProfile?.barangay || "Not specified"}</Text>
+              
+              <Text style={styles.userInfoLabel}>Registration Date:</Text>
+              <Text style={styles.userInfoValue}>
+                {userProfile?.createdAt?.toDate?.()?.toLocaleDateString() || 
+                 userProfile?.createdAt?.toLocaleDateString?.() || 
+                 "N/A"}
+              </Text>
+
+              <Text style={styles.userInfoLabel}>Current Status:</Text>
+              <Text style={[styles.userInfoValue, { color: statusContent.bgColor, fontWeight: '700' }]}>
+                {userProfile?.status?.toUpperCase() || "UNKNOWN"}
+              </Text>
+            </View>
+
+            {/* Support Contact */}
+            <View style={styles.supportInfo}>
+              <Text style={styles.supportText}>
+                Need help? Contact our support team:
+              </Text>
+              <Text style={styles.supportContact}>support@lipaalerthub.com</Text>
+              <Text style={styles.supportPhone}>(+63) 123-456-7890</Text>
+            </View>
+
+            {/* Logout Button */}
+            <PrimaryButton
+              title={loading ? "Logging Out..." : "Logout"}
+              onPress={handleLogout}
+              loading={loading}
+              style={styles.logoutButton}
+            />
           </View>
-
-          {/* Status Message */}
-          <Text style={styles.statusMessage}>{statusContent.message}</Text>
-
-          {/* User Info */}
-          <View style={styles.userInfo}>
-            <Text style={styles.userInfoLabel}>Account:</Text>
-            <Text style={styles.userInfoValue}>{userProfile?.email}</Text>
-            <Text style={styles.userInfoLabel}>Name:</Text>
-            <Text style={styles.userInfoValue}>{userProfile?.name || user?.displayName}</Text>
-            <Text style={styles.userInfoLabel}>Registration Date:</Text>
-            <Text style={styles.userInfoValue}>
-              {userProfile?.createdAt?.toDate?.()?.toLocaleDateString() || "N/A"}
-            </Text>
-          </View>
-
-          {/* Support Contact */}
-          <View style={styles.supportInfo}>
-            <Text style={styles.supportText}>
-              Need help? Contact our support team:
-            </Text>
-            <Text style={styles.supportContact}>support@lipaalerthub.com</Text>
-          </View>
-
-          {/* Logout Button */}
-          <PrimaryButton
-            title="Logout"
-            onPress={handleLogout}
-            loading={loading}
-            style={styles.logoutButton}
-          />
         </View>
-      </View>
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Thank you for your patience while we review your account.
-        </Text>
-      </View>
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Thank you for your patience while we review your account.
+          </Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -149,33 +193,40 @@ export default function AccountStatusScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#d73527", // Red background like dashboard
+    backgroundColor: "#d73527",
   },
   header: {
     alignItems: "center",
-    paddingTop: 20,
-    paddingBottom: 30,
+    paddingTop: getResponsiveSize(15, 20, 25),
+    paddingBottom: getResponsiveSize(20, 25, 30),
+    paddingHorizontal: 20,
   },
   logo: {
-    width: 80,
-    height: 80,
-    marginBottom: 10,
+    width: getResponsiveSize(60, 70, 80),
+    height: getResponsiveSize(60, 70, 80),
+    marginBottom: getResponsiveSize(8, 10, 12),
   },
   appName: {
-    fontSize: 24,
+    fontSize: getResponsiveSize(20, 22, 24),
     fontWeight: "bold",
     color: "white",
     textAlign: "center",
   },
-  cardContainer: {
+  scrollContainer: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: getResponsiveSize(20, 25, 30),
+  },
+  cardContainer: {
+    paddingHorizontal: getResponsiveSize(15, 18, 20),
+    paddingTop: getResponsiveSize(10, 15, 20),
   },
   card: {
     backgroundColor: "white",
-    borderRadius: 15,
-    padding: 25,
+    borderRadius: getResponsiveSize(12, 14, 15),
+    padding: getResponsiveSize(20, 23, 25),
     borderTopWidth: 5,
     shadowColor: "#000",
     shadowOffset: {
@@ -185,74 +236,87 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    marginBottom: getResponsiveSize(15, 20, 25),
   },
   statusHeader: {
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: getResponsiveSize(15, 18, 20),
   },
   statusIcon: {
-    fontSize: 48,
-    marginBottom: 10,
+    fontSize: getResponsiveSize(40, 45, 48),
+    marginBottom: getResponsiveSize(8, 10, 12),
   },
   statusTitle: {
-    fontSize: 22,
+    fontSize: getResponsiveSize(18, 20, 22),
     fontWeight: "bold",
     color: "#2c3e50",
     textAlign: "center",
+    lineHeight: getResponsiveSize(24, 26, 28),
   },
   statusMessage: {
-    fontSize: 16,
+    fontSize: getResponsiveSize(14, 15, 16),
     color: "#34495e",
-    lineHeight: 24,
+    lineHeight: getResponsiveSize(20, 22, 24),
     textAlign: "center",
-    marginBottom: 25,
+    marginBottom: getResponsiveSize(20, 23, 25),
   },
   userInfo: {
     backgroundColor: "#f8f9fa",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
+    padding: getResponsiveSize(12, 14, 15),
+    borderRadius: getResponsiveSize(8, 9, 10),
+    marginBottom: getResponsiveSize(15, 18, 20),
   },
   userInfoLabel: {
-    fontSize: 12,
+    fontSize: getResponsiveSize(11, 12, 13),
     color: "#7f8c8d",
-    marginTop: 8,
+    marginTop: getResponsiveSize(6, 7, 8),
     fontWeight: "600",
   },
   userInfoValue: {
-    fontSize: 14,
+    fontSize: getResponsiveSize(13, 14, 15),
     color: "#2c3e50",
-    marginBottom: 5,
+    marginBottom: getResponsiveSize(4, 5, 6),
+    lineHeight: getResponsiveSize(18, 20, 22),
   },
   supportInfo: {
     borderTopWidth: 1,
     borderTopColor: "#ecf0f1",
-    paddingTop: 20,
-    marginBottom: 25,
+    paddingTop: getResponsiveSize(15, 18, 20),
+    marginBottom: getResponsiveSize(20, 23, 25),
     alignItems: "center",
   },
   supportText: {
-    fontSize: 14,
+    fontSize: getResponsiveSize(12, 13, 14),
     color: "#7f8c8d",
-    marginBottom: 5,
+    marginBottom: getResponsiveSize(6, 8, 10),
+    textAlign: 'center',
   },
   supportContact: {
-    fontSize: 16,
+    fontSize: getResponsiveSize(14, 15, 16),
     color: "#3498db",
     fontWeight: "600",
+    marginBottom: getResponsiveSize(4, 5, 6),
+  },
+  supportPhone: {
+    fontSize: getResponsiveSize(12, 13, 14),
+    color: "#3498db",
+    fontWeight: "500",
   },
   logoutButton: {
     backgroundColor: "#e74c3c",
-    marginTop: 10,
+    marginTop: getResponsiveSize(8, 10, 12),
+    paddingVertical: getResponsiveSize(12, 14, 16),
   },
   footer: {
-    padding: 20,
+    padding: getResponsiveSize(15, 18, 20),
     alignItems: "center",
+    marginTop: 'auto',
   },
   footerText: {
     color: "white",
-    fontSize: 14,
+    fontSize: getResponsiveSize(12, 13, 14),
     textAlign: "center",
     opacity: 0.9,
+    lineHeight: getResponsiveSize(16, 18, 20),
   },
 });

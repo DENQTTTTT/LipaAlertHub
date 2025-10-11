@@ -1,26 +1,26 @@
-// services/notifications.ts - Enhanced with Violation Notifications
+// services/notification.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  getFirestore,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  Timestamp,
-  updateDoc,
-  where,
-  writeBatch
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    getDocs,
+    getFirestore,
+    limit,
+    onSnapshot,
+    orderBy,
+    query,
+    Timestamp,
+    updateDoc,
+    where,
+    writeBatch
 } from 'firebase/firestore';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
-// Configure notification handling
+// FIXED: Proper NotificationHandler configuration - WALANG ERROR
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -31,13 +31,13 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Comprehensive notification types - ADDED VIOLATION TYPES
+
+// Comprehensive notification types
 export type NotificationType =
   // Report/Incident notifications
   | 'report_submitted'
   | 'report_accepted'
   | 'report_verified'
-  | 'report_approved'
   | 'report_rejected'
   | 'report_failed'
   | 'report_resolved'
@@ -68,7 +68,7 @@ export type NotificationType =
   | 'account_suspended'
   | 'account_role_changed'
   | 'account_profile_updated'
-  // ✅ NEW: Violation notifications
+  // Violation notifications
   | 'violation'
   | 'violation_warning'
   | 'violation_strike'
@@ -84,7 +84,13 @@ export type NotificationType =
   | 'emergency_broadcast'
   | 'evacuation_notice'
   // Emergency contacts
-  | 'emergency_contact_updated';
+  | 'emergency_contact_updated'
+  // SOS-specific notifications
+  | 'sos_call_pending'
+  | 'sos_call_confirm'
+  | 'sos_call_reviewed'
+  | 'sos_call_assigned'
+  | 'sos_confirmation';
 
 export interface NotificationData {
   id?: string;
@@ -102,6 +108,7 @@ export interface NotificationData {
   forumReplyId?: string;
   chatRoomId?: string;
   announcementId?: string;
+  sosCallId?: string;
   // Additional data for context
   data?: {
     reportType?: string;
@@ -110,13 +117,20 @@ export interface NotificationData {
     senderAvatar?: string;
     actionUrl?: string;
     imageUrl?: string;
-    // ✅ NEW: Violation-specific data
+    // Violation-specific data
     violationType?: 'warning' | 'strike' | 'suspension' | 'ban';
     reason?: string;
     strikes?: number;
     warnings?: number;
     suspensionDays?: number;
     suspensionUntil?: string;
+    // SOS call data
+    sosId?: string;
+    agencyName?: string;
+    phoneNumber?: string;
+    barangay?: string;
+    emergencyType?: string;
+    requiresConfirmation?: boolean;
     [key: string]: any;
   };
 }
@@ -199,12 +213,46 @@ export class NotificationService {
   private handleNotificationResponse(response: Notifications.NotificationResponse) {
     const data = response.notification.request.content.data;
     
-    if (data?.type && data?.notificationId) {
+    // Handle SOS confirmation notifications
+    if (data?.type === 'sos_confirmation') {
+      this.handleSOSConfirmationNotification(data);
+    } else if (data?.type && data?.notificationId) {
       console.log(`Handling notification tap for type: ${data.type}`);
     }
   }
 
+  // Handle SOS confirmation notifications
+  private handleSOSConfirmationNotification(notification: any) {
+    const { serviceTitle, emergencyType, reporterBarangay } = notification;
+    
+    // Show confirmation alert when user taps the notification
+    Alert.alert(
+      "Emergency Call Confirmation",
+      `Did you complete your emergency call to ${serviceTitle}?`,
+      [
+        {
+          text: "No, I cancelled",
+          style: "cancel",
+          onPress: () => {
+            // Handle cancelled call
+            console.log('User cancelled the emergency call');
+          }
+        },
+        {
+          text: "Yes, I called",
+          onPress: () => {
+            // This will trigger your existing confirmation flow
+            console.log('User confirmed the emergency call');
+            // You might need to navigate to a specific screen or trigger a function
+          }
+        }
+      ]
+    );
+  }
+
   private async setupNotificationChannels() {
+    if (Platform.OS !== 'android') return;
+
     await Notifications.setNotificationChannelAsync('reports', {
       name: 'Incident Reports',
       description: 'Updates about your incident reports',
@@ -241,7 +289,6 @@ export class NotificationService {
       sound: 'default',
     });
 
-    // ✅ NEW: Violation channel
     await Notifications.setNotificationChannelAsync('violations', {
       name: 'Account Violations',
       description: 'Warnings, strikes, and suspension notifications',
@@ -249,7 +296,6 @@ export class NotificationService {
       vibrationPattern: [0, 300, 200, 300, 200, 300],
       lightColor: '#e74c3c',
       sound: 'default',
-      bypassDnd: false,
     });
 
     await Notifications.setNotificationChannelAsync('emergency', {
@@ -259,7 +305,24 @@ export class NotificationService {
       vibrationPattern: [0, 500, 200, 500],
       lightColor: '#ff0000',
       sound: 'default',
-      bypassDnd: true,
+    });
+
+    await Notifications.setNotificationChannelAsync('sos_calls', {
+      name: 'SOS Calls',
+      description: 'Emergency SOS call confirmations and updates',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 400, 200, 400],
+      lightColor: '#d73527',
+      sound: 'default',
+    });
+
+    await Notifications.setNotificationChannelAsync('sos_confirmation', {
+      name: 'SOS Confirmations',
+      description: 'SOS call confirmation reminders',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 400, 200, 400],
+      lightColor: '#d73527',
+      sound: 'default',
     });
 
     await Notifications.setNotificationChannelAsync('system', {
@@ -317,11 +380,266 @@ export class NotificationService {
     }
   }
 
-  // =================== ✅ NEW: VIOLATION NOTIFICATION METHODS ===================
+  // =================== NEW METHODS FOR CLOUD FUNCTIONS ===================
 
-  /**
-   * Create a warning notification for a user
-   */
+  // Chat notification from Cloud Functions
+  async createChatNotification(
+    userId: string,
+    chatRoomId: string,
+    senderName: string,
+    messageContent: string,
+    senderId: string
+  ) {
+    const truncatedMessage = messageContent.length > 50 
+      ? messageContent.substring(0, 47) + '...' 
+      : messageContent;
+
+    return this.createNotification({
+      userId,
+      title: `💬 Message from ${senderName}`,
+      body: truncatedMessage,
+      type: 'chat_message',
+      priority: 'high',
+      status: 'unread',
+      data: {
+        chatRoomId,
+        senderId,
+        senderName,
+        messagePreview: truncatedMessage,
+      },
+    });
+  }
+
+  // Weather alert notification from Cloud Functions
+  async createWeatherAlertNotification(
+    userId: string,
+    alertId: string,
+    title: string,
+    description: string,
+    severity: string
+  ) {
+    return this.createNotification({
+      userId,
+      title: `🌦️ ${title}`,
+      body: description,
+      type: 'weather_alert',
+      priority: severity === 'danger' ? 'high' : 'normal',
+      status: 'unread',
+      data: {
+        alertId,
+        severity,
+      },
+    });
+  }
+
+  // Emergency tip notification from Cloud Functions
+  async createEmergencyTipNotification(
+    userId: string,
+    tipId: string,
+    title: string,
+    description: string,
+    category: string
+  ) {
+    return this.createNotification({
+      userId,
+      title: `💡 ${title}`,
+      body: description,
+      type: 'emergency_broadcast',
+      priority: 'normal',
+      status: 'unread',
+      data: {
+        tipId,
+        category,
+      },
+    });
+  }
+
+  // Announcement notification from Cloud Functions
+  async createAnnouncementNotification(
+    userId: string,
+    announcementId: string,
+    title: string,
+    body: string
+  ) {
+    return this.createNotification({
+      userId,
+      title: `📢 ${title}`,
+      body: body,
+      type: 'system_announcement',
+      priority: 'normal',
+      status: 'unread',
+      data: {
+        announcementId,
+      },
+    });
+  }
+
+  // Forum activity notification from Cloud Functions
+  async createForumActivityNotification(
+    userId: string,
+    activityType: 'like' | 'reply' | 'mention',
+    actorName: string,
+    postTitle: string,
+    postId: string
+  ) {
+    let title, body;
+
+    switch (activityType) {
+      case 'like':
+        title = '❤️ Your post was liked';
+        body = `${actorName} liked your post "${postTitle}"`;
+        break;
+      case 'reply':
+        title = '💬 New reply to your post';
+        body = `${actorName} replied to your post "${postTitle}"`;
+        break;
+      case 'mention':
+        title = '👤 You were mentioned';
+        body = `${actorName} mentioned you in a post`;
+        break;
+      default:
+        return;
+    }
+
+    return this.createNotification({
+      userId,
+      title,
+      body,
+      type: 'forum_reply',
+      priority: 'normal',
+      status: 'unread',
+      data: {
+        activityType,
+        actorName,
+        postTitle,
+        postId,
+      },
+    });
+  }
+
+  // Account violation notification from Cloud Functions
+  async createAccountViolationNotification(
+    userId: string,
+    status: 'suspended' | 'banned' | 'under_review',
+    reason: string,
+    suspensionUntil?: any,
+    strikes?: number,
+    warnings?: number
+  ) {
+    let title, body;
+
+    switch (status) {
+      case 'suspended':
+        title = '🚫 Account Suspended';
+        body = `Your account has been suspended. Reason: ${reason}`;
+        if (suspensionUntil) {
+          const untilDate = suspensionUntil.toDate ? suspensionUntil.toDate() : new Date(suspensionUntil);
+          body += ` Suspension ends: ${untilDate.toLocaleDateString()}`;
+        }
+        break;
+      case 'banned':
+        title = '🚫 Account Permanently Banned';
+        body = `Your account has been permanently banned. Reason: ${reason}`;
+        break;
+      case 'under_review':
+        title = '⚠️ Account Under Review';
+        body = `Your account is under review. Reason: ${reason}`;
+        break;
+      default:
+        return;
+    }
+
+    return this.createNotification({
+      userId,
+      title,
+      body,
+      type: 'violation',
+      priority: 'high',
+      status: 'unread',
+      data: {
+        violationType: status === 'suspended' ? 'suspension' : 
+                     status === 'banned' ? 'ban' : 'warning',
+        reason,
+        suspensionUntil,
+        strikes: strikes || 0,
+        warnings: warnings || 0,
+      },
+    });
+  }
+
+  // =================== SOS CALL NOTIFICATIONS ===================
+
+  async createSOSCallPendingNotification(
+    userId: string,
+    sosCallId: string,
+    agencyName: string,
+    city: string
+  ) {
+    return this.createNotification({
+      userId,
+      sosCallId,
+      title: 'SOS Call Logged',
+      body: `Your emergency call to ${agencyName} in ${city} has been recorded and is pending review by CDRRMO.`,
+      type: 'sos_call_pending',
+      priority: 'high',
+      status: 'unread',
+      data: {
+        sosCallId,
+        agencyName,
+        city,
+        actionUrl: `/emergency/sos-status?sosId=${sosCallId}`,
+      },
+    });
+  }
+
+  async createSOSReviewedNotification(
+    userId: string,
+    sosId: string,
+    agencyName: string,
+    city: string
+  ) {
+    return this.createNotification({
+      userId,
+      sosCallId: sosId,
+      title: 'SOS Call Reviewed',
+      body: `Your emergency call to ${agencyName} in ${city} has been reviewed by CDRRMO.`,
+      type: 'sos_call_reviewed',
+      priority: 'high',
+      status: 'unread',
+      data: {
+        sosId,
+        agencyName,
+        city,
+        actionUrl: `/emergency/sos-status?sosId=${sosId}`,
+      },
+    });
+  }
+
+  async createSOSAssignedNotification(
+    userId: string,
+    sosCallId: string,
+    assignedAgency: string,
+    city: string
+  ) {
+    return this.createNotification({
+      userId,
+      sosCallId,
+      title: 'SOS Response Assigned',
+      body: `Your emergency call has been assigned to ${assignedAgency} for response in ${city}.`,
+      type: 'sos_call_assigned',
+      priority: 'high',
+      status: 'unread',
+      data: {
+        sosCallId,
+        assignedAgency,
+        city,
+        actionUrl: `/emergency/sos-status?sosId=${sosCallId}`,
+      },
+    });
+  }
+
+  // =================== VIOLATION NOTIFICATION METHODS ===================
+
   async createWarningNotification(
     userId: string,
     reason: string,
@@ -330,7 +648,7 @@ export class NotificationService {
   ) {
     return this.createNotification({
       userId,
-      title: '⚠️ Account Warning',
+      title: 'Account Warning',
       body: `You have received a warning for: ${reason}. Current warnings: ${currentWarnings}`,
       type: 'violation_warning',
       priority: 'high',
@@ -344,9 +662,6 @@ export class NotificationService {
     });
   }
 
-  /**
-   * Create a strike notification for a user
-   */
   async createStrikeNotification(
     userId: string,
     reason: string,
@@ -364,7 +679,7 @@ export class NotificationService {
 
     return this.createNotification({
       userId,
-      title: '🔺 Account Strike',
+      title: 'Account Strike',
       body,
       type: 'violation_strike',
       priority: 'urgent',
@@ -379,9 +694,6 @@ export class NotificationService {
     });
   }
 
-  /**
-   * Create a suspension notification for a user
-   */
   async createSuspensionNotification(
     userId: string,
     reason: string,
@@ -395,7 +707,7 @@ export class NotificationService {
 
     return this.createNotification({
       userId,
-      title: '⏸️ Account Suspended',
+      title: 'Account Suspended',
       body: `Your account has been suspended for ${days} days due to: ${reason}. Suspension ends on ${suspensionUntil.toLocaleDateString()}.`,
       type: 'violation_suspension',
       priority: 'urgent',
@@ -411,9 +723,6 @@ export class NotificationService {
     });
   }
 
-  /**
-   * Create a ban notification for a user
-   */
   async createBanNotification(
     userId: string,
     reason: string,
@@ -422,7 +731,7 @@ export class NotificationService {
   ) {
     return this.createNotification({
       userId,
-      title: '🚫 Account Permanently Banned',
+      title: 'Account Permanently Banned',
       body: `Your account has been permanently banned due to: ${reason}. You have accumulated ${currentStrikes} strikes.`,
       type: 'violation_ban',
       priority: 'urgent',
@@ -436,9 +745,6 @@ export class NotificationService {
     });
   }
 
-  /**
-   * Generic violation notification (for backward compatibility)
-   */
   async createViolationNotification(
     userId: string,
     type: 'warning' | 'strike' | 'suspension' | 'ban',
@@ -446,10 +752,10 @@ export class NotificationService {
     additionalData?: any
   ) {
     const titles = {
-      warning: '⚠️ Violation Warning',
-      strike: '🔺 Strike Issued',
-      suspension: '⏸️ Account Suspended',
-      ban: '🚫 Account Banned',
+      warning: 'Violation Warning',
+      strike: 'Strike Issued',
+      suspension: 'Account Suspended',
+      ban: 'Account Banned',
     };
 
     const bodies = {
@@ -490,7 +796,6 @@ export class NotificationService {
       'report_submitted': 'Report Submitted',
       'report_accepted': 'Report Accepted',
       'report_verified': 'Report Verified',
-      'report_approved': 'Report Approved',
       'report_rejected': 'Report Not Approved',
       'report_failed': 'Report Processing Failed',
       'report_resolved': 'Report Resolved',
@@ -503,7 +808,6 @@ export class NotificationService {
       'report_submitted': `Your ${reportType} report has been submitted for review.`,
       'report_accepted': `Your ${reportType} report has been accepted and assigned to responders.`,
       'report_verified': `Your ${reportType} report has been verified by our team.`,
-      'report_approved': `Your ${reportType} report has been approved and is now visible.`,
       'report_rejected': `Your ${reportType} report was not approved. Please review guidelines.`,
       'report_failed': `There was an issue processing your ${reportType} report. Please try again.`,
       'report_resolved': `Your ${reportType} report has been resolved. Thank you for reporting.`,
@@ -576,24 +880,6 @@ export class NotificationService {
       reportType,
       'Report Verified',
       `Your ${reportType} report at ${location} has been verified and is being processed.`,
-      'high',
-      { location }
-    );
-  }
-
-  async createReportApprovedNotification(
-    userId: string,
-    reportId: string,
-    location: string,
-    reportType: string
-  ) {
-    return this.createReportNotification(
-      userId,
-      reportId,
-      'report_approved',
-      reportType,
-      'Report Approved',
-      `Your ${reportType} report at ${location} has been approved and is now visible to authorities.`,
       'high',
       { location }
     );
@@ -846,8 +1132,10 @@ export class NotificationService {
     if (type.startsWith('forum_')) return 'forum';
     if (type.startsWith('chat_')) return 'chat';
     if (type.startsWith('account_')) return 'account';
-    if (type.startsWith('violation')) return 'violations'; // ✅ NEW
-    if (type === 'violation') return 'violations'; // ✅ NEW
+    if (type.startsWith('violation')) return 'violations';
+    if (type === 'violation') return 'violations';
+    if (type.startsWith('sos_')) return 'sos_calls';
+    if (type === 'sos_confirmation') return 'sos_confirmation';
     if (type.includes('emergency') || type.includes('weather') || type.includes('evacuation')) return 'emergency';
     return 'system';
   }
@@ -909,7 +1197,6 @@ export class NotificationService {
       'report_submitted': '📝',
       'report_accepted': '✅',
       'report_verified': '✅',
-      'report_approved': '✅',
       'report_rejected': '❌',
       'report_failed': '⚠️',
       'report_resolved': '✅',
@@ -930,12 +1217,16 @@ export class NotificationService {
       'emergency_broadcast': '🚨',
       'evacuation_notice': '🚨',
       'emergency_contact_updated': '📞',
-      // ✅ NEW: Violation icons
       'violation': '⚠️',
       'violation_warning': '⚠️',
       'violation_strike': '🔺',
       'violation_suspension': '⏸️',
       'violation_ban': '🚫',
+      'sos_call_pending': '🚨',
+      'sos_call_confirm': '📞',
+      'sos_call_reviewed': '✅',
+      'sos_call_assigned': '👷',
+      'sos_confirmation': '📞',
     };
     return iconMap[type] || '🔔';
   }

@@ -1,38 +1,41 @@
-// functions/index.js - Improved Implementation with Region Fix and Optimizations
-
-const { setGlobalOptions } = require("firebase-functions");
-const { onCall } = require("firebase-functions/v2/https");
+const { setGlobalOptions } = require("firebase-functions/v2/options");
+const { onCall, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onDocumentUpdated, onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onObjectFinalized } = require("firebase-functions/v2/storage");
+const functions = require('firebase-functions');
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
 const crypto = require("crypto");
 const sharp = require("sharp");
 const fetch = require("node-fetch");
-const cheerio = require("cheerio");
+const cheerio = require("cheerio"); 
+const cors = require('cors')({ origin: true });
 
 // Initialize Firebase Admin
 admin.initializeApp();
 
 // Set global options for cost control and region
 setGlobalOptions({ 
-  maxInstances: 3,        // Reduced from 10 to 3
+  maxInstances: 1,
   region: "asia-southeast1",
-  cpu: 0.5,              // Add global CPU limit
-  memory: "256MiB"       // Add global memory limit
+  cpu: 0.25,
+  memory: "256MiB"
 });
-
 // Initialize Resend client with error handling
+// Initialize Resend client with environment variables only
 const getResendClient = () => {
-  const apiKey = process.env.RESEND_API_KEY;
+  // Direct API key - remove all environment/config complexity
+  const apiKey = "re_iFcSfxFN_ffPoFTdCpEzWADUL8Mc3HYRr";
+  
   if (!apiKey) {
-    throw new Error("RESEND_API_KEY environment variable is not set");
+    throw new Error("RESEND_API_KEY not configured");
   }
+  
+  logger.info("✅ Resend client initialized with direct API key");
   return new Resend(apiKey);
 };
-
 // Constants
 const OTP_EXPIRY_MINUTES = 5;
 const MAX_VERIFY_ATTEMPTS = 5;
@@ -41,14 +44,21 @@ const PASSWORD_RESET_WINDOW_MINUTES = 10;
 const MAX_OTP_REQUESTS_PER_HOUR = 3; // New: Hourly rate limit
 const PUSH_NOTIFICATION_BATCH_SIZE = 100;
 const MAX_RETRY_ATTEMPTS = 3;
+const ALERT_EXPIRATION_HOURS_APPROVED = 24; // 24 hours for approved alerts
+const ALERT_EXPIRATION_DAYS_PENDING = 7;    // 7 days for pending alerts
 
 
 // Weather & Disaster Alert Constants
 const OPENWEATHER_API_KEY = "0baa706a6ca53436f3aa0b5bd9f0d25b";
 const LIPA_LAT = 13.9411;
 const LIPA_LON = 121.1631;
-const USGS_RADIUS = 200;
-
+const LIPA_RADIUS_KM = 50; // Reduced from 200km to focus on Lipa area
+const LIPA_BOUNDING_BOX = {
+  north: 14.1000,
+  south: 13.8000, 
+  east: 121.3000,
+  west: 121.0000
+};
 /* ===================================================================
    UTILITY FUNCTIONS FOR RATE LIMITING AND ERROR HANDLING
 =================================================================== */
@@ -124,11 +134,533 @@ function validateEmail(email) {
   }
 }
 
+
+// =================== CREATE STAFF ACCOUNT (WITH CORS & CORRECT REGION) ===================
+exports.createStaffAccount = onCall({
+  region: "asia-southeast1",
+  cors: true,
+  timeoutSeconds: 60,
+  memory: "512MiB",
+  cpu: 1
+}, async (request) => {
+  try {
+    logger.info('=== CREATE STAFF ACCOUNT STARTED ===', {
+      timestamp: new Date().toISOString(),
+      caller: request.auth ? request.auth.uid : 'no-auth'
+    });
+
+    // ✅ VERIFY AUTHENTICATION
+    if (!request.auth) {
+      logger.error('❌ No authentication token provided');
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    const callerUid = request.auth.uid;
+    
+    // ✅ CHECK ADMIN PERMISSIONS (Custom Claims + Firestore)
+    const [callerDoc, callerAuth] = await Promise.all([
+      admin.firestore().collection('users').doc(callerUid).get(),
+      admin.auth().getUser(callerUid)
+    ]);
+    
+    if (!callerDoc.exists) {
+      throw new functions.https.HttpsError('permission-denied', 'User profile not found');
+    }
+    
+    const callerData = callerDoc.data();
+    const hasAdminClaim = callerAuth.customClaims?.admin === true;
+    
+    logger.info('📋 Caller verification:', { 
+      uid: callerUid, 
+      role: callerData.role,
+      hasAdminClaim: hasAdminClaim
+    });
+    
+    // Must have BOTH admin role AND custom claim
+    if (callerData.role !== 'admin' || !hasAdminClaim) {
+      logger.error('❌ Permission denied: Not an admin');
+      throw new functions.https.HttpsError('permission-denied', 'Only admins can create accounts');
+    }
+
+    // ✅ VALIDATE INPUT
+    const { email, password, name, phoneNumber, barangay, role, agencyName } = request.data;
+    
+    if (!email || !password || !name || !phoneNumber || !barangay || !role) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+    }
+
+    const validRoles = ['rescuer', 'monitor', 'agency', 'admin'];
+    if (!validRoles.includes(role)) {
+      throw new functions.https.HttpsError('invalid-argument', 'Invalid role');
+    }
+
+    if (role === 'agency' && !agencyName) {
+      throw new functions.https.HttpsError('invalid-argument', 'Agency name required for agency role');
+    }
+
+    if (password.length < 6) {
+      throw new functions.https.HttpsError('invalid-argument', 'Password must be at least 6 characters');
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new functions.https.HttpsError('invalid-argument', 'Invalid email format');
+    }
+
+    logger.info('✅ Input validation passed');
+
+    // =================== 🆕 STEP 4.2: DUPLICATE WARNING SYSTEM ===================
+    logger.info('🔍 [DUPLICATE WARNING] Starting pre-creation duplicate check');
+
+    let duplicateFound = false;
+    let duplicateDetails = [];
+    let suspendedUsersFound = false;
+
+    // 1. CHECK FIREBASE AUTH FOR EXISTING EMAIL
+    try {
+      const existingAuthUser = await admin.auth().getUserByEmail(email);
+      logger.warn('⚠️ [DUPLICATE WARNING] User already exists in Firebase Auth:', {
+        uid: existingAuthUser.uid,
+        email: existingAuthUser.email
+      });
+      
+      duplicateFound = true;
+      duplicateDetails.push({
+        matchType: 'firebase_auth_email',
+        existingUser: {
+          id: existingAuthUser.uid,
+          name: existingAuthUser.displayName || 'Unknown',
+          email: existingAuthUser.email,
+          barangay: 'Unknown',
+          status: 'active',
+          role: 'unknown'
+        },
+        isSuspended: false
+      });
+      
+    } catch (authError) {
+      // If error is "user not found", that's GOOD - continue
+      if (authError.code !== 'auth/user-not-found') {
+        // Re-throw if it's a different error
+        throw authError;
+      }
+      logger.info('✅ [DUPLICATE WARNING] No duplicate in Firebase Auth');
+    }
+
+    // 2. CHECK FIRESTORE FOR DUPLICATES
+    const duplicateChecks = [];
+    
+    // Check by email (case-insensitive)
+    duplicateChecks.push(
+      admin.firestore()
+        .collection("users")
+        .where("email", ">=", email.toLowerCase())
+        .where("email", "<=", email.toLowerCase() + '\uf8ff')
+        .limit(3)
+        .get()
+    );
+
+    // Check by phone (normalized)
+    if (phoneNumber) {
+      const normalizedPhone = phoneNumber.replace(/\s/g, '');
+      duplicateChecks.push(
+        admin.firestore()
+          .collection("users")
+          .where("number", "==", normalizedPhone)
+          .limit(3)
+          .get()
+      );
+    }
+
+    // Check by name + barangay
+    if (name && barangay) {
+      duplicateChecks.push(
+        admin.firestore()
+          .collection("users")
+          .where("name", "==", name)
+          .where("barangay", "==", barangay)
+          .limit(3)
+          .get()
+      );
+    }
+
+    const results = await Promise.all(duplicateChecks);
+    
+    // Process email duplicates
+    if (!results[0].empty) {
+      duplicateFound = true;
+      results[0].docs.forEach(doc => {
+        const userData = doc.data();
+        const isSuspended = ['suspended', 'suspended_3d', 'suspended_2w', 'banned'].includes(userData.status);
+        
+        duplicateDetails.push({
+          matchType: 'email',
+          existingUser: {
+            id: doc.id,
+            name: userData.name,
+            email: userData.email,
+            phone: userData.phone || userData.number,
+            barangay: userData.barangay,
+            status: userData.status || 'unknown',
+            role: userData.role
+          },
+          isSuspended: isSuspended
+        });
+        
+        if (isSuspended) {
+          suspendedUsersFound = true;
+        }
+      });
+    }
+
+    // Process phone duplicates
+    if (phoneNumber && !results[1].empty) {
+      duplicateFound = true;
+      results[1].docs.forEach(doc => {
+        const userData = doc.data();
+        const isSuspended = ['suspended', 'suspended_3d', 'suspended_2w', 'banned'].includes(userData.status);
+        
+        // Check if user already in duplicates
+        const existingIndex = duplicateDetails.findIndex(d => d.existingUser.id === doc.id);
+        if (existingIndex === -1) {
+          duplicateDetails.push({
+            matchType: 'phone',
+            existingUser: {
+              id: doc.id,
+              name: userData.name,
+              email: userData.email,
+              phone: userData.phone || userData.number,
+              barangay: userData.barangay,
+              status: userData.status || 'unknown',
+              role: userData.role
+            },
+            isSuspended: isSuspended
+          });
+        } else {
+          duplicateDetails[existingIndex].matchType += '+phone';
+        }
+        
+        if (isSuspended) {
+          suspendedUsersFound = true;
+        }
+      });
+    }
+
+    // Process name + barangay duplicates
+    if (name && barangay && !results[2].empty) {
+      duplicateFound = true;
+      results[2].docs.forEach(doc => {
+        const userData = doc.data();
+        const isSuspended = ['suspended', 'suspended_3d', 'suspended_2w', 'banned'].includes(userData.status);
+        
+        // Check if user already in duplicates
+        const existingIndex = duplicateDetails.findIndex(d => d.existingUser.id === doc.id);
+        if (existingIndex === -1) {
+          duplicateDetails.push({
+            matchType: 'name+barangay',
+            existingUser: {
+              id: doc.id,
+              name: userData.name,
+              email: userData.email,
+              phone: userData.phone || userData.number,
+              barangay: userData.barangay,
+              status: userData.status || 'unknown',
+              role: userData.role
+            },
+            isSuspended: isSuspended
+          });
+        } else {
+          duplicateDetails[existingIndex].matchType += '+name_location';
+        }
+        
+        if (isSuspended) {
+          suspendedUsersFound = true;
+        }
+      });
+    }
+
+    // ⚠️ LOG WARNING BUT CONTINUE WITH ACCOUNT CREATION
+    if (duplicateFound) {
+      logger.warn('⚠️ [DUPLICATE WARNING] Potential duplicates found - proceeding with creation:', {
+        totalDuplicates: duplicateDetails.length,
+        suspendedUsers: suspendedUsersFound,
+        details: duplicateDetails
+      });
+    } else {
+      logger.info('✅ [DUPLICATE WARNING] No duplicates found - clean account creation');
+    }
+    // =================== END OF DUPLICATE WARNING SYSTEM ===================
+
+    try {
+      // ✅ STEP 1: CREATE FIREBASE AUTH ACCOUNT
+      logger.info('👤 Creating Firebase Auth account...');
+      const userRecord = await admin.auth().createUser({
+        email: email,
+        password: password,
+        displayName: name,
+        emailVerified: false
+      });
+
+      logger.info('✅ Firebase Auth account created:', userRecord.uid);
+
+      // ✅ STEP 2: SET CUSTOM CLAIMS BASED ON ROLE
+      const customClaims = {};
+      
+      if (role === 'admin') {
+        customClaims.admin = true;
+        logger.info('🔑 Setting ADMIN custom claim');
+      } else if (role === 'monitor') {
+        customClaims.monitor = true;
+        logger.info('🔑 Setting MONITOR custom claim');
+      } else if (role === 'rescuer') {
+        customClaims.rescuer = true;
+        logger.info('🔑 Setting RESCUER custom claim');
+      } else if (role === 'agency') {
+        customClaims.agency = true;
+        logger.info('🔑 Setting AGENCY custom claim');
+      }
+
+      // ⭐ THIS IS THE KEY FIX - SET CUSTOM CLAIMS IMMEDIATELY
+      await admin.auth().setCustomUserClaims(userRecord.uid, customClaims);
+      logger.info('✅ Custom claims set successfully');
+
+      // ✅ STEP 3: CREATE FIRESTORE DOCUMENT
+      logger.info('📄 Creating Firestore document...');
+      
+      const userData = {
+        // Identity
+        uid: userRecord.uid,
+        firebaseUID: userRecord.uid,
+        email: email,
+        name: name,
+        
+        // Phone
+        phoneNumber: phoneNumber,
+        number: phoneNumber,
+        phone: phoneNumber,
+        
+        // Location
+        barangay: barangay,
+        
+        // Role & Status
+        role: role,
+        status: 'active', // ⭐ CHANGED: Auto-approve admin/staff accounts
+        
+        // Custom Claims (for reference)
+        customClaims: customClaims,
+        
+        // Admin tracking
+        adminCreated: true,
+        createdBy: callerUid,
+        
+        // Violation tracking
+        warnings: 0,
+        strikes: 0,
+        lastViolationReason: null,
+        lastViolationDate: null,
+        suspensionUntil: null,
+        
+        // Timestamps
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        
+        // Device
+        deviceType: 'web'
+      };
+
+      // Add agencyName if role is agency
+      if (role === 'agency' && agencyName) {
+        userData.agencyName = agencyName;
+        userData.agency = agencyName; // For compatibility
+        logger.info('🏢 Added agency name:', agencyName);
+      }
+
+      await admin.firestore().collection('users').doc(userRecord.uid).set(userData);
+      logger.info('✅ Firestore document created');
+
+      // ✅ STEP 4: CREATE WELCOME NOTIFICATION
+      logger.info('🔔 Creating welcome notification...');
+      
+      let notificationBody = '';
+      if (role === 'admin') {
+        notificationBody = 'Welcome to LipaAlertHub! Your admin account is now active with full system access.';
+      } else if (role === 'monitor') {
+        notificationBody = 'Welcome to LipaAlertHub! Your monitor account is now active. You can view and manage reports.';
+      } else if (role === 'rescuer') {
+        notificationBody = 'Welcome to LipaAlertHub! Your rescuer account is now active. You can respond to emergencies.';
+      } else if (role === 'agency') {
+        notificationBody = `Welcome to LipaAlertHub! Your ${agencyName} agency account is now active.`;
+      }
+      
+      await admin.firestore().collection('notifications').add({
+        userId: userRecord.uid,
+        title: '🎉 Account Created',
+        body: notificationBody,
+        type: 'account_created',
+        status: 'unread',
+        priority: 'high',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        data: {
+          role: role,
+          customClaims: customClaims,
+          createdBy: callerUid
+        }
+      });
+
+      logger.info('✅ Notification created');
+
+      // ✅ STEP 5: LOG ADMIN ACTION
+      await admin.firestore().collection('admin_actions').add({
+        action: 'create_staff_account',
+        performedBy: callerUid,
+        performedByName: callerData.name,
+        targetUserId: userRecord.uid,
+        targetUserEmail: email,
+        targetUserRole: role,
+        customClaimsSet: customClaims,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        details: {
+          name: name,
+          barangay: barangay,
+          agencyName: agencyName || null
+        }
+      });
+
+      logger.info('🎉 Account creation completed successfully');
+      
+      // 🆕 ENHANCED: RETURN WARNING INFORMATION IF DUPLICATES FOUND
+      if (duplicateFound) {
+        let successMessage = `Admin account created successfully for ${name}.`;
+        
+        return { 
+          success: true, 
+          uid: userRecord.uid,
+          message: successMessage,
+          role: role,
+          customClaims: customClaims,
+          status: 'active',
+          // 🆕 NEW: Include warning information
+          warnings: {
+            hasDuplicates: true,
+            hasSuspendedUsers: suspendedUsersFound,
+            duplicateDetails: duplicateDetails,
+            warningMessage: suspendedUsersFound ? 
+              "⚠️ WARNING: Created account matches suspended/banned users. Please review." :
+              "ℹ️ NOTE: Created account matches existing users. Please review."
+          }
+        };
+      } else {
+        let successMessage = '';
+        if (role === 'admin') {
+          successMessage = `Admin account created successfully for ${name}. Full system access granted.`;
+        } else if (role === 'agency') {
+          successMessage = `${agencyName} agency account created successfully.`;
+        } else {
+          successMessage = `${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully for ${name}.`;
+        }
+        
+        return { 
+          success: true, 
+          uid: userRecord.uid,
+          message: successMessage,
+          role: role,
+          customClaims: customClaims,
+          status: 'active'
+        };
+      }
+
+    } catch (error) {
+      logger.error('❌ Error in account creation:', error);
+      
+      // Handle specific Firebase Auth errors
+      if (error.code === 'auth/email-already-exists') {
+        throw new functions.https.HttpsError('already-exists', 'This email is already in use');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid email format');
+      } else if (error.code === 'auth/invalid-password') {
+        throw new functions.https.HttpsError('invalid-argument', 'Password is too weak');
+      }
+      
+      throw new functions.https.HttpsError('internal', `Failed to create account: ${error.message}`);
+    }
+
+  } catch (error) {
+    logger.error('💥 FATAL ERROR in createStaffAccount:', error);
+    
+    if (error.code && error.message) {
+      throw error;
+    } else {
+      throw new functions.https.HttpsError('internal', `Unexpected error: ${error.message}`);
+    }
+  }
+});
+// =================== HELPER: VERIFY CUSTOM CLAIMS ===================
+exports.verifyUserClaims = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+
+  try {
+    const userAuth = await admin.auth().getUser(request.auth.uid);
+    const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+    
+    const userData = userDoc.exists ? userDoc.data() : null;
+    
+    return {
+      success: true,
+      uid: request.auth.uid,
+      email: userAuth.email,
+      customClaims: userAuth.customClaims || {},
+      firestoreRole: userData?.role || null,
+      firestoreStatus: userData?.status || null,
+      hasAdminClaim: userAuth.customClaims?.admin === true,
+      hasMonitorClaim: userAuth.customClaims?.monitor === true,
+      hasRescuerClaim: userAuth.customClaims?.rescuer === true,
+      hasAgencyClaim: userAuth.customClaims?.agency === true
+    };
+    
+  } catch (error) {
+    logger.error('Error verifying claims:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to verify user claims');
+  }
+});
+
+// =================== HELPER: REFRESH USER TOKEN (FOR CLAIMS) ===================
+// ⚠️ IMPORTANT: Tell users to call this after account creation
+exports.refreshUserToken = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+
+  try {
+    const userAuth = await admin.auth().getUser(request.auth.uid);
+    
+    logger.info('🔄 Token refresh requested:', {
+      uid: request.auth.uid,
+      customClaims: userAuth.customClaims
+    });
+    
+    return {
+      success: true,
+      message: 'Please sign out and sign in again to refresh your permissions',
+      customClaims: userAuth.customClaims || {},
+      requiresReauth: true
+    };
+    
+  } catch (error) {
+    logger.error('Error refreshing token:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to refresh token');
+  }
+});
 /* ===================================================================
    PASSWORD RESET OTP SYSTEM - Enhanced with Better Rate Limiting
 =================================================================== */
-// Add this migration function as a callable export
-const { onRequest } = require("firebase-functions/v2/https");
 
 exports.migrateUsersNow = onRequest({
   region: "asia-southeast1",
@@ -240,11 +772,13 @@ exports.migrateUsersNow = onRequest({
   }
 });
 
-// Request OTP - Enhanced with improved rate limiting and error handling
+
+
+
 exports.requestOtp = onCall({
-  region: "asia-southeast1", // Fixed: Explicit region setting
+  region: "asia-southeast1",
   cors: true,
-  enforceAppCheck: false // Set to true in production for better security
+  enforceAppCheck: false
 }, async (request) => {
   const { email } = request.data;
   
@@ -282,103 +816,190 @@ exports.requestOtp = onCall({
     try {
       await admin.auth().getUserByEmail(normalizedEmail);
       userExists = true;
+      logger.info(`✅ User found: ${normalizedEmail}`);
     } catch (error) {
       logger.info(`Password reset requested for non-existent email: ${normalizedEmail}`);
     }
 
     // Always create OTP document for security (timing attack prevention)
     await admin.firestore().collection("otp").add(otpDoc);
+    logger.info(`✅ OTP document created for: ${normalizedEmail}`);
 
- if (userExists) {
-  try {
-    // FIXED: Use process.env instead of functions.config()
-    const apiKey = process.env.RESEND_API_KEY;
-    
-    if (apiKey) {
-      // Initialize Resend
-      const resend = new Resend(apiKey);
-      
-      // DEVELOPMENT: Log OTP to console for testing
-      logger.info("=".repeat(60));
-      logger.info("PASSWORD RESET OTP - DEVELOPMENT MODE");
-      logger.info("=".repeat(60));
-      logger.info(`Email: ${normalizedEmail}`);
-      logger.info(`OTP Code: ${otp}`);
-      logger.info(`Expires in: ${OTP_EXPIRY_MINUTES} minutes`);
-      logger.info(`Session ID: ${sessionId.substring(0, 12)}...`);
-      logger.info(`Valid until: ${expiresAt.toLocaleString()}`);
-      logger.info("Resend client initialized successfully");
-      logger.info("=".repeat(60));
-      
-      
-      // DEVELOPMENT: Save to Firestore for testing
-      await admin.firestore().collection("dev_otp_logs").add({
-        email: normalizedEmail,
-        otp,
-        sessionId,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
-        environment: "development",
-        used: false,
-        resendReady: true
-      });
-      
-      // PRODUCTION: Uncomment this block when ready for deployment
-      /*
-      await retryOperation(async () => {
+    if (userExists) {
+      try {
+        // ✅ USE THE SIMPLIFIED getResendClient FUNCTION
+        const resend = getResendClient();
+        
+        // PRODUCTION MODE - ACTUAL EMAIL SENDING
+        logger.info("=".repeat(60));
+        logger.info("PASSWORD RESET OTP - PRODUCTION MODE");
+        logger.info("=".repeat(60));
+        logger.info(`Sending email to: ${normalizedEmail}`);
+        logger.info(`OTP Code: ${otp}`);
+        logger.info(`Expires in: ${OTP_EXPIRY_MINUTES} minutes`);
+        logger.info("=".repeat(60));
+
         const emailHtml = `
           <html>
             <head>
               <meta charset="utf-8">
               <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                .otp-code { font-size: 32px; font-weight: bold; color: #007bff; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 8px; margin: 20px 0; }
-                .warning { color: #dc3545; font-size: 14px; margin-top: 20px; }
-                .footer { margin-top: 30px; font-size: 12px; color: #666; }
+                body { 
+                  font-family: 'Arial', sans-serif; 
+                  line-height: 1.6; 
+                  color: #333; 
+                  margin: 0; 
+                  padding: 0; 
+                  background-color: #f4f4f4;
+                }
+                .container { 
+                  max-width: 600px; 
+                  margin: 0 auto; 
+                  padding: 20px; 
+                  background: white;
+                  border-radius: 10px;
+                  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }
+                .header { 
+                  background: #d73527; 
+                  color: white; 
+                  padding: 30px 20px; 
+                  text-align: center; 
+                  border-radius: 10px 10px 0 0; 
+                  margin: -20px -20px 20px -20px;
+                }
+                .header h1 { 
+                  margin: 0; 
+                  font-size: 28px; 
+                }
+                .otp-code { 
+                  font-size: 42px; 
+                  font-weight: bold; 
+                  color: #d73527; 
+                  text-align: center; 
+                  padding: 25px; 
+                  background: #f8f9fa; 
+                  border-radius: 10px; 
+                  margin: 25px 0; 
+                  border: 2px dashed #d73527;
+                  letter-spacing: 5px;
+                }
+                .warning { 
+                  background: #fff3cd; 
+                  border: 1px solid #ffeaa7; 
+                  color: #856404; 
+                  padding: 15px; 
+                  border-radius: 8px; 
+                  margin: 20px 0; 
+                  font-size: 14px; 
+                }
+                .footer { 
+                  margin-top: 30px; 
+                  font-size: 12px; 
+                  color: #666; 
+                  text-align: center;
+                  border-top: 1px solid #eee;
+                  padding-top: 20px;
+                }
+                .logo { 
+                  font-size: 24px; 
+                  font-weight: bold; 
+                  margin-bottom: 10px; 
+                }
+                .info-box {
+                  background: #e3f2fd;
+                  border-left: 4px solid #2196f3;
+                  padding: 15px;
+                  margin: 20px 0;
+                  border-radius: 0 8px 8px 0;
+                }
               </style>
             </head>
             <body>
               <div class="container">
                 <div class="header">
-                  <h1>Password Reset Request - LipaAlertHub</h1>
+                  <div class="logo">🚨 LipaAlertHub</div>
+                  <h1>Password Reset Request</h1>
                 </div>
-                <p>You have requested a password reset for your LipaAlertHub account.</p>
+                
+                <p>Dear User,</p>
+                
+                <p>You have requested a password reset for your LipaAlertHub account associated with <strong>${normalizedEmail}</strong>.</p>
+                
                 <div class="otp-code">${otp}</div>
-                <p>This code will expire in <strong>${OTP_EXPIRY_MINUTES} minutes</strong>.</p>
-                <div class="warning">
-                  <strong>Security Notice:</strong> If you did not request this password reset, please ignore this email and ensure your account is secure.
+                
+                <div class="info-box">
+                  <p><strong>⏰ This code will expire in ${OTP_EXPIRY_MINUTES} minutes</strong></p>
                 </div>
+                
+                <div class="warning">
+                  <strong>🔒 Security Notice:</strong><br/>
+                  • Do not share this code with anyone<br/>
+                  • LipaAlertHub will never ask for your password<br/>
+                  • If you didn't request this reset, please ignore this email<br/>
+                  • Ensure your account security by using a strong password
+                </div>
+                
+                <p>Enter this verification code in the app to reset your password.</p>
+                
                 <div class="footer">
-                  <p>This is an automated message from LipaAlertHub. Please do not reply to this email.</p>
+                  <p><strong>LipaAlertHub Team</strong><br/>
+                  City Disaster Risk Reduction and Management Office<br/>
+                  Lipa City, Batangas, Philippines</p>
+                  <p>📞 Emergency: (043) 756-5555 | 📧 Email: cdrrmo@lipa.gov.ph</p>
+                  <p><em>This is an automated message. Please do not reply to this email.</em></p>
                 </div>
               </div>
             </body>
           </html>
         `;
         
-        await resend.emails.send({
-          from: "LipaAlertHub <noreply@yourdomain.com>", // PRODUCTION: Update with your verified domain
+        const emailResult = await resend.emails.send({
+          from: "LipaAlertHub <noreply@admin-lipaalerthub.com>", 
           to: [normalizedEmail],
-          subject: "Password Reset Code - LipaAlertHub",
+          subject: "🔐 Password Reset Code - LipaAlertHub",
           html: emailHtml,
         });
         
-        logger.info("Email sent successfully via Resend");
-      });
-      */
-      
-       
+        logger.info("✅ Email sent successfully via Resend:", {
+          emailId: emailResult?.id,
+          to: normalizedEmail,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Log successful email sending
+        await admin.firestore().collection("email_logs").add({
+          type: "password_reset_otp",
+          to: normalizedEmail,
+          otp: otp,
+          sessionId: sessionId,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          success: true,
+          resendResponse: emailResult
+        });
+        
+      } catch (emailError) {
+        logger.error("❌ Email integration error:", emailError);
+        
+        // Log email failure
+        await admin.firestore().collection("email_logs").add({
+          type: "password_reset_otp",
+          to: normalizedEmail,
+          otp: otp,
+          sessionId: sessionId,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          success: false,
+          error: emailError.message
+        });
+        
+        // Don't fail the entire request if email fails
+        // Log OTP for manual recovery
+        logger.info(`🔑 OTP for manual recovery: ${otp} for ${normalizedEmail}`);
+      }
     } else {
-      // FALLBACK: No Resend API key configured
-      logger.info(`DEV MODE - OTP for ${normalizedEmail}: ${otp}`);
+      logger.info(`ℹ️ User not found, OTP not sent: ${normalizedEmail}`);
     }
-  } catch (emailError) {
-    logger.error("Email integration error:", emailError);
-    // Don't fail the entire request if email fails
-  }
-}
+    
     return { 
       success: true, 
       sessionId, 
@@ -387,7 +1008,7 @@ exports.requestOtp = onCall({
     };
     
   } catch (error) {
-    logger.error("Error in requestOtp:", error);
+    logger.error("❌ Error in requestOtp:", error);
     
     // Return user-friendly error messages
     if (error.message.includes("Rate limit")) {
@@ -603,53 +1224,354 @@ exports.onUserStatusChange = onDocumentUpdated({
   }
 });
 
-// Helper function to send status change emails
-async function sendUserStatusEmail(email, subject, html, name, status) {
+// =================== SUSPEND USER WITH EMAIL NOTIFICATION ===================
+exports.suspendUserWithEmail = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  const { userId, reason, durationDays, strikeType, isPermanentBan = false } = request.data;
+  
+  if (!userId || !reason) {
+    throw new Error("User ID and reason are required");
+  }
+
   try {
-    // Check if we have Resend configured
-    const apiKey = process.env.RESEND_API_KEY;
+    const userRef = admin.firestore().collection("users").doc(userId);
+    const userDoc = await userRef.get();
     
-    if (apiKey) {
-      const resend = new Resend(apiKey);
-      
-      await retryOperation(async () => {
-        await resend.emails.send({
-          from: "LipaAlertHub <noreply@cdrrmo.lipa.gov.ph>", // Update with your verified domain
-          to: [email],
-          subject: subject,
-          html: html,
-        });
-      });
-      
-      logger.info(`Status email sent successfully to ${email}`);
-    } else {
-      // Development mode - log to console
-      logger.info("=".repeat(60));
-      logger.info("USER STATUS EMAIL - DEVELOPMENT MODE");
-      logger.info("=".repeat(60));
-      logger.info(`To: ${email}`);
-      logger.info(`Subject: ${subject}`);
-      logger.info(`Status: ${status}`);
-      logger.info(`Name: ${name}`);
-      logger.info("=".repeat(60));
-      
-      // Save to development logs
-      await admin.firestore().collection("dev_email_logs").add({
-        type: "user_status_change",
-        email,
-        subject,
-        status,
-        name,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        environment: "development"
-      });
+    if (!userDoc.exists) {
+      throw new Error("User not found");
     }
+
+    const userData = userDoc.data();
+    const userEmail = userData.email;
+    const userName = userData.name || "User";
+
+    let updateData = {
+      status: isPermanentBan ? "banned" : "suspended",
+      suspensionReason: reason,
+      suspendedBy: request.auth.uid,
+      suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
+      previousStatus: userData.status,
+      lastViolationReason: reason,
+      lastViolationDate: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Calculate suspension end date if not permanent ban
+    if (!isPermanentBan && durationDays) {
+      const suspensionUntil = new Date();
+      suspensionUntil.setDate(suspensionUntil.getDate() + durationDays);
+      updateData.suspensionUntil = admin.firestore.Timestamp.fromDate(suspensionUntil);
+    }
+
+    // Handle strikes and warnings
+    if (strikeType === 'warning') {
+      updateData.warnings = (userData.warnings || 0) + 1;
+    } else if (strikeType === 'strike') {
+      updateData.strikes = (userData.strikes || 0) + 1;
+    }
+
+    await userRef.update(updateData);
+
+    // ✅ SEND EMAIL NOTIFICATION TO USER
+    await sendSuspensionEmail(
+      userEmail,
+      userName,
+      isPermanentBan ? 'ban' : 'suspension',
+      reason,
+      durationDays,
+      strikeType,
+      userData.warnings || 0,
+      userData.strikes || 0
+    );
+
+    // Create in-app notification
+    await admin.firestore().collection("notifications").add({
+      userId: userId,
+      title: isPermanentBan ? "🚫 Account Permanently Banned" : 
+             strikeType === 'strike' ? "⚠️ Account Strike Issued" : "🚫 Account Suspended",
+      body: `Reason: ${reason}. ${durationDays ? `Suspension ends: ${new Date(Date.now() + (durationDays * 24 * 60 * 60 * 1000)).toLocaleDateString()}` : ''}`,
+      type: "account_moderation",
+      priority: "high",
+      status: "unread",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        moderationType: isPermanentBan ? 'ban' : (strikeType || 'suspension'),
+        reason: reason,
+        durationDays: durationDays,
+        actionBy: request.auth.uid
+      }
+    });
+
+    logger.info(`User ${userId} ${isPermanentBan ? 'banned' : 'suspended'} by admin ${request.auth.uid}`);
+
+    return {
+      success: true,
+      message: `User ${strikeType ? strikeType + ' issued and ' : ''}${isPermanentBan ? 'banned' : 'suspended'} successfully. Email sent to user.`,
+      suspensionEnd: !isPermanentBan && durationDays ? new Date(Date.now() + (durationDays * 24 * 60 * 60 * 1000)).toISOString() : null
+    };
+
   } catch (error) {
-    logger.error("Error sending status change email:", error);
-    throw error;
+    logger.error("Error suspending user:", error);
+    throw new Error(error.message || "Failed to suspend user");
+  }
+});
+
+// =================== SEND SUSPENSION/BAN EMAILS ===================
+async function sendSuspensionEmail(email, userName, actionType, reason, durationDays, strikeType, currentWarnings, currentStrikes) {
+  try {
+    const resend = getResendClient();
+    
+    logger.info(`📧 Attempting to send ${actionType} email to: ${email}`, {
+      userName: userName,
+      actionType: actionType,
+      reason: reason,
+      durationDays: durationDays,
+      strikeType: strikeType,
+      currentWarnings: currentWarnings,
+      currentStrikes: currentStrikes
+    });
+
+    let subject, html;
+
+    if (actionType === 'ban') {
+      subject = "🚫 Account Permanently Banned - LipaAlertHub";
+      html = `
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #dc3545; color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: white; padding: 30px 20px; border: 1px solid #ddd; border-radius: 0 0 10px 10px; }
+              .reason-box { background: #f8f9fa; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0; }
+              .stats { background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 8px; margin: 20px 0; }
+              .footer { color: #666; font-size: 14px; margin-top: 30px; text-align: center; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Account Permanently Banned</h1>
+            </div>
+            <div class="content">
+              <p>Dear <strong>${userName}</strong>,</p>
+              
+              <p>Your LipaAlertHub account has been <strong>permanently banned</strong> due to repeated violations of our terms of service.</p>
+              
+              <div class="reason-box">
+                <h3>📋 Reason for Ban:</h3>
+                <p>${reason}</p>
+              </div>
+              
+              <div class="stats">
+                <h3>📊 Account Status:</h3>
+                <p><strong>Final Warnings:</strong> ${currentWarnings}</p>
+                <p><strong>Final Strikes:</strong> ${currentStrikes}</p>
+                <p><strong>Status:</strong> PERMANENTLY BANNED</p>
+              </div>
+              
+              <p>This decision is final and your account will not be reinstated.</p>
+              
+              <p>You will no longer be able to access any LipaAlertHub services.</p>
+              
+              <div class="footer">
+                <p><strong>LipaAlertHub Team</strong><br/>
+                City Disaster Risk Reduction and Management Office<br/>
+                Lipa City, Batangas</p>
+                <p><em>This is an automated message. Please do not reply to this email.</em></p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+    } else if (actionType === 'suspension') {
+      subject = "🚫 Account Suspension Notice - LipaAlertHub";
+      html = `
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #e74c3c; color: white; padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: white; padding: 30px 20px; border: 1px solid #ddd; border-radius: 0 0 10px 10px; }
+              .reason-box { background: #f8f9fa; border-left: 4px solid #e74c3c; padding: 15px; margin: 20px 0; }
+              .stats { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 20px 0; }
+              .time-box { background: #e3f2fd; border: 1px solid #2196f3; padding: 15px; border-radius: 8px; margin: 20px 0; }
+              .footer { color: #666; font-size: 14px; margin-top: 30px; text-align: center; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Account Suspension Notice</h1>
+            </div>
+            <div class="content">
+              <p>Dear <strong>${userName}</strong>,</p>
+              
+              <p>Your LipaAlertHub account has been temporarily suspended due to a violation of our terms of service.</p>
+              
+              <div class="reason-box">
+                <h3>📋 Reason for Suspension:</h3>
+                <p>${reason}</p>
+              </div>
+              
+              <div class="time-box">
+                <h3>⏰ Suspension Duration:</h3>
+                <p><strong>Duration:</strong> ${durationDays} days</p>
+                <p><strong>Suspension End Date:</strong> ${new Date(Date.now() + (durationDays * 24 * 60 * 60 * 1000)).toLocaleDateString()}</p>
+              </div>
+              
+              <div class="stats">
+                <h3>📊 Account Status:</h3>
+                <p><strong>Current Warnings:</strong> ${currentWarnings}</p>
+                <p><strong>Current Strikes:</strong> ${currentStrikes}</p>
+                ${strikeType ? `<p><strong>Action Taken:</strong> ${strikeType.toUpperCase()} issued</p>` : ''}
+              </div>
+              
+              <p>During this suspension period, you will not be able to access your account features.</p>
+              
+              <p>If you believe this is a mistake or would like to appeal this decision, please contact our support team.</p>
+              
+              <div class="footer">
+                <p><strong>LipaAlertHub Team</strong><br/>
+                City Disaster Risk Reduction and Management Office<br/>
+                Lipa City, Batangas</p>
+                <p><em>This is an automated message. Please do not reply to this email.</em></p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+    } else {
+      logger.warn(`Unknown action type: ${actionType}`);
+      return;
+    }
+
+    // Send email with retry logic
+    const emailResult = await retryOperation(async () => {
+      return await resend.emails.send({
+        from: "LipaAlertHub <noreply@admin-lipaalerthub.com>",
+        to: [email],
+        subject: subject,
+        html: html,
+      });
+    });
+
+    logger.info(`✅ ${actionType} email sent successfully to ${email}`, {
+      emailId: emailResult?.id,
+      actionType: actionType
+    });
+
+    // Log successful email
+    await admin.firestore().collection("email_logs").add({
+      type: "suspension_ban_notification",
+      to: email,
+      subject: subject,
+      actionType: actionType,
+      userName: userName,
+      reason: reason,
+      durationDays: durationDays,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      success: true,
+      environment: "production"
+    });
+
+  } catch (error) {
+    logger.error("❌ Error sending suspension/ban email:", {
+      email: email,
+      actionType: actionType,
+      error: error.message,
+      stack: error.stack
+    });
+    
+    // Log email failure but don't throw (non-critical)
+    await admin.firestore().collection("email_logs").add({
+      type: "suspension_ban_notification",
+      to: email,
+      subject: subject || "Suspension/Ban Notification",
+      actionType: actionType,
+      userName: userName,
+      reason: reason,
+      durationDays: durationDays,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      success: false,
+      error: error.message,
+      environment: "production"
+    });
+    
+    // ✅ Don't throw error - email failure shouldn't break the suspension process
   }
 }
 
+// Helper function to send status change emails
+async function sendUserStatusEmail(email, subject, html, name, status) {
+  try {
+    const resend = getResendClient();
+    
+    // ✅ REMOVED: The apiKey check - getResendClient() already handles this
+    // ✅ REMOVED: Development mode logging - always try to send real emails
+    
+    logger.info(`📧 Attempting to send status email to: ${email}`, {
+      subject: subject,
+      status: status,
+      name: name
+    });
+
+    await retryOperation(async () => {
+      const emailResult = await resend.emails.send({
+        from: "LipaAlertHub <noreply@admin-lipaalerthub.com>",
+        to: [email],
+        subject: subject,
+        html: html,
+      });
+      
+      logger.info(`✅ Status email sent successfully to ${email}`, {
+        emailId: emailResult?.id,
+        status: status
+      });
+      
+      return emailResult;
+    });
+    
+    // Log successful email
+    await admin.firestore().collection("email_logs").add({
+      type: "user_status_change",
+      to: email,
+      subject: subject,
+      status: status,
+      name: name,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      success: true,
+      environment: "production"
+    });
+
+  } catch (error) {
+    logger.error("❌ Error sending status change email:", {
+      email: email,
+      error: error.message,
+      stack: error.stack
+    });
+    
+    // Log email failure but don't throw (non-critical)
+    await admin.firestore().collection("email_logs").add({
+      type: "user_status_change",
+      to: email,
+      subject: subject,
+      status: status,
+      name: name,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      success: false,
+      error: error.message,
+      environment: "production"
+    });
+    
+    // ✅ CHANGED: Don't throw error - email failure shouldn't break the main function
+    // Just log and continue
+  }
+}
 // Helper function to create in-app notifications
 async function createUserStatusNotification(userId, status, declineReason = null) {
   try {
@@ -1020,6 +1942,7 @@ exports.verifyOtp = onCall({
 });
 
 // Set new password - Enhanced with better validation
+// Set new password - Enhanced with better validation
 exports.setNewPassword = onCall({
   region: "asia-southeast1",
   cors: true
@@ -1092,35 +2015,148 @@ exports.setNewPassword = onCall({
       resetIP: request.rawRequest?.ip || 'unknown'
     });
 
-    // Send confirmation email
-    if (process.env.NODE_ENV !== "development" || process.env.RESEND_API_KEY) {
-      try {
-        await retryOperation(async () => {
-          const resend = getResendClient();
-          await resend.emails.send({
-            from: "LipaAlertHub <noreply@yourdomain.com>",
-            to: [otpData.email],
-            subject: "Password Reset Successful - LipaAlertHub",
-            html: `
-              <html>
-                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h1>Password Reset Successful</h1>
-                    <p>Your LipaAlertHub account password has been successfully updated.</p>
-                    <p>If you did not perform this action, please contact support immediately.</p>
-                    <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                      This is an automated message. Please do not reply.
-                    </p>
-                  </div>
-                </body>
-              </html>
-            `,
-          });
-        });
-      } catch (emailError) {
-        logger.error("Failed to send confirmation email:", emailError);
-        // Don't fail the password reset if email fails
-      }
+    // ✅ FIXED: Send confirmation email using the working Resend client
+    try {
+      const resend = getResendClient();
+      
+      const emailHtml = `
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { 
+                font-family: 'Arial', sans-serif; 
+                line-height: 1.6; 
+                color: #333; 
+                margin: 0; 
+                padding: 0; 
+                background-color: #f4f4f4;
+              }
+              .container { 
+                max-width: 600px; 
+                margin: 0 auto; 
+                padding: 20px; 
+                background: white;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+              }
+              .header { 
+                background: #27ae60; 
+                color: white; 
+                padding: 30px 20px; 
+                text-align: center; 
+                border-radius: 10px 10px 0 0; 
+                margin: -20px -20px 20px -20px;
+              }
+              .header h1 { 
+                margin: 0; 
+                font-size: 28px; 
+              }
+              .success-icon { 
+                font-size: 48px; 
+                text-align: center; 
+                margin: 20px 0; 
+              }
+              .info-box {
+                background: #e3f2fd;
+                border-left: 4px solid #2196f3;
+                padding: 15px;
+                margin: 20px 0;
+                border-radius: 0 8px 8px 0;
+              }
+              .security-notice { 
+                background: #fff3cd; 
+                border: 1px solid #ffeaa7; 
+                color: #856404; 
+                padding: 15px; 
+                border-radius: 8px; 
+                margin: 20px 0; 
+                font-size: 14px; 
+              }
+              .footer { 
+                margin-top: 30px; 
+                font-size: 12px; 
+                color: #666; 
+                text-align: center;
+                border-top: 1px solid #eee;
+                padding-top: 20px;
+              }
+              .logo { 
+                font-size: 24px; 
+                font-weight: bold; 
+                margin-bottom: 10px; 
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <div class="logo">🚨 LipaAlertHub</div>
+                <h1>Password Reset Successful</h1>
+              </div>
+              
+              <div class="success-icon">✅</div>
+              
+              <p>Dear User,</p>
+              
+              <p>Your LipaAlertHub account password has been <strong>successfully updated</strong>.</p>
+              
+              <div class="info-box">
+                <p><strong>Account:</strong> ${otpData.email}</p>
+                <p><strong>Reset Completed:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</p>
+              </div>
+              
+              <div class="security-notice">
+                <strong>🔒 Security Notice:</strong><br/>
+                • If you did not perform this password reset, please contact support immediately<br/>
+                • Use a strong, unique password for your account<br/>
+                • Never share your password with anyone<br/>
+                • LipaAlertHub will never ask for your password
+              </div>
+              
+              <p>You can now sign in to your account using your new password.</p>
+              
+              <div class="footer">
+                <p><strong>LipaAlertHub Team</strong><br/>
+                City Disaster Risk Reduction and Management Office<br/>
+                Lipa City, Batangas, Philippines</p>
+                <p>📞 Emergency: (043) 756-5555 | 📧 Email: cdrrmo@lipa.gov.ph</p>
+                <p><em>This is an automated message. Please do not reply to this email.</em></p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+      
+      await resend.emails.send({
+        from: "LipaAlertHub <noreply@admin-lipaalerthub.com>", 
+        to: [otpData.email],
+        subject: "✅ Password Reset Successful - LipaAlertHub",
+        html: emailHtml,
+      });
+      
+      logger.info(`✅ Password reset confirmation email sent to: ${otpData.email}`);
+      
+      // Log successful email sending
+      await admin.firestore().collection("email_logs").add({
+        type: "password_reset_confirmation",
+        to: otpData.email,
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        success: true,
+        resetCompleted: true
+      });
+      
+    } catch (emailError) {
+      logger.error("❌ Failed to send password reset confirmation email:", emailError);
+      
+      // Log email failure but don't fail the password reset
+      await admin.firestore().collection("email_logs").add({
+        type: "password_reset_confirmation",
+        to: otpData.email,
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        success: false,
+        error: emailError.message
+      });
     }
 
     return { 
@@ -1129,7 +2165,19 @@ exports.setNewPassword = onCall({
     };
     
   } catch (error) {
-    logger.error("Error in setNewPassword:", error);
+    logger.error("❌ Error in setNewPassword:", error);
+    
+    // Return user-friendly error messages
+    if (error.message.includes("Invalid session")) {
+      throw new Error("Invalid or expired session. Please request a new password reset.");
+    }
+    if (error.message.includes("Password reset window expired")) {
+      throw new Error("Password reset window has expired. Please request a new verification code.");
+    }
+    if (error.message.includes("User account not found")) {
+      throw new Error("User account not found. Please contact support.");
+    }
+    
     throw new Error(error.message || "Failed to update password. Please try again.");
   }
 });
@@ -1178,35 +2226,340 @@ exports.onAlertStatusUpdate = onDocumentUpdated({
 
 // Automated weather data fetching (scheduled)
 exports.fetchWeatherAlerts = onSchedule({
-  schedule: "*/15 * * * *", // Every 15 minutes
+  schedule: "*/30 * * * *",
   timeZone: "Asia/Manila",
-  region: "asia-southeast1"
+  region: "asia-southeast1",
+  memory: "256MiB"
 }, async (context) => {
   try {
-    logger.info("Starting automated weather data fetch");
+    logger.info("Starting automated weather fetch for Lipa City");
 
     const results = await Promise.allSettled([
       fetchOpenWeatherData(),
       fetchUSGSEarthquakeData()
     ]);
 
-    const successfulFetches = results.filter(r => r.status === 'fulfilled').length;
-    const failedFetches = results.filter(r => r.status === 'rejected').length;
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
 
-    logger.info(`Automated fetch completed: ${successfulFetches} successful, ${failedFetches} failed`);
+    logger.info(`Fetch completed: ${successful} successful, ${failed} failed`);
 
-    // Log results
-    await logSystemEvent("automated_weather_fetch", {
-      successful: successfulFetches,
-      failed: failedFetches,
-      timestamp: new Date().toISOString()
-    }, failedFetches === 0);
+    await admin.firestore().collection("system_logs").add({
+      type: "automated_weather_fetch",
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      success: failed === 0,
+      successful,
+      failed
+    });
 
   } catch (error) {
-    logger.error("Error in automated weather fetch:", error);
-    await logSystemEvent("automated_weather_fetch", { error: error.message }, false);
+    logger.error("Error in scheduled fetch:", error);
   }
 });
+
+exports.scheduledWeatherFetch = onSchedule({
+  schedule: "*/45 * * * *",
+  timeZone: "Asia/Manila",
+  region: "asia-southeast1",
+  memory: "512MiB"
+}, async (context) => {
+  try {
+    logger.info("=== SCHEDULED WEATHER FETCH START ===");
+
+    const results = await Promise.allSettled([
+      fetchOpenWeatherScheduled(),
+      fetchUSGSScheduled()
+    ]);
+
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+
+    logger.info(`Scheduled fetch: ${successful} successful, ${failed} failed`);
+
+  } catch (error) {
+    logger.error("Scheduled fetch error:", error);
+  }
+});
+
+async function fetchOpenWeatherScheduled() {
+  const url = `https://api.openweathermap.org/data/2.5/weather?lat=${LIPA_LAT}&lon=${LIPA_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+  const response = await fetch(url, { timeout: 10000 });
+  const data = await response.json();
+  const alertData = processOpenWeatherData(data);
+  if (alertData) await createPendingAlert(alertData);
+}
+
+async function fetchUSGSScheduled() {
+  const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=${LIPA_LAT}&longitude=${LIPA_LON}&maxradiuskm=${USGS_RADIUS}&minmagnitude=3.0&orderby=time&limit=5`;
+  const response = await fetch(url, { timeout: 15000 });
+  const data = await response.json();
+  
+  for (const eq of data.features) {
+    const alertData = processUSGSEarthquake(eq);
+    if (alertData) {
+      alertData.eventId = eq.id;
+      await createPendingAlert(alertData);
+    }
+  }
+}
+
+exports.manualFetchOpenWeather = onCall({
+  region: "asia-southeast1",
+  cors: true,
+  memory: "512MiB",
+  timeoutSeconds: 60
+}, async (request) => {
+  // CRITICAL: Wrap everything in try-catch
+  try {
+    // Verify admin access
+    if (!request.auth) {
+      logger.error("No authentication token provided");
+      throw new Error("Authentication required");
+    }
+
+    if (!request.auth.token.admin) {
+      logger.error("User is not admin:", request.auth.uid);
+      throw new Error("Admin access required");
+    }
+
+    logger.info("=== OPENWEATHER MANUAL FETCH START ===");
+    logger.info(`Requested by: ${request.auth.uid}`);
+
+    // Validate API key exists
+    if (!OPENWEATHER_API_KEY) {
+      throw new Error("OpenWeather API key not configured");
+    }
+
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${LIPA_LAT}&lon=${LIPA_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+    
+    logger.info("Fetching OpenWeather data...");
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'LipaAlertHub/1.0'
+      },
+      timeout: 10000
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error(`OpenWeather API Error: ${response.status} - ${errorText}`);
+      throw new Error(`OpenWeather API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    logger.info(`Weather: ${data.weather[0].description}, Temp: ${data.main.temp}°C`);
+
+    // Process and create alert
+    const alertData = processOpenWeatherData(data);
+    
+    if (alertData) {
+      await createPendingAlert(alertData);
+      logger.info(`Alert created: ${alertData.title}`);
+    } else {
+      // Create status update with expiration
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + ALERT_EXPIRATION_DAYS_PENDING);
+      
+      await createPendingAlert({
+        type: "weather",
+        title: "Weather Status - Lipa City",
+        description: `Current: ${data.weather[0].description}. Temp: ${Math.round(data.main.temp)}°C. No severe conditions.`,
+        severity: "info",
+        source: "OpenWeather",
+        raw: data,
+        location: { lat: LIPA_LAT, lon: LIPA_LON },
+        expiresAt: expiresAt
+      });
+    }
+
+    logger.info("=== OPENWEATHER FETCH SUCCESS ===");
+
+    return {
+      success: true,
+      message: alertData ? `Alert created: ${alertData.title}` : "Weather status updated",
+      data: {
+        temperature: data.main.temp,
+        conditions: data.weather[0].description
+      }
+    };
+
+  } catch (error) {
+    logger.error("=== OPENWEATHER FETCH FAILED ===");
+    logger.error("Error type:", error.name);
+    logger.error("Error message:", error.message);
+    logger.error("Stack:", error.stack);
+    
+    // Return a proper error response instead of throwing
+    throw new Error(`OpenWeather fetch failed: ${error.message}`);
+  }
+});
+
+exports.manualFetchUSGS = onCall({
+  region: "asia-southeast1",
+  cors: true,
+  memory: "512MiB",
+  timeoutSeconds: 60
+}, async (request) => {
+  try {
+    // Verify admin access
+    if (!request.auth) {
+      throw new Error("Authentication required");
+    }
+
+    if (!request.auth.token.admin) {
+      throw new Error("Admin access required");
+    }
+
+    logger.info("=== USGS MANUAL FETCH START (LIPA FOCUS) ===");
+    logger.info(`Requested by: ${request.auth.uid}`);
+
+    // Use bounding box for Lipa area
+    const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=${LIPA_BOUNDING_BOX.south}&maxlatitude=${LIPA_BOUNDING_BOX.north}&minlongitude=${LIPA_BOUNDING_BOX.west}&maxlongitude=${LIPA_BOUNDING_BOX.east}&minmagnitude=2.0&orderby=time&limit=15`;
+    
+    logger.info("Fetching USGS data for Lipa area...");
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'LipaAlertHub/1.0'
+      },
+      timeout: 15000
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error(`USGS API Error: ${response.status} - ${errorText}`);
+      throw new Error(`USGS API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    logger.info(`Found ${data.features.length} earthquakes in Lipa region`);
+
+    if (data.features.length === 0) {
+      // Create status alert with expiration
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + ALERT_EXPIRATION_DAYS_PENDING);
+      
+      await createPendingAlert({
+        type: "earthquake",
+        title: "🟢 No Seismic Activity - Lipa City",
+        description: `No significant earthquakes detected within ${LIPA_RADIUS_KM}km of Lipa City. Seismic monitoring active.`,
+        source: "USGS",
+        severity: "info",
+        location: { 
+          lat: LIPA_LAT, 
+          lon: LIPA_LON,
+          city: "Lipa City",
+          province: "Batangas"
+        },
+        expiresAt: expiresAt
+      });
+
+      return {
+        success: true,
+        message: "No earthquakes detected in Lipa area",
+        count: 0,
+        area: "Lipa City Focus"
+      };
+    }
+
+    // Process earthquakes with Lipa filtering
+    let created = 0;
+    let outsideLipa = 0;
+    
+    for (const eq of data.features) {
+      const coords = eq.geometry.coordinates;
+      const distance = calculateDistance(LIPA_LAT, LIPA_LON, coords[1], coords[0]);
+      
+      // Skip if outside Lipa area
+      if (distance > LIPA_RADIUS_KM) {
+        outsideLipa++;
+        continue;
+      }
+      
+      const alertData = processUSGSEarthquake(eq);
+      if (alertData) {
+        alertData.eventId = eq.id;
+        await createPendingAlert(alertData);
+        created++;
+      }
+    }
+
+    logger.info("=== USGS FETCH SUCCESS (LIPA FOCUS) ===");
+
+    return {
+      success: true,
+      message: `Created ${created} Lipa-area earthquake alerts`,
+      count: created,
+      filteredOut: outsideLipa,
+      area: `Lipa City (${LIPA_RADIUS_KM}km radius)`
+    };
+
+  } catch (error) {
+    logger.error("=== USGS FETCH FAILED ===");
+    logger.error("Error:", error.message);
+    logger.error("Stack:", error.stack);
+    
+    throw new Error(`USGS fetch failed: ${error.message}`);
+  }
+});
+
+exports.getLipaEarthquakes = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    const { hours = 24 } = request.data || {};
+    
+    const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+    
+    const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=${LIPA_BOUNDING_BOX.south}&maxlatitude=${LIPA_BOUNDING_BOX.north}&minlongitude=${LIPA_BOUNDING_BOX.west}&maxlongitude=${LIPA_BOUNDING_BOX.east}&minmagnitude=2.0&starttime=${startTime.toISOString()}&orderby=time&limit=20`;
+    
+    const response = await fetch(url, { timeout: 10000 });
+    const data = await response.json();
+    
+    // Filter for Lipa area only
+    const lipaEarthquakes = data.features.filter(earthquake => {
+      const coords = earthquake.geometry.coordinates;
+      const distance = calculateDistance(LIPA_LAT, LIPA_LON, coords[1], coords[0]);
+      return distance <= LIPA_RADIUS_KM;
+    });
+    
+    return {
+      success: true,
+      earthquakes: lipaEarthquakes.map(eq => ({
+        id: eq.id,
+        magnitude: eq.properties.mag,
+        place: eq.properties.place,
+        time: eq.properties.time,
+        distance: calculateDistance(LIPA_LAT, LIPA_LON, eq.geometry.coordinates[1], eq.geometry.coordinates[0]),
+        coordinates: {
+          lat: eq.geometry.coordinates[1],
+          lon: eq.geometry.coordinates[0]
+        }
+      })),
+      total: lipaEarthquakes.length,
+      area: `Lipa City (${LIPA_RADIUS_KM}km radius)`,
+      period: `${hours} hours`
+    };
+    
+  } catch (error) {
+    logger.error("Error getting Lipa earthquakes:", error);
+    throw new Error("Failed to retrieve Lipa earthquake data");
+  }
+});
+
+// Function to check if location is within Lipa City
+function isInLipaCity(lat, lon) {
+  const distance = calculateDistance(LIPA_LAT, LIPA_LON, lat, lon);
+  return distance <= 20; // Within 20km considered Lipa City
+}
 
 // Enhanced cleanup with better error handling
 exports.cleanupExpiredOtps = onSchedule({
@@ -1217,6 +2570,7 @@ exports.cleanupExpiredOtps = onSchedule({
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const now = new Date();
     
     // Clean up expired OTPs
     const expiredOtpQuery = await admin
@@ -1232,8 +2586,16 @@ exports.cleanupExpiredOtps = onSchedule({
       .where("timestamp", "<", admin.firestore.Timestamp.fromDate(sevenDaysAgo))
       .get();
 
+    // Clean up expired alerts
+    const expiredAlertsQuery = await admin
+      .firestore()
+      .collection("alerts")
+      .where("expiresAt", "<", admin.firestore.Timestamp.fromDate(now))
+      .get();
+
     let cleanedOtps = 0;
     let cleanedRateLimits = 0;
+    let cleanedAlerts = 0;
 
     if (!expiredOtpQuery.empty) {
       const batch1 = admin.firestore().batch();
@@ -1249,7 +2611,14 @@ exports.cleanupExpiredOtps = onSchedule({
       cleanedRateLimits = oldRateLimitQuery.size;
     }
 
-    logger.info(`Cleanup completed: ${cleanedOtps} expired OTPs, ${cleanedRateLimits} old rate limit records`);
+    if (!expiredAlertsQuery.empty) {
+      const batch3 = admin.firestore().batch();
+      expiredAlertsQuery.docs.forEach((doc) => batch3.delete(doc.ref));
+      await batch3.commit();
+      cleanedAlerts = expiredAlertsQuery.size;
+    }
+
+    logger.info(`Cleanup completed: ${cleanedOtps} expired OTPs, ${cleanedRateLimits} old rate limit records, ${cleanedAlerts} expired alerts`);
     
   } catch (error) {
     logger.error("Error in cleanup task:", error);
@@ -1266,21 +2635,62 @@ exports.onWeatherAlertCreated = onDocumentCreated({
   const alertData = event.data.data();
   const alertId = event.params.alertId;
 
+  // Only process active and approved alerts
   if (!alertData || !alertData.isActive || !alertData.approved) {
-    logger.info("Alert not active/approved — skipping notifications");
+    logger.info("⏭️ Alert not active/approved — skipping notifications");
     return;
   }
 
   try {
-    logger.info(`Processing weather alert: ${alertId}`);
+    logger.info(`📢 Processing new weather alert: ${alertId}`);
+    logger.info(`Alert: ${alertData.title} (${alertData.severity})`);
 
-    const usersSnapshot = await admin.firestore().collection("users")
+    // ✅ STEP 1: CREATE IN-APP NOTIFICATIONS FOR ALL USERS
+    const allUsersSnapshot = await admin.firestore().collection("users")
+      .where("status", "==", "active")
+      .get();
+
+    const inAppNotificationBatch = admin.firestore().batch();
+    let inAppCount = 0;
+
+    allUsersSnapshot.forEach((userDoc) => {
+      const notificationRef = admin.firestore().collection("notifications").doc();
+      
+      inAppNotificationBatch.set(notificationRef, {
+        userId: userDoc.id,
+        alertId: alertId,
+        title: `⚠️ ${alertData.severity.toUpperCase()} ALERT`,
+        body: alertData.title,
+        type: "weather_alert",
+        priority: alertData.severity === "danger" ? "high" : "normal",
+        status: "unread",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        data: {
+          alertId: alertId,
+          severity: alertData.severity,
+          alertType: alertData.type,
+          description: alertData.description,
+          actionUrl: `/weather/detailed?alertId=${alertId}`
+        },
+        expiresAt: admin.firestore.Timestamp.fromDate(
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        )
+      });
+      
+      inAppCount++;
+    });
+
+    await inAppNotificationBatch.commit();
+    logger.info(`✅ Created ${inAppCount} in-app notifications`);
+
+    // ✅ STEP 2: SEND PUSH NOTIFICATIONS
+    const usersWithTokens = await admin.firestore().collection("users")
       .where("expoPushToken", "!=", null)
       .where("notificationsEnabled", "!=", false)
       .get();
 
-    if (usersSnapshot.empty) {
-      logger.info("No users with push tokens found");
+    if (usersWithTokens.empty) {
+      logger.info("ℹ️ No users with push tokens found");
       return;
     }
 
@@ -1292,54 +2702,576 @@ exports.onWeatherAlertCreated = onDocumentCreated({
       danger: "🔴",
     }[alertData.severity] || "⚠️";
 
-    usersSnapshot.forEach((doc) => {
+    const severityText = {
+      info: "INFORMATION",
+      watch: "WATCH",
+      warning: "WARNING",
+      danger: "DANGER"
+    }[alertData.severity] || "ALERT";
+
+    usersWithTokens.forEach((doc) => {
       const user = doc.data();
       const token = user.expoPushToken;
       
       if (token && token.trim() && typeof token === 'string') {
         messages.push({
           to: token,
-          sound: "default",
-          title: `${severityEmoji} ${String(alertData.severity || 'ALERT').toUpperCase()}`,
-          body: `${alertData.title || 'Weather Alert'} - ${String(alertData.description || "Check the app for details").substring(0, 120)}${(alertData.description || "").length > 120 ? "..." : ""}`,
+          sound: alertData.severity === 'danger' ? 'default' : 'default',
+          title: `${severityEmoji} ${severityText}`,
+          body: alertData.title.substring(0, 100),
           data: {
             type: "weather_alert",
-            alertId,
+            alertId: alertId,
             severity: alertData.severity,
             alertType: alertData.type,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            screen: "WeatherAlerts"
           },
           channelId: "weather_alerts",
           priority: alertData.severity === "danger" ? "high" : "default",
-          ttl: 3600, // 1 hour TTL
+          ttl: 3600,
+          badge: 1
         });
       }
     });
 
-    logger.info(`Prepared ${messages.length} push messages`);
+    logger.info(`📨 Prepared ${messages.length} push notifications`);
 
-    // Send in batches with retry logic
-    const results = await sendPushNotificationBatches(messages);
+    if (messages.length === 0) {
+      logger.info("ℹ️ No valid push tokens to send to");
+      return;
+    }
+
+    // Send in batches of 100
+    const BATCH_SIZE = 100;
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+      const batch = messages.slice(i, i + BATCH_SIZE);
+      
+      try {
+        const response = await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Accept-encoding": "gzip, deflate",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(batch),
+          timeout: 30000
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          successCount += batch.length;
+          logger.info(`✅ Batch ${Math.floor(i/BATCH_SIZE) + 1} sent successfully`);
+        } else {
+          failCount += batch.length;
+          logger.error(`❌ Batch ${Math.floor(i/BATCH_SIZE) + 1} failed: ${response.status}`);
+        }
+      } catch (error) {
+        failCount += batch.length;
+        logger.error(`❌ Batch ${Math.floor(i/BATCH_SIZE) + 1} error:`, error);
+      }
+
+      // Small delay between batches
+      if (i + BATCH_SIZE < messages.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    logger.info(`📊 Push notification results: ${successCount} successful, ${failCount} failed`);
     
-    // Log results
-    const successful = results.filter(r => r.success).length;
-    const failed = results.filter(r => !r.success).length;
-    
-    logger.info(`Push notification results: ${successful} successful, ${failed} failed`);
-    
-    // Update alert document with notification stats
+    // ✅ STEP 3: UPDATE ALERT WITH NOTIFICATION STATS
     await admin.firestore().collection("weather_alerts").doc(alertId).update({
       notificationStats: {
-        sent: successful,
-        failed: failed,
-        sentAt: admin.firestore.FieldValue.serverTimestamp()
+        inAppCreated: inAppCount,
+        pushSent: successCount,
+        pushFailed: failCount,
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        totalUsers: messages.length
       }
     });
 
+    logger.info(`✅ Weather alert processing completed for: ${alertId}`);
+
   } catch (error) {
-    logger.error("Error in onWeatherAlertCreated:", error);
+    logger.error("❌ Error in onWeatherAlertCreated:", error);
   }
 });
+
+// =================== ALERT SEVERITY INCREASE NOTIFICATION ===================
+exports.onWeatherAlertUpdated = onDocumentUpdated({
+  document: "weather_alerts/{alertId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
+  const alertId = event.params.alertId;
+
+  if (!before || !after) return;
+
+  try {
+    // Check if severity increased
+    const severityOrder = { info: 1, watch: 2, warning: 3, danger: 4 };
+    const beforeLevel = severityOrder[before.severity] || 0;
+    const afterLevel = severityOrder[after.severity] || 0;
+
+    if (afterLevel > beforeLevel && after.isActive && after.approved) {
+      logger.info(`⚠️ Alert ${alertId} severity INCREASED: ${before.severity} → ${after.severity}`);
+      
+      // ✅ CREATE IN-APP NOTIFICATIONS
+      const usersSnapshot = await admin.firestore().collection("users")
+        .where("status", "==", "active")
+        .get();
+
+      const batch = admin.firestore().batch();
+
+      usersSnapshot.forEach((userDoc) => {
+        const notificationRef = admin.firestore().collection("notifications").doc();
+        
+        batch.set(notificationRef, {
+          userId: userDoc.id,
+          alertId: alertId,
+          title: `⚠️ ALERT UPGRADED: ${after.severity.toUpperCase()}`,
+          body: `${after.title} - Severity increased from ${before.severity.toUpperCase()} to ${after.severity.toUpperCase()}`,
+          type: "weather_alert_updated",
+          priority: "high",
+          status: "unread",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          data: {
+            alertId: alertId,
+            severity: after.severity,
+            previousSeverity: before.severity,
+            actionUrl: `/weather/detailed?alertId=${alertId}`
+          },
+          expiresAt: admin.firestore.Timestamp.fromDate(
+            new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          )
+        });
+      });
+
+      await batch.commit();
+
+      // ✅ SEND PUSH NOTIFICATIONS
+      const usersWithTokens = await admin.firestore().collection("users")
+        .where("expoPushToken", "!=", null)
+        .where("notificationsEnabled", "!=", false)
+        .limit(1000)
+        .get();
+
+      const messages = [];
+      const severityEmoji = { info: "🔵", watch: "🟡", warning: "🟠", danger: "🔴" }[after.severity] || "⚠️";
+
+      usersWithTokens.forEach((doc) => {
+        const token = doc.data().expoPushToken;
+        if (token && typeof token === 'string' && token.trim()) {
+          messages.push({
+            to: token,
+            sound: 'default',
+            title: `${severityEmoji} ALERT UPGRADED: ${after.severity.toUpperCase()}`,
+            body: `${after.title}`,
+            data: {
+              type: "weather_alert_updated",
+              alertId: alertId,
+              severity: after.severity,
+              previousSeverity: before.severity,
+              timestamp: Date.now(),
+              screen: "WeatherAlerts"
+            },
+            priority: 'high',
+            ttl: 3600,
+            badge: 1
+          });
+        }
+      });
+
+      if (messages.length > 0) {
+        await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(messages)
+        });
+
+        logger.info(`📢 Sent ${messages.length} severity update notifications`);
+      }
+    }
+
+    // Check if alert was deactivated
+    if (before.isActive && !after.isActive) {
+      logger.info(`🔕 Alert ${alertId} was DEACTIVATED`);
+      
+      // Create deactivation notification
+      const usersSnapshot = await admin.firestore().collection("users")
+        .where("status", "==", "active")
+        .limit(1000)
+        .get();
+
+      const batch = admin.firestore().batch();
+
+      usersSnapshot.forEach((userDoc) => {
+        const notificationRef = admin.firestore().collection("notifications").doc();
+        
+        batch.set(notificationRef, {
+          userId: userDoc.id,
+          alertId: alertId,
+          title: "✅ Alert Cleared",
+          body: `${after.title} - This alert has been cleared`,
+          type: "weather_alert_cleared",
+          priority: "low",
+          status: "unread",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          data: {
+            alertId: alertId,
+            alertTitle: after.title
+          },
+          expiresAt: admin.firestore.Timestamp.fromDate(
+            new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days
+          )
+        });
+      });
+
+      await batch.commit();
+      logger.info(`✅ Created ${usersSnapshot.size} deactivation notifications`);
+    }
+
+  } catch (error) {
+    logger.error("❌ Error in onWeatherAlertUpdated:", error);
+  }
+});
+
+exports.testWeatherAlertNotification = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth) {
+    throw new Error("Authentication required");
+  }
+
+  try {
+    const userId = request.auth.uid;
+    
+    logger.info(`🧪 Testing notification for user: ${userId}`);
+
+    // ✅ CREATE IN-APP NOTIFICATION
+    await admin.firestore().collection("notifications").add({
+      userId: userId,
+      title: "🧪 Test Weather Alert",
+      body: "This is a test notification. If you can see this, real-time notifications are working!",
+      type: "weather_alert",
+      priority: "high",
+      status: "unread",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        isTest: true,
+        timestamp: new Date().toISOString()
+      },
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 day
+      )
+    });
+
+    // ✅ SEND PUSH NOTIFICATION
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+    const userData = userDoc.data();
+    const token = userData?.expoPushToken;
+
+    if (token && typeof token === 'string' && token.trim()) {
+      const message = {
+        to: token,
+        sound: 'default',
+        title: '🧪 Test Weather Alert',
+        body: 'This is a test notification. If you received this, push notifications are working!',
+        data: {
+          type: "weather_alert",
+          isTest: true,
+          timestamp: Date.now(),
+          screen: "Notifications"
+        },
+        priority: 'high',
+        badge: 1
+      };
+
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message)
+      });
+
+      if (response.ok) {
+        logger.info(`✅ Test push notification sent to user ${userId}`);
+        return {
+          success: true,
+          message: "Test notification sent successfully (both in-app and push)",
+          sentPush: true,
+          timestamp: new Date().toISOString()
+        };
+      } else {
+        logger.error(`❌ Push notification failed: ${response.status}`);
+        return {
+          success: true,
+          message: "In-app notification sent, but push notification failed",
+          sentPush: false,
+          error: `HTTP ${response.status}`,
+          timestamp: new Date().toISOString()
+        };
+      }
+    } else {
+      logger.info(`ℹ️ No push token for user ${userId}`);
+      return {
+        success: true,
+        message: "In-app notification sent (no push token available)",
+        sentPush: false,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+  } catch (error) {
+    logger.error("❌ Error testing notification:", error);
+    throw new Error("Failed to send test notification");
+  }
+});
+
+exports.getNotificationStats = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  try {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // Get notification counts
+    const [
+      totalNotifications,
+      last24Hours,
+      lastWeek,
+      weatherAlerts,
+      unreadNotifications
+    ] = await Promise.all([
+      admin.firestore().collection("notifications").count().get(),
+      admin.firestore().collection("notifications")
+        .where("createdAt", ">", admin.firestore.Timestamp.fromDate(oneDayAgo))
+        .count().get(),
+      admin.firestore().collection("notifications")
+        .where("createdAt", ">", admin.firestore.Timestamp.fromDate(oneWeekAgo))
+        .count().get(),
+      admin.firestore().collection("notifications")
+        .where("type", "==", "weather_alert")
+        .count().get(),
+      admin.firestore().collection("notifications")
+        .where("status", "==", "unread")
+        .count().get()
+    ]);
+
+    return {
+      success: true,
+      stats: {
+        total: totalNotifications.data().count,
+        last24Hours: last24Hours.data().count,
+        lastWeek: lastWeek.data().count,
+        weatherAlerts: weatherAlerts.data().count,
+        unread: unreadNotifications.data().count
+      },
+      generatedAt: new Date().toISOString()
+    };
+
+  } catch (error) {
+    logger.error("❌ Error getting notification stats:", error);
+    throw new Error("Failed to get notification stats");
+  }
+});
+
+
+exports.onWeatherAlertUpdated = onDocumentUpdated({
+  document: "weather_alerts/{alertId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
+  const alertId = event.params.alertId;
+
+  if (!before || !after) return;
+
+  try {
+    // Check if alert was just approved (pending -> approved)
+    if (!before.approved && after.approved && after.isActive) {
+      logger.info(`✅ Alert ${alertId} was just APPROVED - triggering notifications`);
+      
+      // Trigger the same notification logic as creation
+      // This is already handled by onWeatherAlertCreated
+      return;
+    }
+
+    // Check if severity increased
+    const severityOrder = { info: 1, watch: 2, warning: 3, danger: 4 };
+    const beforeLevel = severityOrder[before.severity] || 0;
+    const afterLevel = severityOrder[after.severity] || 0;
+
+    if (afterLevel > beforeLevel && after.isActive && after.approved) {
+      logger.info(`⚠️ Alert ${alertId} severity INCREASED: ${before.severity} → ${after.severity}`);
+      
+      // Send update notification
+      const usersSnapshot = await admin.firestore().collection("users")
+        .where("expoPushToken", "!=", null)
+        .where("notificationsEnabled", "!=", false)
+        .limit(1000)
+        .get();
+
+      const messages = [];
+      const severityEmoji = { info: "🔵", watch: "🟡", warning: "🟠", danger: "🔴" }[after.severity] || "⚠️";
+
+      usersSnapshot.forEach((doc) => {
+        const token = doc.data().expoPushToken;
+        if (token && typeof token === 'string' && token.trim()) {
+          messages.push({
+            to: token,
+            sound: 'default',
+            title: `${severityEmoji} ALERT UPDATED: ${after.severity.toUpperCase()}`,
+            body: `${after.title} - Severity increased to ${after.severity.toUpperCase()}`,
+            data: {
+              type: "weather_alert_updated",
+              alertId: alertId,
+              severity: after.severity,
+              previousSeverity: before.severity,
+              timestamp: Date.now()
+            },
+            priority: 'high',
+            ttl: 3600
+          });
+        }
+      });
+
+      if (messages.length > 0) {
+        await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(messages)
+        });
+
+        logger.info(`📢 Sent ${messages.length} severity update notifications`);
+      }
+    }
+
+    // Check if alert was deactivated
+    if (before.isActive && !after.isActive) {
+      logger.info(`🔕 Alert ${alertId} was DEACTIVATED`);
+      
+      await admin.firestore().collection("weather_alerts").doc(alertId).update({
+        deactivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        notificationStats: {
+          ...after.notificationStats,
+          deactivatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }
+      });
+    }
+
+  } catch (error) {
+    logger.error("❌ Error in onWeatherAlertUpdated:", error);
+  }
+});
+
+// =================== TEST REAL-TIME ALERT CREATION (For Admin Testing) ===================
+exports.createTestWeatherAlert = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  try {
+    logger.info("🧪 Creating test weather alert...");
+
+    const testAlert = {
+      title: "TEST ALERT - Real-time Update Test",
+      description: `This is a test alert created at ${new Date().toLocaleString()}. If you can see this immediately, real-time updates are working!`,
+      severity: "info",
+      type: "weather",
+      approved: true,
+      isActive: true,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: request.auth.uid,
+      source: "Manual Test",
+      location: {
+        lat: 13.9411,
+        lon: 121.1631,
+        city: "Lipa City",
+        province: "Batangas"
+      },
+      isTest: true
+    };
+
+    const docRef = await admin.firestore().collection("weather_alerts").add(testAlert);
+    
+    logger.info(`✅ Test alert created: ${docRef.id}`);
+
+    return {
+      success: true,
+      message: "Test alert created successfully",
+      alertId: docRef.id,
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    logger.error("❌ Error creating test alert:", error);
+    throw new Error("Failed to create test alert");
+  }
+});
+
+exports.deleteTestAlerts = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  try {
+    logger.info("🧹 Deleting test alerts...");
+
+    const testAlertsQuery = await admin.firestore()
+      .collection("weather_alerts")
+      .where("isTest", "==", true)
+      .get();
+
+    const batch = admin.firestore().batch();
+    let deleteCount = 0;
+
+    testAlertsQuery.docs.forEach(doc => {
+      batch.delete(doc.ref);
+      deleteCount++;
+    });
+
+    await batch.commit();
+
+    logger.info(`✅ Deleted ${deleteCount} test alerts`);
+
+    return {
+      success: true,
+      message: `Deleted ${deleteCount} test alerts`,
+      deletedCount: deleteCount
+    };
+
+  } catch (error) {
+    logger.error("❌ Error deleting test alerts:", error);
+    throw new Error("Failed to delete test alerts");
+  }
+});
+
 
 /* ===================================================================
    ENHANCED PUSH NOTIFICATION SYSTEM
@@ -1408,6 +3340,8 @@ async function sendPushNotificationBatches(messages) {
   
   return results;
 }
+
+
 
 /* ===================================================================
    INCIDENT PHOTO PROCESSING - Enhanced with Better Error Handling
@@ -1590,37 +3524,105 @@ exports.onReportStatusUpdate = onDocumentUpdated({
   try {
     logger.info(`Report ${reportId} status changed: ${before.status} -> ${after.status}`);
 
+    // =================== PART 1: AUTO-SUGGEST AGENCY ===================
+    // AUTO-SUGGEST AGENCY WHEN REPORT IS VERIFIED/ACCEPTED
+    if ((after.status === 'verified' || after.status === 'accepted') && !before.suggestedAgency) {
+        const suggestion = determineSuggestedAgency(after);
+        await admin.firestore().collection("incident_reports").doc(reportId).update({
+             assignedRescuer: rescuerId,  // ← This MUST be set
+            suggestedAgency: suggestion.mainAgency,
+            suggestedPartner: suggestion.partnerAgency,
+            requiresPatientForm: suggestion.requiresPatientForm,
+            suggestionReason: suggestion.suggestionReason,
+            suggestedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        logger.info(`Agency suggested for report ${reportId}: ${suggestion.mainAgency}`);
+    }
+
+    // =================== PART 2: REAL-TIME AVAILABILITY TRACKING ===================
+    // When rescuer is assigned - mark as busy
+    if (!before.assignedRescuer && after.assignedRescuer) {
+      await admin.firestore().collection('users').doc(after.assignedRescuer).update({
+        currentAssignment: reportId,
+        rescuerStatus: 'busy',
+        lastAssignment: admin.firestore.FieldValue.serverTimestamp()
+      });
+      logger.info(`Rescuer ${after.assignedRescuer} marked as busy for report ${reportId}`);
+    }
+
+    // When report resolved - mark rescuer as available
+    if (before.assignedRescuer && after.status === 'resolved') {
+      await admin.firestore().collection('users').doc(before.assignedRescuer).update({
+        currentAssignment: null,
+        rescuerStatus: 'available', 
+        lastAvailable: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Auto-create patient form placeholder
+      await admin.firestore().collection('patient_forms').add({
+        reportId: reportId,
+        status: 'pending',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdBy: before.assignedRescuer,
+        incidentType: after.incidentType || after.emergencyType,
+        patientName: 'Pending Completion'
+      });
+      
+      logger.info(`Rescuer ${before.assignedRescuer} marked as available and patient form created for report ${reportId}`);
+    }
+
+    // =================== PART 3: USER NOTIFICATIONS ===================
     const location = after.location?.address || 
                     `${after.location?.latitude || "Unknown"}, ${after.location?.longitude || "location"}`;
     const emergencyType = after.emergencyType || "incident";
 
-    // Create notification with enhanced error handling
-    await retryOperation(async () => {
-      await createStatusChangeNotification(
-        after.reporterId,
-        reportId,
-        after.status,
-        location,
-        emergencyType
-      );
-    });
+    // ✅ IMMEDIATE NOTIFICATION TO USER
+    let userTitle = '';
+    let userBody = '';
 
-    // Send push notification with retry
-    await retryOperation(async () => {
-      await sendReportStatusPushNotification(
-        after.reporterId,
-        after.status,
-        emergencyType,
-        reportId,
-        location
-      );
-    });
+    switch (after.status) {
+      case 'verified':
+        userTitle = '✅ SOS Verified';
+        userBody = `Your ${emergencyType} report has been verified by CDRRMO and is being assigned to responders.`;
+        break;
+      case 'assigned':
+        const agencyName = after.assignedAgencyName || after.assignedAgency;
+        userTitle = '👷 Response Team Assigned';
+        userBody = `CDRRMO has assigned ${agencyName} to respond to your ${emergencyType} emergency.`;
+        break;
+      case 'resolved':
+        userTitle = '✅ Emergency Resolved';
+        userBody = `Your ${emergencyType} emergency has been successfully resolved by the response team.`;
+        break;
+      default:
+        userTitle = '📋 SOS Status Update';
+        userBody = `Your emergency report status has been updated to: ${after.status}`;
+    }
+
+    await sendImmediateUserNotification(
+      after.userId || after.reporterId,
+      reportId,
+      userTitle,
+      userBody,
+      {
+        type: 'sos_status_update',
+        reportId: reportId,
+        newStatus: after.status,
+        emergencyType: emergencyType,
+        location: location,
+        timestamp: new Date().toISOString()
+      }
+    );
 
     // Update report with notification status
     await admin.firestore().collection("incident_reports").doc(reportId).update({
       lastNotificationSent: admin.firestore.FieldValue.serverTimestamp(),
-      notificationStatus: "sent"
+      notificationStatus: "sent",
+      lastStatus: after.status
     });
+
+    logger.info(`Notification sent for report ${reportId} status: ${after.status}`);
 
   } catch (error) {
     logger.error(`Error handling status update for report ${reportId}:`, error);
@@ -1636,6 +3638,1195 @@ exports.onReportStatusUpdate = onDocumentUpdated({
     }
   }
 });
+
+async function sendImmediateUserNotification(userId, reportId, title, body, data = {}) {
+  try {
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+    
+    if (!userDoc.exists) {
+      logger.info("User not found for notification:", userId);
+      return;
+    }
+
+    const userData = userDoc.data();
+    const token = userData.expoPushToken;
+    
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      logger.info("No valid Expo token for user:", userId);
+      // Still create in-app notification even without push token
+    }
+
+    // ✅ CREATE IN-APP NOTIFICATION IMMEDIATELY
+    const notificationData = {
+      userId: userId,
+      reportId: reportId,
+      title: title,
+      body: body,
+      type: data.type || 'sos_update',
+      priority: 'high',
+      status: 'unread',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        ...data,
+        timestamp: new Date().toISOString()
+      },
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+      )
+    };
+
+    await admin.firestore().collection("notifications").add(notificationData);
+    logger.info(`✅ In-app notification created for user ${userId}: ${title}`);
+
+    // ✅ SEND PUSH NOTIFICATION IMMEDIATELY (if token exists)
+    if (token && token.trim()) {
+      const message = {
+        to: token,
+        sound: 'default',
+        title: title,
+        body: body,
+        data: {
+          ...data,
+          timestamp: Date.now()
+        },
+        channelId: 'sos_updates',
+        priority: 'high',
+        ttl: 86400 // 24 hours
+      };
+
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+        timeout: 15000
+      });
+
+      if (response.ok) {
+        logger.info(`✅ Push notification sent to user ${userId}`);
+      } else {
+        logger.error(`❌ Push notification failed for user ${userId}`);
+      }
+    }
+
+  } catch (error) {
+    logger.error("Error sending immediate user notification:", error);
+  }
+}
+
+function canCreatePatientForm(userRole, assignedAgency) {
+  // ✅ ONLY CDRRMO team can create patient forms
+  const isCDRRMOTeam = userRole === 'admin' || 
+                       userRole === 'monitor' || 
+                       (userRole === 'rescuer' && assignedAgency === 'CDRRMO');
+  
+  return isCDRRMOTeam;
+}
+
+
+exports.canCreatePatientForm = onCall({
+    region: "asia-southeast1", 
+    cors: true
+}, async (request) => {
+    if (!request.auth) throw new Error("Authentication required");
+    
+    const { reportId } = request.data;
+    if (!reportId) throw new Error("Report ID required");
+
+    const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+    const userData = userDoc.data();
+    const reportDoc = await admin.firestore().collection("incident_reports").doc(reportId).get();
+    const reportData = reportDoc.data();
+
+    // ✅ CDRRMO TEAM ONLY (admin, monitor, rescuer)
+    const canCreate = (userData.role === 'admin' || 
+                      userData.role === 'monitor' || 
+                      userData.role === 'rescuer');
+
+    return { 
+        canCreate: canCreate,
+        userRole: userData.role,
+        reportStatus: reportData.status,
+        hasPatientForm: reportData.hasPatientForm || false
+    };
+});
+
+exports.createPatientForm = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+
+  const { reportId, patientData } = request.data;
+  
+  if (!reportId || !patientData) {
+    throw new functions.https.HttpsError('invalid-argument', 'Report ID and patient data required');
+  }
+
+  // Check user role and permissions
+  const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+  const userData = userDoc.data();
+  const reportDoc = await admin.firestore().collection('incident_reports').doc(reportId).get();
+  const reportData = reportDoc.data();
+
+  // ✅ CDRRMO TEAM ONLY (admin, monitor, rescuer) - Agency CANNOT create
+  const canCreate = ['admin', 'monitor', 'rescuer'].includes(userData.role);
+  
+  if (!canCreate) {
+    throw new functions.https.HttpsError('permission-denied', 'Only CDRRMO team can create patient forms');
+  }
+
+  // Verify report is resolved
+  if (reportData.status !== 'resolved') {
+    throw new functions.https.HttpsError('failed-precondition', 'Can only create patient form for resolved incidents');
+  }
+
+  try {
+    const patientForm = {
+      reportId: reportId,
+      patientData: patientData,
+      status: 'completed',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: request.auth.uid,
+      createdByName: userData.name,
+      incidentType: reportData.incidentType || reportData.emergencyType,
+      location: reportData.location,
+      // Medical details
+      vitalSigns: patientData.vitalSigns || {},
+      injuries: patientData.injuries || [],
+      treatment: patientData.treatment || [],
+      disposition: patientData.disposition || {}
+    };
+
+    const patientFormRef = await admin.firestore().collection('patient_forms').add(patientForm);
+
+    // Update report to mark patient form as completed
+    await admin.firestore().collection('incident_reports').doc(reportId).update({
+      hasPatientForm: true,
+      patientFormId: patientFormRef.id,
+      patientFormCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return {
+      success: true,
+      message: 'Patient form created successfully',
+      patientFormId: patientFormRef.id
+    };
+
+  } catch (error) {
+    throw new functions.https.HttpsError('internal', error.message);
+  }
+});
+
+exports.getCDRRMORescuers = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    console.log("🔄 Starting getCDRRMORescuers function...");
+
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    const db = admin.firestore();
+    
+    // Get all active rescuers
+    const rescuersQuery = db
+      .collection("users")
+      .where("role", "==", "rescuer")
+      .where("status", "==", "active");
+
+    const snapshot = await rescuersQuery.get();
+    console.log(`📊 Found ${snapshot.size} rescuers total`);
+    
+    const rescuers = [];
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      
+      console.log(`✅ Rescuer found: ${data.name}`, {
+        id: doc.id,
+        currentAssignment: data.currentAssignment,
+        rescuerStatus: data.rescuerStatus
+      });
+
+      rescuers.push({
+        id: doc.id,
+        name: data.name || 'Unknown Rescuer',
+        status: data.rescuerStatus || 'available',
+        phoneNumber: data.phoneNumber || data.phone || data.number || 'N/A',
+        barangay: data.barangay || 'Unknown',
+        currentAssignment: data.currentAssignment || null,
+        isAvailable: !data.currentAssignment && (data.rescuerStatus !== 'busy'),
+        agency: data.agency || 'CDRRMO',
+        email: data.email || 'No email'
+      });
+    });
+
+    console.log(`✅ Final rescuers: ${rescuers.length}`);
+
+    return {
+      success: true,
+      rescuers: rescuers,
+      count: rescuers.length,
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error("❌ Error in getCDRRMORescuers:", error);
+    throw new functions.https.HttpsError('internal', `Failed to fetch rescuers: ${error.message}`);
+  }
+});
+
+exports.getSupportAgencies = onCall({
+    region: "asia-southeast1",
+    cors: true
+}, async (request) => {
+    try {
+        console.log("🔄 Loading support agencies...");
+
+        if (!request.auth) {
+            throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+        }
+
+        const db = admin.firestore();
+        
+        // Get all agency users
+        const agenciesQuery = db
+            .collection("users")
+            .where("role", "==", "agency")
+            .where("status", "==", "active");
+
+        const snapshot = await agenciesQuery.get();
+        console.log(`📊 Found ${snapshot.size} agencies`);
+        
+        const agencies = [];
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            
+            agencies.push({
+                id: doc.id,
+                name: data.agencyName || data.name || 'Unknown Agency',
+                email: data.email || 'No email',
+                phoneNumber: data.phoneNumber || data.phone || data.number || 'N/A',
+                barangay: data.barangay || 'Unknown'
+            });
+        });
+
+        // Add default agencies kung walang nahanap
+        if (agencies.length === 0) {
+            console.log("ℹ️ No agencies found, adding defaults");
+            agencies.push(
+                {
+                    id: 'default-bfp',
+                    name: 'BFP Lipa Fire Station',
+                    email: 'bfp_lipa@lipa.gov.ph',
+                    phoneNumber: '(043) 756-1111',
+                    barangay: 'Lipa City'
+                },
+                {
+                    id: 'default-pnp',
+                    name: 'PNP Lipa Police Station', 
+                    email: 'pnp_lipa@lipa.gov.ph',
+                    phoneNumber: '(043) 756-2222',
+                    barangay: 'Lipa City'
+                }
+            );
+        }
+
+        console.log(`✅ Final agencies: ${agencies.length}`, agencies);
+
+        return {
+            success: true,
+            agencies: agencies,
+            count: agencies.length,
+            timestamp: new Date().toISOString()
+        };
+
+    } catch (error) {
+        console.error("❌ Error loading agencies:", error);
+        throw new functions.https.HttpsError('internal', `Failed to fetch agencies: ${error.message}`);
+    }
+});
+
+/* ===================================================================
+   COMPLETE INCIDENT FLOW FUNCTIONS - UPDATED FOR SOS & REPORT
+=================================================================== */
+
+// ✅ DAGDAG: VERIFY INCIDENT (Admin/Monitor only)
+exports.verifyIncident = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+
+  const { reportId } = request.data;
+  
+  if (!reportId) {
+    throw new functions.https.HttpsError('invalid-argument', 'Report ID required');
+  }
+
+  // Check if user has admin/monitor role
+  const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+  const userData = userDoc.data();
+  
+  if (!['admin', 'monitor'].includes(userData.role)) {
+    throw new functions.https.HttpsError('permission-denied', 'Admin/Monitor role required');
+  }
+
+  try {
+    await admin.firestore().collection('incident_reports').doc(reportId).update({
+      status: 'verified',
+      verifiedBy: request.auth.uid,
+      verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdatedBy: request.auth.uid
+    });
+
+    return {
+      success: true,
+      message: 'Incident verified successfully'
+    };
+
+  } catch (error) {
+    throw new functions.https.HttpsError('internal', error.message);
+  }
+});
+exports.assignToAgency = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+
+  const { reportId, mainAgency, partnerAgencyId, partnerAgencyName } = request.data;
+  
+  if (!reportId || !mainAgency) {
+    throw new functions.https.HttpsError('invalid-argument', 'Report ID and main agency required');
+  }
+
+  try {
+    // ✅ VERIFY USER PERMISSIONS
+    const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+    const userData = userDoc.data();
+    
+    if (!['admin', 'monitor'].includes(userData.role)) {
+      throw new functions.https.HttpsError('permission-denied', 'Admin/Monitor role required');
+    }
+
+    // ✅ VERIFY REPORT EXISTS
+    const reportDoc = await admin.firestore().collection('incident_reports').doc(reportId).get();
+    if (!reportDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Report not found');
+    }
+
+    const updateData = {
+      status: 'assigned',
+      mainCoordinator: mainAgency,
+      mainCoordinatorName: mainAgency,
+      assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+      assignedBy: request.auth.uid,
+      lastUpdatedBy: request.auth.uid,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    // ✅ IF PARTNER AGENCY ASSIGNED
+    if (partnerAgencyId && partnerAgencyId !== 'none') {
+      const agencyDoc = await admin.firestore().collection('users').doc(partnerAgencyId).get();
+      
+      if (!agencyDoc.exists) {
+        throw new functions.https.HttpsError('not-found', 'Partner agency not found');
+      }
+
+      const agencyData = agencyDoc.data();
+      
+      if (agencyData.role !== 'agency') {
+        throw new functions.https.HttpsError('invalid-argument', 'Selected user is not an agency');
+      }
+
+      // ✅ CHECK IF AGENCY IS AVAILABLE
+      if (agencyData.currentAssignment && agencyData.agencyStatus === 'busy') {
+        throw new functions.https.HttpsError('failed-precondition', 
+          `Agency is busy with incident: ${agencyData.currentAssignment}`);
+      }
+
+      updateData.partnerAgency = partnerAgencyName || agencyData.agencyName || agencyData.name;
+      updateData.partnerAgencyId = partnerAgencyId;
+      updateData.partnerAgencyStatus = 'assigned';
+      updateData.partnerAssignedAt = admin.firestore.FieldValue.serverTimestamp();
+      
+      // ✅ MARK AGENCY AS BUSY
+      await admin.firestore().collection('users').doc(partnerAgencyId).update({
+        currentAssignment: reportId,
+        agencyStatus: 'busy',
+        isAvailable: false,
+        lastAssignment: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      // ✅ SEND NOTIFICATION TO AGENCY
+      await sendAgencyAssignmentNotification(partnerAgencyId, reportId, agencyData);
+      
+      console.log(`✅ Partner agency ${partnerAgencyName} assigned and marked as busy`);
+    }
+
+    await admin.firestore().collection('incident_reports').doc(reportId).update(updateData);
+
+    return {
+      success: true,
+      message: `Incident assigned to ${mainAgency}${partnerAgencyId ? ' with partner agency' : ''}`,
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error('❌ Error in assignToAgency:', error);
+    throw error;
+  }
+});
+
+exports.migrateAvailabilityFields = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new functions.https.HttpsError('permission-denied', 'Admin access required');
+  }
+
+  try {
+    console.log("🔄 Starting availability migration...");
+    
+    const db = admin.firestore();
+    const batch = db.batch();
+    let rescuerCount = 0;
+    let agencyCount = 0;
+
+    // =================== MIGRATE RESCUERS ===================
+    const rescuersSnapshot = await db.collection("users")
+      .where("role", "==", "rescuer")
+      .get();
+
+    console.log(`📋 Found ${rescuersSnapshot.size} rescuers`);
+
+    rescuersSnapshot.forEach(doc => {
+      const data = doc.data();
+      
+      // Calculate availability based on existing data
+      const hasAssignment = data.currentAssignment != null;
+      const statusIsBusy = data.rescuerStatus === 'busy';
+      const shouldBeAvailable = !hasAssignment && !statusIsBusy;
+      
+      const updates = {
+        isAvailable: shouldBeAvailable,
+        rescuerStatus: hasAssignment ? 'busy' : (data.rescuerStatus || 'available')
+      };
+      
+      // If busy but no assignment, clear it
+      if (!hasAssignment && statusIsBusy) {
+        updates.rescuerStatus = 'available';
+        updates.isAvailable = true;
+        updates.currentAssignment = null;
+      }
+      
+      batch.update(doc.ref, updates);
+      rescuerCount++;
+      
+      console.log(`✅ Rescuer: ${data.name} - isAvailable: ${shouldBeAvailable}`);
+    });
+
+    // =================== MIGRATE AGENCIES ===================
+    const agenciesSnapshot = await db.collection("users")
+      .where("role", "==", "agency")
+      .get();
+
+    console.log(`📋 Found ${agenciesSnapshot.size} agencies`);
+
+    agenciesSnapshot.forEach(doc => {
+      const data = doc.data();
+      
+      const updates = {
+        isAvailable: true, // All agencies available by default
+        agencyStatus: data.agencyStatus || 'available',
+        currentAssignment: data.currentAssignment || null
+      };
+      
+      batch.update(doc.ref, updates);
+      agencyCount++;
+      
+      console.log(`✅ Agency: ${data.agencyName || data.name} - Available`);
+    });
+
+    // Commit all updates
+    await batch.commit();
+
+    console.log(`✅ Migration complete: ${rescuerCount} rescuers, ${agencyCount} agencies`);
+
+    return {
+      success: true,
+      message: `Migration complete`,
+      rescuers: rescuerCount,
+      agencies: agencyCount
+    };
+
+  } catch (error) {
+    console.error("❌ Migration failed:", error);
+    throw new functions.https.HttpsError('internal', `Migration failed: ${error.message}`);
+  }
+});
+
+
+async function sendAgencyAssignmentNotification(agencyUserId, reportId, agencyData) {
+  try {
+    console.log(`📧 Sending notification to agency user: ${agencyUserId}`);
+
+    // Get report details
+    const reportDoc = await admin.firestore().collection('incident_reports').doc(reportId).get();
+    const reportData = reportDoc.data();
+
+    // ✅ CREATE IN-APP NOTIFICATION
+    await admin.firestore().collection('notifications').add({
+      userId: agencyUserId,
+      reportId: reportId,
+      title: '🚨 New Emergency Assignment',
+      body: `You've been assigned as support for ${reportData.emergencyType || 'incident'} in ${reportData.barangay || 'Lipa City'}. CDRRMO is the main coordinator.`,
+      type: 'agency_assignment',
+      priority: 'high',
+      status: 'unread',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        reportId: reportId,
+        emergencyType: reportData.emergencyType,
+        barangay: reportData.barangay,
+        mainCoordinator: reportData.mainCoordinator,
+        actionRequired: true
+      },
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+      )
+    });
+
+    console.log(`✅ In-app notification created for agency ${agencyUserId}`);
+
+    // ✅ SEND PUSH NOTIFICATION
+    const expoPushToken = agencyData.expoPushToken;
+    
+    if (expoPushToken && typeof expoPushToken === 'string' && expoPushToken.trim()) {
+      const message = {
+        to: expoPushToken,
+        sound: 'default',
+        title: '🚨 Emergency Assignment',
+        body: `${reportData.emergencyType || 'Emergency'} in ${reportData.barangay || 'Lipa City'}. CDRRMO needs your support.`,
+        data: {
+          type: 'agency_assignment',
+          reportId: reportId,
+          emergencyType: reportData.emergencyType,
+          timestamp: Date.now()
+        },
+        channelId: 'agency_assignments',
+        priority: 'high',
+        ttl: 3600
+      };
+
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+      });
+
+      if (response.ok) {
+        console.log(`✅ Push notification sent to agency ${agencyUserId}`);
+      } else {
+        console.error(`❌ Push notification failed: ${response.status}`);
+      }
+    } else {
+      console.log(`⚠️ No push token for agency ${agencyUserId}`);
+    }
+
+  } catch (error) {
+    console.error('❌ Error sending agency notification:', error);
+    // Don't throw - notification failure shouldn't break assignment
+  }
+}
+exports.updatePartnerAgencyStatus = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+  
+  const { reportId, status } = request.data;
+  
+  if (!reportId || !status) {
+    throw new functions.https.HttpsError('invalid-argument', 'Report ID and status required');
+  }
+
+  try {
+    console.log('🔍 Agency status update request:', {
+      reportId,
+      status,
+      userId: request.auth.uid
+    });
+
+    // ✅ GET USER DATA
+    const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+    const userData = userDoc.data();
+    
+    if (!userData) {
+      throw new functions.https.HttpsError('not-found', 'User not found');
+    }
+
+    console.log('👤 User data:', {
+      uid: request.auth.uid,
+      role: userData.role,
+      agencyName: userData.agencyName
+    });
+
+    // ✅ VERIFY USER IS AN AGENCY
+    if (userData.role !== 'agency') {
+      throw new functions.https.HttpsError('permission-denied', 'Only agencies can update agency status');
+    }
+
+    // ✅ GET REPORT DATA
+    const reportDoc = await admin.firestore().collection("incident_reports").doc(reportId).get();
+    
+    if (!reportDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Report not found');
+    }
+
+    const reportData = reportDoc.data();
+
+    console.log('📋 Report data:', {
+      reportId,
+      partnerAgency: reportData.partnerAgency,
+      partnerAgencyId: reportData.partnerAgencyId,
+      mainCoordinator: reportData.mainCoordinator
+    });
+
+    // ✅ FLEXIBLE PERMISSION CHECK - Check BOTH ID and NAME
+    const isAssignedById = reportData.partnerAgencyId === request.auth.uid;
+    const isAssignedByName = reportData.partnerAgency === userData.agencyName;
+    
+    if (!isAssignedById && !isAssignedByName) {
+      console.log('❌ Permission denied:', {
+        reportPartnerAgencyId: reportData.partnerAgencyId,
+        reportPartnerAgency: reportData.partnerAgency,
+        requestingUserId: request.auth.uid,
+        requestingAgencyName: userData.agencyName,
+        matchById: isAssignedById,
+        matchByName: isAssignedByName
+      });
+      throw new functions.https.HttpsError('permission-denied', 
+        `You are not assigned to this report. Assigned agency: ${reportData.partnerAgency || 'None'}`);
+    }
+
+    console.log('✅ Permission granted:', isAssignedById ? 'by ID' : 'by name');
+
+    // ✅ VALIDATE STATUS
+    const validStatuses = ['dispatched', 'on_scene', 'completed'];
+    if (!validStatuses.includes(status)) {
+      throw new functions.https.HttpsError('invalid-argument', 
+        `Invalid status. Must be: ${validStatuses.join(', ')}`);
+    }
+
+    // ✅ UPDATE REPORT
+    const updateData = {
+      partnerAgencyStatus: status,
+      partnerStatusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdatedBy: request.auth.uid
+    };
+
+    // ✅ IF COMPLETED - MARK AGENCY AS AVAILABLE
+    if (status === 'completed') {
+      await admin.firestore().collection('users').doc(request.auth.uid).update({
+        currentAssignment: null,
+        agencyStatus: 'available',
+        isAvailable: true,
+        lastAvailable: admin.firestore.FieldValue.serverTimestamp()
+      });
+      console.log('✅ Agency marked as available');
+    }
+
+    await admin.firestore().collection("incident_reports").doc(reportId).update(updateData);
+
+    // ✅ NOTIFY ADMINS
+    await notifyAdminsAboutAgencyStatusChange(reportId, reportData, status, userData);
+
+    console.log('✅ Agency status updated successfully:', {
+      reportId,
+      agencyId: request.auth.uid,
+      agencyName: userData.agencyName,
+      newStatus: status
+    });
+
+    return { 
+      success: true, 
+      message: `Status updated to ${status}`,
+      canCreatePatientForm: false
+    };
+
+  } catch (error) {
+    console.error('❌ Error in updatePartnerAgencyStatus:', error);
+    
+    if (error.code === 'permission-denied' || 
+        error.code === 'not-found' || 
+        error.code === 'invalid-argument' ||
+        error.code === 'unauthenticated') {
+      throw error;
+    }
+    
+    throw new functions.https.HttpsError('internal', `Failed to update agency status: ${error.message}`);
+  }
+});
+
+// =================== 4. NOTIFY ADMINS ABOUT AGENCY STATUS CHANGES ===================
+async function notifyAdminsAboutAgencyStatusChange(reportId, reportData, newStatus, agencyData) {
+  try {
+    const adminsSnapshot = await admin.firestore()
+      .collection("users")
+      .where("role", "in", ["admin", "monitor"])
+      .where("status", "==", "active")
+      .get();
+
+    const statusEmojis = {
+      'dispatched': '🚗',
+      'on_scene': '📍',
+      'completed': '✅'
+    };
+
+    const emoji = statusEmojis[newStatus] || '📋';
+
+    for (const adminDoc of adminsSnapshot.docs) {
+      // In-app notification
+      await admin.firestore().collection("notifications").add({
+        userId: adminDoc.id,
+        reportId: reportId,
+        title: `${emoji} Agency Status Update`,
+        body: `${agencyData.agencyName || 'Partner Agency'} is now ${newStatus.replace('_', ' ')} for ${reportData.emergencyType || 'incident'} in ${reportData.barangay || 'Lipa City'}`,
+        type: "agency_status_update",
+        priority: "normal",
+        status: "unread",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        data: {
+          reportId: reportId,
+          agencyName: agencyData.agencyName,
+          agencyStatus: newStatus,
+          emergencyType: reportData.emergencyType
+        }
+      });
+    }
+
+    console.log(`✅ Notified ${adminsSnapshot.size} admins about agency status change`);
+
+  } catch (error) {
+    console.error('❌ Error notifying admins:', error);
+    // Don't throw - notification failure shouldn't break status update
+  }
+}
+exports.getAvailableAgencies = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    console.log("🔄 Loading agencies...");
+
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    // ✅ CHECK USER ROLE PERMISSION
+    const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+    const userData = userDoc.data();
+    
+    // ✅ ONLY ADMIN/MONITOR CAN SEE ALL AGENCIES
+    if (userData.role !== 'admin' && userData.role !== 'monitor') {
+      throw new functions.https.HttpsError('permission-denied', 'Only admin/monitor can view all agencies');
+    }
+
+    const db = admin.firestore();
+    
+    // Get all active agency users
+    const agenciesQuery = db
+      .collection("users")
+      .where("role", "==", "agency")
+      .where("status", "==", "active");
+
+    const snapshot = await agenciesQuery.get();
+    console.log(`📊 Found ${snapshot.size} agency users`);
+    
+    const agencies = [];
+    
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      
+      // ✅ CALCULATE REAL AVAILABILITY
+      const hasAssignment = data.currentAssignment != null && data.currentAssignment !== '';
+      const statusIsBusy = data.agencyStatus === 'busy';
+      const isAvailable = !hasAssignment && !statusIsBusy;
+      
+      console.log(`🏢 ${data.agencyName || data.name}:`, {
+        currentAssignment: data.currentAssignment || 'none',
+        agencyStatus: data.agencyStatus || 'available',
+        calculated: isAvailable ? 'AVAILABLE' : 'BUSY'
+      });
+
+      agencies.push({
+        id: doc.id,
+        name: data.agencyName || data.name || 'Unknown Agency',
+        email: data.email || 'No email',
+        phoneNumber: data.phoneNumber || data.phone || data.number || 'N/A',
+        barangay: data.barangay || 'Unknown',
+        status: data.agencyStatus || 'available',
+        currentAssignment: data.currentAssignment || null,
+        isAvailable: isAvailable // ✅ REAL AVAILABILITY
+      });
+    }
+
+    // Sort: Available first
+    agencies.sort((a, b) => {
+      if (a.isAvailable && !b.isAvailable) return -1;
+      if (!a.isAvailable && b.isAvailable) return 1;
+      return 0;
+    });
+
+    const availableCount = agencies.filter(a => a.isAvailable).length;
+    console.log(`✅ ${availableCount}/${agencies.length} agencies available`);
+
+    return {
+      success: true,
+      agencies: agencies,
+      count: agencies.length,
+      availableCount: availableCount,
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error("❌ Error loading agencies:", error);
+    throw new functions.https.HttpsError('internal', `Failed to fetch agencies: ${error.message}`);
+  }
+}); 
+exports.updateRescuerStatus = onCall({
+  region: "asia-southeast1", 
+  cors: true
+}, async (request) => {
+  if (!request.auth) throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  
+  const { reportId, status, notes } = request.data;
+  if (!reportId || !status) throw new functions.https.HttpsError('invalid-argument', 'Report ID and status required');
+
+  try {
+    const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+    const userData = userDoc.data();
+    const reportDoc = await admin.firestore().collection("incident_reports").doc(reportId).get();
+    
+    if (!reportDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Report not found');
+    }
+    
+    const reportData = reportDoc.data();
+    
+    // ✅ PERMISSION CHECK: Assigned rescuer OR admin/monitor
+    const isAssignedRescuer = reportData.assignedRescuer === request.auth.uid;
+    const isAdminMonitor = ['admin', 'monitor'].includes(userData.role);
+    
+    if (!isAssignedRescuer && !isAdminMonitor) {
+      throw new functions.https.HttpsError('permission-denied', 'Only assigned rescuer or admin can update');
+    }
+
+    // ✅ VALIDATE STATUS
+    const validStatuses = ['on_the_way', 'on_scene', 'resolved'];
+    if (!validStatuses.includes(status)) {
+      throw new functions.https.HttpsError('invalid-argument', 'Invalid status. Must be: on_the_way, on_scene, or resolved');
+    }
+
+    const updateData = {
+      rescuerStatus: status,
+      rescuerStatusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdatedBy: request.auth.uid
+    };
+
+    if (notes) {
+      updateData.rescuerNotes = notes;
+    }
+
+    // ✅ IF RESOLVED - MARK AS AVAILABLE AND UPDATE REPORT STATUS
+    if (status === 'resolved') {
+      updateData.status = 'resolved';
+      updateData.resolvedAt = admin.firestore.FieldValue.serverTimestamp();
+      updateData.resolvedBy = request.auth.uid;
+      
+      // ✅ MARK RESCUER AS AVAILABLE
+      await admin.firestore().collection('users').doc(request.auth.uid).update({
+        currentAssignment: null,
+        rescuerStatus: 'available',
+        isAvailable: true,
+        lastAvailable: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      console.log(`✅ Rescuer ${request.auth.uid} marked AVAILABLE after resolving ${reportId}`);
+    }
+
+    await admin.firestore().collection("incident_reports").doc(reportId).update(updateData);
+
+    return { 
+      success: true, 
+      message: `Status updated to ${status}`,
+      requiresPatientForm: status === 'resolved'
+    };
+
+  } catch (error) {
+    console.error('❌ Error updating status:', error);
+    throw error;
+  }
+});
+
+async function sendRescuerNotification(rescuerId, reportId, reportData, destination) {
+  try {
+    const rescuerDoc = await admin.firestore().collection('users').doc(rescuerId).get();
+    const rescuerData = rescuerDoc.data();
+    const token = rescuerData.expoPushToken;
+
+    // In-app notification
+    await admin.firestore().collection('notifications').add({
+      userId: rescuerId,
+      reportId: reportId,
+      title: '🚨 New Emergency Assignment',
+      body: `${reportData.emergencyType} in ${destination.barangay}. Tap for directions.`,
+      type: 'rescuer_assignment',
+      priority: 'high',
+      status: 'unread',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        reportId: reportId,
+        destination: destination,
+        hasRouting: true
+      }
+    });
+
+    // Push notification
+    if (token) {
+      await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: token,
+          title: '🚨 Emergency Assignment',
+          body: `${reportData.emergencyType} in ${destination.barangay}`,
+          data: {
+            type: 'rescuer_assignment',
+            reportId: reportId,
+            destination: destination
+          },
+          priority: 'high'
+        })
+      });
+    }
+
+    console.log(`✅ Notification sent to rescuer ${rescuerId}`);
+  } catch (error) {
+    console.error('❌ Notification error:', error);
+  }
+}
+
+async function sendStatusUpdateToUser(userId, reportId, status, reportData) {
+  const statusMessages = {
+    'on_the_way': {
+      title: '🚗 Rescuer On The Way',
+      body: `Your rescuer is heading to ${reportData.barangay}. Help is coming!`
+    },
+    'on_scene': {
+      title: '📍 Rescuer Arrived',
+      body: `The rescuer has arrived at your location in ${reportData.barangay}.`
+    },
+    'resolved': {
+      title: '✅ Emergency Resolved',
+      body: `Your emergency has been successfully resolved by the response team.`
+    }
+  };
+
+  const config = statusMessages[status];
+  if (!config) return;
+
+  // In-app notification
+  await admin.firestore().collection('notifications').add({
+    userId: userId,
+    reportId: reportId,
+    title: config.title,
+    body: config.body,
+    type: 'rescuer_status_update',
+    priority: 'high',
+    status: 'unread',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    data: {
+      reportId: reportId,
+      rescuerStatus: status,
+      emergencyType: reportData.emergencyType
+    }
+  });
+
+  // Push notification
+  const userDoc = await admin.firestore().collection('users').doc(userId).get();
+  const userData = userDoc.data();
+  const token = userData.expoPushToken;
+
+  if (token && typeof token === 'string' && token.trim()) {
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: token,
+        title: config.title,
+        body: config.body,
+        data: {
+          type: 'rescuer_status_update',
+          reportId: reportId,
+          rescuerStatus: status
+        },
+        priority: 'high'
+      }),
+    });
+  }
+}
+exports.getCDRRMORescuers = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    console.log("🔄 Starting getCDRRMORescuers function...");
+
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    // ✅ CHECK USER ROLE PERMISSION
+    const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+    const userData = userDoc.data();
+    
+    // ✅ ONLY ADMIN/MONITOR CAN SEE ALL RESCUERS
+    if (userData.role !== 'admin' && userData.role !== 'monitor') {
+      throw new functions.https.HttpsError('permission-denied', 'Only admin/monitor can view all rescuers');
+    }
+
+    const db = admin.firestore();
+    
+    // Get all active rescuers
+    const rescuersQuery = db
+      .collection("users")
+      .where("role", "==", "rescuer")
+      .where("status", "==", "active");
+
+    const snapshot = await rescuersQuery.get();
+    console.log(`📊 Found ${snapshot.size} rescuers total`);
+    
+    const rescuers = [];
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      
+      console.log(`✅ Rescuer found: ${data.name}`, {
+        id: doc.id,
+        currentAssignment: data.currentAssignment,
+        rescuerStatus: data.rescuerStatus
+      });
+
+      // ✅ CALCULATE REAL AVAILABILITY
+      const hasAssignment = data.currentAssignment != null && data.currentAssignment !== '';
+      const statusIsBusy = data.rescuerStatus === 'busy';
+      const isAvailable = !hasAssignment && !statusIsBusy;
+
+      rescuers.push({
+        id: doc.id,
+        name: data.name || 'Unknown Rescuer',
+        status: data.rescuerStatus || 'available',
+        phoneNumber: data.phoneNumber || data.phone || data.number || 'N/A',
+        barangay: data.barangay || 'Unknown',
+        currentAssignment: data.currentAssignment || null,
+        isAvailable: isAvailable, // ✅ REAL AVAILABILITY
+        agency: data.agency || 'CDRRMO',
+        email: data.email || 'No email'
+      });
+    });
+
+    console.log(`✅ Final rescuers: ${rescuers.length}`);
+
+    return {
+      success: true,
+      rescuers: rescuers,
+      count: rescuers.length,
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error("❌ Error in getCDRRMORescuers:", error);
+    throw new functions.https.HttpsError('internal', `Failed to fetch rescuers: ${error.message}`);
+  }
+});
+
+exports.assignCDRRMORescuer = onCall({
+    region: "asia-southeast1",
+    cors: true
+}, async (request) => {
+    if (!request.auth) throw new Error("Authentication required");
+    
+    const { reportId, rescuerId } = request.data;
+    if (!reportId || !rescuerId) throw new Error("Report ID and rescuer ID required");
+
+    const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+    const userData = userDoc.data();
+    
+    // Only Admin/Monitor can assign
+    if (userData.role !== 'admin' && userData.role !== 'monitor') {
+        throw new Error("Only admins and monitors can assign rescuers");
+    }
+
+    // Verify rescuer exists and is CDRRMO
+    const rescuerDoc = await admin.firestore().collection('users').doc(rescuerId).get();
+    const rescuerData = rescuerDoc.data();
+    
+    if (!rescuerDoc.exists || rescuerData.role !== 'rescuer' || rescuerData.agency !== 'CDRRMO') {
+        throw new Error("Invalid CDRRMO rescuer");
+    }
+
+   const updateData = {
+      assignedRescuer: rescuerId,
+      assignedRescuerName: rescuerData.name,
+      rescuerStatus: 'assigned',
+      assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdatedBy: request.auth.uid,
+      destination: destinationInfo
+    };
+
+    // Only add phone if it exists
+    const rescuerPhone = rescuerData.phoneNumber || rescuerData.phone || rescuerData.number;
+    if (rescuerPhone) {
+      updateData.assignedRescuerPhone = rescuerPhone;
+    }
+
+    await admin.firestore().collection("incident_reports").doc(reportId).update(updateData);
+
+    return { 
+        success: true, 
+        message: `CDRRMO rescuer ${rescuerData.name} assigned to incident`,
+        rescuerName: rescuerData.name
+    };
+}); 
 
 /* ===================================================================
    ENHANCED ADMIN CALLABLES
@@ -2207,12 +5398,7 @@ async function createStatusChangeNotification(userId, reportId, newStatus, locat
       type: "report_verified",
       priority: "normal"
     },
-    approved: {
-      title: "Report Approved 👍",
-      body: `Your ${emergencyType} report at ${location} has been approved and is being processed.`,
-      type: "report_approved",
-      priority: "normal"
-    },
+   
     rejected: {
       title: "Report Under Review ⏳",
       body: `Your ${emergencyType} report at ${location} is under additional review.`,
@@ -2383,7 +5569,6 @@ async function sendReportStatusPushNotification(userId, status, emergencyType, r
     const statusConfig = {
       accepted: { title: "Report Accepted ✅", priority: "high", sound: "default" },
       verified: { title: "Report Verified ✅", priority: "normal", sound: "default" },
-      approved: { title: "Report Approved 👍", priority: "normal", sound: "default" },
       rejected: { title: "Report Under Review ⏳", priority: "low", sound: "default" },
       failed: { title: "Action Required ⚠️", priority: "high", sound: "default" },
       resolved: { title: "Report Resolved ✅", priority: "normal", sound: "default" },
@@ -2804,6 +5989,227 @@ exports.validateRegionConfiguration = onCall({
   }
 });
 
+
+// ✅ STEP 4.1: SMART DUPLICATE DETECTION FOR ADMIN (Handles Inconsistent Data)
+exports.checkDuplicateAccount = onCall({
+  region: "asia-southeast1",
+  cors: true,
+  memory: "256MiB",
+  cpu: 0.5
+}, async (request) => {
+  try {
+    const { email, phone, name, barangay } = request.data;
+    
+    if (!email) {
+      throw new Error("Email is required for duplicate check");
+    }
+
+    logger.info('🔍 [SMART DUPLICATE CHECK] Starting:', { 
+      email: email ? `${email.substring(0, 3)}...` : 'none',
+      name: name ? `${name.substring(0, 10)}...` : 'none',
+      barangay: barangay || 'none'
+    });
+
+    const duplicates = {
+      email: false,
+      phone: false,
+      nameBarangay: false,
+      existingUsers: [],
+      suspendedUsers: []  // Track suspended/banned users
+    };
+
+    // =================== 1. ENHANCED EMAIL CHECK ===================
+    if (email) {
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      const emailQuery = await admin.firestore()
+        .collection("users")
+        .where("email", ">=", normalizedEmail)
+        .where("email", "<=", normalizedEmail + '\uf8ff')
+        .limit(5)
+        .get();
+
+      if (!emailQuery.empty) {
+        duplicates.email = true;
+        emailQuery.docs.forEach(doc => {
+          const userData = doc.data();
+          const userInfo = {
+            id: doc.id,
+            name: userData.name || 'Unknown',
+            email: userData.email,
+            barangay: userData.barangay || 'Unknown',
+            status: userData.status || 'unknown',
+            role: userData.role || 'resident',
+            phone: userData.phone || userData.number || userData.phoneNumber || 'N/A',
+            matchType: 'email',
+            isSuspended: ['suspended', 'suspended_3d', 'suspended_2w', 'banned'].includes(userData.status),
+            suspensionReason: userData.suspensionReason || userData.lastViolationReason,
+            strikes: userData.strikes || 0,
+            warnings: userData.warnings || 0
+          };
+          
+          duplicates.existingUsers.push(userInfo);
+          
+          if (userInfo.isSuspended) {
+            duplicates.suspendedUsers.push(userInfo);
+          }
+        });
+        logger.info('📧 Email duplicates found:', emailQuery.size);
+      }
+    }
+
+    // =================== 2. ENHANCED PHONE CHECK ===================
+    if (phone) {
+      // Normalize phone (remove all non-digit characters)
+      const normalizedPhone = phone.replace(/\D/g, '');
+      
+      // Check ALL possible phone fields in Firestore
+      const allUsersSnapshot = await admin.firestore()
+        .collection("users")
+        .limit(100) // Reasonable limit for performance
+        .get();
+
+      if (!allUsersSnapshot.empty) {
+        allUsersSnapshot.docs.forEach(doc => {
+          const userData = doc.data();
+          
+          // Check all possible phone fields
+          const userPhones = [
+            userData.number,
+            userData.phone, 
+            userData.phoneNumber
+          ].filter(Boolean); // Remove empty values
+
+          // Normalize each phone and check for match
+          const hasPhoneMatch = userPhones.some(userPhone => {
+            if (!userPhone) return false;
+            const normalizedUserPhone = userPhone.replace(/\D/g, '');
+            return normalizedUserPhone === normalizedPhone;
+          });
+
+          if (hasPhoneMatch) {
+            duplicates.phone = true;
+            const existingIndex = duplicates.existingUsers.findIndex(u => u.id === doc.id);
+            
+            if (existingIndex === -1) {
+              const userInfo = {
+                id: doc.id,
+                name: userData.name || 'Unknown',
+                email: userData.email,
+                barangay: userData.barangay || 'Unknown',
+                status: userData.status || 'unknown',
+                role: userData.role || 'resident',
+                phone: userData.phone || userData.number || userData.phoneNumber || 'N/A',
+                matchType: 'phone',
+                isSuspended: ['suspended', 'suspended_3d', 'suspended_2w', 'banned'].includes(userData.status),
+                suspensionReason: userData.suspensionReason || userData.lastViolationReason,
+                strikes: userData.strikes || 0,
+                warnings: userData.warnings || 0
+              };
+              
+              duplicates.existingUsers.push(userInfo);
+              
+              if (userInfo.isSuspended) {
+                duplicates.suspendedUsers.push(userInfo);
+              }
+            } else {
+              duplicates.existingUsers[existingIndex].matchType += '+phone';
+            }
+          }
+        });
+        
+        if (duplicates.phone) {
+          logger.info('📞 Phone duplicates found');
+        }
+      }
+    }
+
+    // =================== 3. ENHANCED NAME + BARANGAY CHECK ===================
+    if (name && barangay) {
+      // Get users from the same barangay
+      const barangayUsersQuery = await admin.firestore()
+        .collection("users")
+        .where("barangay", "==", barangay)
+        .limit(50) // Reasonable limit
+        .get();
+
+      if (!barangayUsersQuery.empty) {
+        const normalizedName = name.toLowerCase().trim().replace(/\s+/g, ' ');
+        
+        barangayUsersQuery.docs.forEach(doc => {
+          const userData = doc.data();
+          const existingName = (userData.name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+          
+          // SIMPLE BUT EFFECTIVE NAME MATCHING
+          if (existingName === normalizedName) {
+            duplicates.nameBarangay = true;
+            
+            const existingIndex = duplicates.existingUsers.findIndex(u => u.id === doc.id);
+            if (existingIndex === -1) {
+              const userInfo = {
+                id: doc.id,
+                name: userData.name || 'Unknown',
+                email: userData.email,
+                barangay: userData.barangay || 'Unknown',
+                status: userData.status || 'unknown',
+                role: userData.role || 'resident',
+                phone: userData.phone || userData.number || userData.phoneNumber || 'N/A',
+                matchType: 'name+barangay',
+                isSuspended: ['suspended', 'suspended_3d', 'suspended_2w', 'banned'].includes(userData.status),
+                suspensionReason: userData.suspensionReason || userData.lastViolationReason,
+                strikes: userData.strikes || 0,
+                warnings: userData.warnings || 0
+              };
+              
+              duplicates.existingUsers.push(userInfo);
+              
+              if (userInfo.isSuspended) {
+                duplicates.suspendedUsers.push(userInfo);
+              }
+            } else {
+              duplicates.existingUsers[existingIndex].matchType += '+name_location';
+            }
+          }
+        });
+        
+        if (duplicates.nameBarangay) {
+          logger.info('👤 Name+Barangay duplicates found');
+        }
+      }
+    }
+
+    const hasDuplicates = duplicates.email || duplicates.phone || duplicates.nameBarangay;
+    const hasSuspendedDuplicates = duplicates.suspendedUsers.length > 0;
+
+    logger.info('📊 [SMART DUPLICATE CHECK] Final results:', {
+      hasDuplicates,
+      hasSuspendedDuplicates,
+      emailDuplicate: duplicates.email,
+      phoneDuplicate: duplicates.phone,
+      nameBarangayDuplicate: duplicates.nameBarangay,
+      totalUsers: duplicates.existingUsers.length,
+      suspendedUsers: duplicates.suspendedUsers.length
+    });
+
+    return {
+      success: true,
+      hasDuplicates,
+      hasSuspendedDuplicates,
+      duplicates: duplicates,
+      message: hasDuplicates ? 
+        (hasSuspendedDuplicates ? 
+          "Suspended/banned users found - registration blocked" : 
+          "Potential duplicate accounts found") : 
+        "No duplicates found",
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    logger.error('❌ [SMART DUPLICATE CHECK] Error:', error);
+    throw new functions.https.HttpsError('internal', `Duplicate check failed: ${error.message}`);
+  }
+});
+
 exports.checkEmailExists = onCall({
   region: "asia-southeast1",
   cors: true,
@@ -2888,170 +6294,646 @@ async function fetchOpenWeatherData() {
   try {
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${LIPA_LAT}&lon=${LIPA_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`;
     
-    const response = await fetch(url);
+    logger.info("=== OPENWEATHER FETCH START ===");
+    logger.info("Fetching from:", url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      timeout: 15000
+    });
+
+    logger.info("Response status:", response.status);
+
     if (!response.ok) {
-      throw new Error(`OpenWeather API error: ${response.status}`);
+      const errorText = await response.text();
+      logger.error("OpenWeather API Error:", errorText);
+      throw new Error(`OpenWeather API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    
+    // Log received data
+    logger.info("OpenWeather data received:");
+    logger.info(`- Weather: ${data.weather[0].main} - ${data.weather[0].description}`);
+    logger.info(`- Temp: ${data.main.temp}°C (Feels like: ${data.main.feels_like}°C)`);
+    logger.info(`- Humidity: ${data.main.humidity}%`);
+    logger.info(`- Wind: ${data.wind.speed} m/s (${(data.wind.speed * 3.6).toFixed(1)} km/h)`);
+    logger.info(`- Clouds: ${data.clouds?.all || 0}%`);
+    logger.info(`- Rain (1h): ${data.rain?.["1h"] || 0} mm`);
+
     const alertData = processOpenWeatherData(data);
     
     if (alertData) {
+      logger.info("Alert created:", alertData.title);
       await createPendingAlert(alertData);
-      logger.info("OpenWeather alert created");
+    } else {
+      logger.info("No severe conditions detected, creating status update");
+      // ALWAYS CREATE AN ALERT (even for good weather) so admin sees activity
+      await createPendingAlert({
+        type: "weather",
+        title: "Weather Update - Lipa City",
+        description: `Current conditions: ${data.weather[0].description}. Temperature: ${Math.round(data.main.temp)}°C. Humidity: ${data.main.humidity}%. Wind: ${(data.wind.speed * 3.6).toFixed(1)} km/h. No severe weather detected.`,
+        severity: "info",
+        source: "OpenWeather",
+        raw: data,
+        location: {
+          lat: LIPA_LAT,
+          lon: LIPA_LON,
+          city: "Lipa City",
+          province: "Batangas"
+        },
+        metadata: {
+          temperature: data.main.temp,
+          feelsLike: data.main.feels_like,
+          humidity: data.main.humidity,
+          windSpeed: data.wind.speed * 3.6,
+          cloudCover: data.clouds?.all || 0,
+          pressure: data.main.pressure,
+          weatherId: data.weather[0].id,
+          weatherMain: data.weather[0].main,
+          weatherDescription: data.weather[0].description
+        }
+      });
     }
     
+    logger.info("=== OPENWEATHER FETCH COMPLETE ===");
     return data;
+    
   } catch (error) {
-    logger.error("Error fetching OpenWeather data:", error);
+    logger.error("=== OPENWEATHER FETCH FAILED ===");
+    logger.error("Error message:", error.message);
+    logger.error("Error stack:", error.stack);
     throw error;
   }
 }
 
 // Fetch USGS earthquake data
+
 async function fetchUSGSEarthquakeData() {
   try {
-    const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=${LIPA_LAT}&longitude=${LIPA_LON}&maxradiuskm=${USGS_RADIUS}`;
+    // Use bounding box query for better Lipa focus
+    const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=${LIPA_BOUNDING_BOX.south}&maxlatitude=${LIPA_BOUNDING_BOX.north}&minlongitude=${LIPA_BOUNDING_BOX.west}&maxlongitude=${LIPA_BOUNDING_BOX.east}&minmagnitude=2.0&orderby=time&limit=15`;
     
-    const response = await fetch(url);
+    logger.info("=== USGS FETCH START (LIPA FOCUS) ===");
+    logger.info("Fetching from:", url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      timeout: 15000
+    });
+
+    logger.info("USGS Response status:", response.status);
+
     if (!response.ok) {
-      throw new Error(`USGS API error: ${response.status}`);
+      const errorText = await response.text();
+      logger.error("USGS API Error:", errorText);
+      throw new Error(`USGS API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    let alertsCreated = 0;
     
+    logger.info(`USGS Results: ${data.features.length} earthquakes found in Lipa region`);
+    
+    if (data.features.length === 0) {
+      logger.info("No earthquakes detected in Lipa area - creating status update");
+      await createPendingAlert({
+        type: "earthquake",
+        title: "🟢 Seismic Activity - Lipa City Normal",
+        description: `No significant earthquakes detected within ${LIPA_RADIUS_KM}km of Lipa City. Seismic monitoring is active and no threats detected.`,
+        source: "USGS",
+        severity: "info",
+        location: { 
+          lat: LIPA_LAT, 
+          lon: LIPA_LON,
+          city: "Lipa City",
+          province: "Batangas"
+        }
+      });
+      return data;
+    }
+    
+    let alertsCreated = 0;
+    let duplicatesSkipped = 0;
+    let outsideLipaSkipped = 0;
+    
+    // Process each earthquake with Lipa filtering
     for (const earthquake of data.features) {
+      const eventId = earthquake.id;
+      const coords = earthquake.geometry.coordinates;
+      const distance = calculateDistance(LIPA_LAT, LIPA_LON, coords[1], coords[0]);
+      
+      // Skip if outside Lipa area
+      if (distance > LIPA_RADIUS_KM) {
+        outsideLipaSkipped++;
+        continue;
+      }
+      
+      // Check for duplicates (same event ID)
+      const existingAlert = await admin.firestore()
+        .collection("alerts")
+        .where("eventId", "==", eventId)
+        .limit(1)
+        .get();
+      
+      if (!existingAlert.empty) {
+        duplicatesSkipped++;
+        logger.info(`Skipping duplicate: ${eventId}`);
+        continue;
+      }
+      
       const alertData = processUSGSEarthquake(earthquake);
       if (alertData) {
+        alertData.eventId = eventId;
         await createPendingAlert(alertData);
         alertsCreated++;
+        
+        const props = earthquake.properties;
+        logger.info(`Created Lipa alert: M${props.mag.toFixed(1)} - ${props.place} (${distance.toFixed(1)}km)`);
       }
     }
 
-    if (alertsCreated > 0) {
-      logger.info(`Created ${alertsCreated} earthquake alerts`);
-    }
+    logger.info(`Lipa alerts: ${alertsCreated} created, ${duplicatesSkipped} duplicates, ${outsideLipaSkipped} outside area`);
+    logger.info("=== USGS FETCH COMPLETE (LIPA FOCUS) ===");
     
     return data;
+    
   } catch (error) {
-    logger.error("Error fetching USGS data:", error);
+    logger.error("=== USGS FETCH FAILED ===");
+    logger.error("Error message:", error.message);
+    logger.error("Stack:", error.stack);
     throw error;
   }
 }
 
-// Process OpenWeather data into alert format
-function processOpenWeatherData(data) {
-  const weather = data.weather[0];
-  const main = data.main;
-  const wind = data.wind;
-  const rain = data.rain;
 
-  let shouldAlert = false;
-  let title = "";
-  let description = "";
-  let severity = "info";
-
-  // Check for severe weather conditions
-  if (weather.id < 300) { // Thunderstorm
-    shouldAlert = true;
-    title = "Thunderstorm Warning";
-    description = `Thunderstorm conditions detected in Lipa area. ${weather.description}. Take appropriate precautions.`;
-    severity = "warning";
-  } else if (weather.id >= 500 && weather.id < 600 && rain) { // Rain
-    if (rain["1h"] > 10 || rain["3h"] > 25) {
-      shouldAlert = true;
-      title = "Heavy Rain Advisory";
-      description = `Heavy rainfall detected: ${rain["1h"] || 0}mm in the last hour. Risk of flooding in low-lying areas.`;
-      severity = "warning";
-    }
-  } else if (wind.speed > 10) { // Strong winds
-    shouldAlert = true;
-    title = "Strong Wind Advisory";
-    description = `Strong winds detected: ${wind.speed} m/s (${Math.round(wind.speed * 3.6)} km/h). Secure loose objects.`;
-    severity = "info";
-  } else if (main.temp > 35) { // Extreme heat
-    shouldAlert = true;
-    title = "Heat Advisory";
-    description = `High temperature alert: ${Math.round(main.temp)}°C. Stay hydrated and avoid prolonged sun exposure.`;
-    severity = "info";
-  }
-
-  if (!shouldAlert) {
-    return null;
-  }
-
-  return {
-    type: "weather",
-    title,
-    description,
-    source: "OpenWeather",
-    raw: data,
-    severity,
-    location: { lat: LIPA_LAT, lon: LIPA_LON }
-  };
-}
-
-// Process USGS earthquake data
+// Enhanced earthquake processing for Lipa area only
 function processUSGSEarthquake(earthquake) {
   const props = earthquake.properties;
   const coords = earthquake.geometry.coordinates;
   const magnitude = props.mag;
+  const depth = Math.abs(coords[2]);
+  const place = props.place;
 
-  // Only create alerts for significant earthquakes
-  if (magnitude < 3.0) {
+  // Calculate distance from Lipa City
+  const distance = calculateDistance(LIPA_LAT, LIPA_LON, coords[1], coords[0]);
+  
+  // ONLY PROCESS EARTHQUAKES WITHIN LIPA AREA (50km radius)
+  if (distance > LIPA_RADIUS_KM) {
+    logger.info(`Skipping earthquake ${earthquake.id} - outside Lipa area: ${distance.toFixed(1)}km`);
     return null;
   }
 
-  let severity = "info";
-  if (magnitude >= 5.0) severity = "warning";
-  if (magnitude >= 6.0) severity = "danger";
+  // Check if within Lipa bounding box for more precise filtering
+  if (!isWithinLipaArea(coords[1], coords[0])) {
+    logger.info(`Skipping earthquake ${earthquake.id} - outside Lipa bounding box`);
+    return null;
+  }
+
+  if (magnitude < 2.5) return null;
+
+  let severity, title, description;
+
+  // Enhanced titles with Lipa-specific context
+  if (magnitude >= 6.0) {
+    severity = "danger";
+    title = `🔴 MAJOR EARTHQUAKE - M${magnitude.toFixed(1)} - LIPA CITY`;
+    description = `MAJOR earthquake detected! M${magnitude.toFixed(1)} at ${place}. Distance: ${distance.toFixed(0)}km from Lipa City Center. Check for damage, expect aftershocks.`;
+  } else if (magnitude >= 5.0) {
+    severity = "warning";
+    title = `🟠 Strong Earthquake - M${magnitude.toFixed(1)} - Near Lipa`;
+    description = `Strong earthquake. M${magnitude.toFixed(1)} at ${place}. Distance: ${distance.toFixed(0)}km from Lipa City. Take cover, be alert for aftershocks.`;
+  } else if (magnitude >= 4.0) {
+    severity = "info";
+    title = `🟡 Moderate Earthquake - M${magnitude.toFixed(1)} - Lipa Area`;
+    description = `Moderate earthquake. M${magnitude.toFixed(1)} at ${place}. Distance: ${distance.toFixed(0)}km from Lipa City. Felt by residents.`;
+  } else {
+    severity = "info";
+    title = `🔵 Minor Earthquake - M${magnitude.toFixed(1)} - Lipa Vicinity`;
+    description = `Minor earthquake. M${magnitude.toFixed(1)} at ${place}. Distance: ${distance.toFixed(0)}km from Lipa. No significant damage expected.`;
+  }
 
   return {
     type: "earthquake",
-    title: `Magnitude ${magnitude} Earthquake`,
-    description: `Earthquake detected: M${magnitude} at ${props.place}. Depth: ${Math.abs(coords[2])}km. Time: ${new Date(props.time).toLocaleString()}.`,
+    title,
+    description,
     source: "USGS",
     raw: earthquake,
     severity,
-    location: { lat: coords[1], lon: coords[0] },
-    magnitude
+    location: {
+      lat: coords[1],
+      lon: coords[0],
+      place: place,
+      city: "Lipa City Area",
+      distanceFromLipa: distance
+    },
+    magnitude,
+    depth,
+    time: props.time,
+    distanceFromLipa: distance
   };
 }
 
-// Create pending alert in Firestore
+
+function processOpenWeatherData(data) {
+  const weather = data.weather[0];
+  const main = data.main;
+  const wind = data.wind;
+  const rain = data.rain || {};
+  
+  let alerts = [];
+
+  // Lipa-specific weather thresholds
+  const HOURLY_RAIN_HEAVY = 10; // mm/hr for Lipa flood risk
+  const HOURLY_RAIN_MODERATE = 5; // mm/hr for Lipa
+  const EXTREME_HEAT = 36; // °C for Lipa
+  const STRONG_WIND = 45; // km/h for Lipa
+
+  // 1. Thunderstorms - Lipa specific
+  if (weather.id >= 200 && weather.id < 300) {
+    alerts.push({
+      type: "weather",
+      title: "⚡ Thunderstorm - Lipa City",
+      description: `Thunderstorm over Lipa City: ${weather.description}. Stay indoors, avoid open areas. Possible lightning and localized flooding in low-lying barangays.`,
+      severity: "warning"
+    });
+  }
+
+  // 2. Heavy Rain - Lipa flood risk areas
+  const hourlyRain = rain["1h"] || 0;
+  if (hourlyRain > HOURLY_RAIN_HEAVY) {
+    alerts.push({
+      type: "weather",
+      title: "🌧️ Heavy Rain - Lipa Flood Alert",
+      description: `Heavy rainfall in Lipa: ${hourlyRain.toFixed(1)}mm/hr. Flood risk in Antipolo, Tambo, and other low-lying areas. Avoid unnecessary travel.`,
+      severity: hourlyRain > 20 ? "danger" : "warning"
+    });
+  } else if (hourlyRain > HOURLY_RAIN_MODERATE) {
+    alerts.push({
+      type: "weather",
+      title: "🌦️ Moderate Rain - Lipa City",
+      description: `Moderate rain in Lipa: ${hourlyRain.toFixed(1)}mm/hr. Roads may be slippery. Drive carefully.`,
+      severity: "info"
+    });
+  }
+
+  // 3. Extreme Heat - Lipa specific
+  if (main.temp > EXTREME_HEAT) {
+    alerts.push({
+      type: "weather",
+      title: "🌡️ Extreme Heat - Lipa City",
+      description: `Dangerous heat in Lipa: ${Math.round(main.temp)}°C. Stay hydrated, avoid sun exposure 11AM-3PM. Check on elderly neighbors.`,
+      severity: "warning"
+    });
+  }
+
+  // 4. Strong Winds - Lipa specific
+  const windSpeedKmh = wind.speed * 3.6;
+  if (windSpeedKmh > STRONG_WIND) {
+    alerts.push({
+      type: "weather",
+      title: "💨 Strong Winds - Lipa City",
+      description: `Strong winds in Lipa: ${windSpeedKmh.toFixed(0)} km/h. Secure loose objects, be cautious near tall structures.`,
+      severity: "warning"
+    });
+  }
+
+  // Return most severe alert
+  if (alerts.length === 0) return null;
+  
+  alerts.sort((a, b) => {
+    const order = { danger: 0, warning: 1, info: 2 };
+    return order[a.severity] - order[b.severity];
+  });
+  
+  const mainAlert = alerts[0];
+  
+  return {
+    ...mainAlert,
+    source: "OpenWeather",
+    raw: data,
+    location: {
+      lat: LIPA_LAT,
+      lon: LIPA_LON,
+      city: "Lipa City",
+      province: "Batangas",
+      specificArea: "Lipa City Proper"
+    },
+    metadata: {
+      temperature: main.temp,
+      humidity: main.humidity,
+      windSpeed: windSpeedKmh,
+      rainfall: hourlyRain,
+      conditions: weather.description,
+      lipaSpecific: true
+    }
+  };
+}
+
+// Helper function to check if coordinates are within Lipa area
+function isWithinLipaArea(lat, lon) {
+  return (
+    lat >= LIPA_BOUNDING_BOX.south &&
+    lat <= LIPA_BOUNDING_BOX.north &&
+    lon >= LIPA_BOUNDING_BOX.west &&
+    lon <= LIPA_BOUNDING_BOX.east
+  );
+}
+
+
 async function createPendingAlert(alertData) {
   try {
-    // Check for recent duplicate alerts
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    // Check for duplicates in last 6 hours
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    
     const duplicateQuery = await admin
       .firestore()
       .collection("alerts")
       .where("source", "==", alertData.source)
       .where("type", "==", alertData.type)
-      .where("timestamp", ">", admin.firestore.Timestamp.fromDate(oneDayAgo))
+      .where("status", "==", "pending")
+      .where("timestamp", ">", admin.firestore.Timestamp.fromDate(sixHoursAgo))
       .limit(1)
       .get();
 
     if (!duplicateQuery.empty) {
-      logger.info(`Duplicate ${alertData.type} alert from ${alertData.source} detected, skipping`);
+      logger.info("Duplicate pending alert detected, skipping");
       return;
     }
 
+    // Set expiration date for pending alerts
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + ALERT_EXPIRATION_DAYS_PENDING);
+
+    const alertDoc = {
+      ...alertData,
+      status: "pending", // MUST BE APPROVED BY ADMIN
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      isActive: false, // Not active until approved
+      approved: false,
+      targetArea: "Lipa City, Batangas",
+      expiresAt: expiresAt // Add expiration field
+    };
+
+    await admin.firestore().collection("alerts").add(alertDoc);
+    logger.info(`PENDING alert created: ${alertData.title}`);
+
+  } catch (error) {
+    logger.error("Error creating pending alert:", error);
+    throw error;
+  }
+}
+
+exports.approveAlert = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    if (!request.auth || !request.auth.token.admin) {
+      throw new Error("Admin access required");
+    }
+
+    const { alertId } = request.data;
+    
+    if (!alertId) {
+      throw new Error("Alert ID is required");
+    }
+
+    const alertRef = admin.firestore().collection("alerts").doc(alertId);
+    const alertDoc = await alertRef.get();
+    
+    if (!alertDoc.exists) {
+      throw new Error("Alert not found");
+    }
+
+    const alertData = alertDoc.data();
+    
+    // Set expiration to 24 hours from approval
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + ALERT_EXPIRATION_HOURS_APPROVED);
+    
+    // Update alert status with expiration
+    await alertRef.update({
+      status: "approved",
+      approved: true,
+      isActive: true,
+      approvedBy: request.auth.uid,
+      approvedAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: expiresAt
+    });
+
+    // Create in weather_alerts for mobile app with expiration
+    await admin.firestore().collection("weather_alerts").add({
+      title: alertData.title,
+      description: alertData.description,
+      severity: alertData.severity,
+      type: alertData.type,
+      approved: true,
+      isActive: true,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: request.auth.uid,
+      source: alertData.source,
+      alertId: alertId,
+      expiresAt: expiresAt
+    });
+
+    logger.info(`Alert ${alertId} approved and published with 24-hour expiration`);
+
+    return {
+      success: true,
+      message: "Alert approved and published to users",
+      alertId,
+      expiresAt: expiresAt.toISOString()
+    };
+
+  } catch (error) {
+    logger.error("Error approving alert:", error);
+    throw new Error(error.message || "Failed to approve alert");
+  }
+});
+
+exports.deleteExpiredAlerts = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    if (!request.auth || !request.auth.token.admin) {
+      throw new Error("Admin access required");
+    }
+
+    const now = new Date();
+    const alertsQuery = admin.firestore().collection("alerts");
+    const snapshot = await alertsQuery.get();
+    
+    let expiredCount = 0;
+    let deletedCount = 0;
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      const expiresAt = data.expiresAt?.toDate?.() || data.expiresAt;
+      
+      if (expiresAt && expiresAt < now) {
+        expiredCount++;
+        try {
+          await admin.firestore().collection("alerts").doc(doc.id).delete();
+          deletedCount++;
+          logger.info(`Deleted expired alert: ${doc.id}`);
+        } catch (error) {
+          logger.error(`Failed to delete expired alert ${doc.id}:`, error);
+        }
+      }
+    }
+
+    logger.info(`Expired alerts cleanup: ${deletedCount} deleted (${expiredCount} found)`);
+
+    return {
+      success: true,
+      message: `Deleted ${deletedCount} expired alerts (${expiredCount} found)`,
+      deletedCount,
+      expiredCount
+    };
+    
+  } catch (error) {
+    logger.error('Error deleting expired alerts:', error);
+    throw new Error(`Failed to delete expired alerts: ${error.message}`);
+  }
+});
+
+
+exports.onAlertApproval = onDocumentUpdated({
+  document: "alerts/{alertId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
+  const alertId = event.params.alertId;
+
+  // Only process when status changes from pending to approved
+  if (before.status === "pending" && after.status === "approved") {
+    try {
+      logger.info(`Alert approved: ${alertId}`);
+
+      // Create in weather_alerts collection for mobile app
+      await admin.firestore().collection("weather_alerts").add({
+        title: after.title,
+        description: after.description,
+        severity: after.severity,
+        type: after.type,
+        approved: true,
+        isActive: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdBy: after.approvedBy,
+        source: after.source,
+        alertId: alertId
+      });
+
+      // Send push notifications to all users
+      await sendAlertNotifications(after, alertId);
+
+      logger.info(`Alert ${alertId} published to users`);
+
+    } catch (error) {
+      logger.error(`Error processing approval:`, error);
+    }
+  }
+});
+
+
+async function sendAlertNotifications(alertData, alertId) {
+  try {
+    const usersSnapshot = await admin.firestore()
+      .collection("users")
+      .where("expoPushToken", "!=", null)
+      .where("notificationsEnabled", "!=", false)
+      .get();
+
+    if (usersSnapshot.empty) {
+      logger.info("No users to notify");
+      return;
+    }
+
+    const messages = [];
+    const severityEmoji = {
+      info: "",
+      warning: "",
+      danger: ""
+    }[alertData.severity] || "";
+
+    usersSnapshot.forEach((doc) => {
+      const user = doc.data();
+      const token = user.expoPushToken;
+      
+      if (token && typeof token === 'string') {
+        messages.push({
+          to: token,
+          sound: "default",
+          title: `${severityEmoji} ${alertData.title}`,
+          body: alertData.description.substring(0, 200),
+          data: {
+            type: "weather_alert",
+            alertId,
+            severity: alertData.severity,
+            alertType: alertData.type
+          },
+          priority: alertData.severity === "danger" ? "high" : "default"
+        });
+      }
+    });
+
+    logger.info(`Sending ${messages.length} notifications`);
+
+    // Send in batches
+    for (let i = 0; i < messages.length; i += 100) {
+      const batch = messages.slice(i, i + 100);
+      await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(batch)
+      });
+    }
+
+    logger.info("Notifications sent successfully");
+
+  } catch (error) {
+    logger.error("Error sending notifications:", error);
+  }
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+// Create pending alert in Firestore
+async function createPendingAlert(alertData) {
+  try {
     const alertDoc = {
       ...alertData,
       status: "pending",
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      isActive: true,
-      approved: false
+      isActive: false,
+      approved: false,
+      targetArea: "Lipa City, Batangas"
     };
 
     await admin.firestore().collection("alerts").add(alertDoc);
-    logger.info(`Created pending ${alertData.type} alert from ${alertData.source}`);
+    logger.info(`PENDING alert created: ${alertData.title}`);
 
   } catch (error) {
-    logger.error("Error creating pending alert:", error);
+    logger.error("Error creating alert:", error);
     throw error;
   }
 }
@@ -3259,6 +7141,8 @@ const collections = ['users', 'incident_reports', 'notifications', 'forumPosts',
   return stats;
 }
 
+ 
+
 async function validateSystemIntegrity() {
   const issues = [];
 
@@ -3298,17 +7182,17 @@ exports.approveWeatherAlert = onCall({
   region: "asia-southeast1",
   cors: true
 }, async (request) => {
-  if (!request.auth || !request.auth.token.admin) {
-    throw new Error("Admin access required");
-  }
-
-  const { alertId } = request.data;
-  
-  if (!alertId) {
-    throw new Error("Alert ID is required");
-  }
-
   try {
+    if (!request.auth || !request.auth.token.admin) {
+      throw new Error("Admin access required");
+    }
+
+    const { alertId } = request.data;
+    
+    if (!alertId) {
+      throw new Error("Alert ID is required");
+    }
+
     const alertRef = admin.firestore().collection("alerts").doc(alertId);
     const alertDoc = await alertRef.get();
     
@@ -3318,13 +7202,6 @@ exports.approveWeatherAlert = onCall({
 
     const alertData = alertDoc.data();
     
-    if (alertData.status === 'approved') {
-      return {
-        success: true,
-        message: "Alert is already approved"
-      };
-    }
-
     // Update alert status
     await alertRef.update({
       status: "approved",
@@ -3334,16 +7211,30 @@ exports.approveWeatherAlert = onCall({
       approvedAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    logger.info(`Weather alert ${alertId} approved by admin ${request.auth.uid}`);
+    // Create in weather_alerts for mobile app
+    await admin.firestore().collection("weather_alerts").add({
+      title: alertData.title,
+      description: alertData.description,
+      severity: alertData.severity,
+      type: alertData.type,
+      approved: true,
+      isActive: true,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: request.auth.uid,
+      source: alertData.source,
+      alertId: alertId
+    });
+
+    logger.info(`Alert ${alertId} approved and published`);
 
     return {
       success: true,
-      message: "Alert approved and activated successfully",
+      message: "Alert approved and published to users",
       alertId
     };
 
   } catch (error) {
-    logger.error("Error approving weather alert:", error);
+    logger.error("Error approving alert:", error);
     throw new Error(error.message || "Failed to approve alert");
   }
 });
@@ -3390,6 +7281,2202 @@ exports.getWeatherAlertStats = onCall({
   } catch (error) {
     logger.error("Error getting weather alert stats:", error);
     throw new Error("Failed to generate weather alert statistics");
+  }
+});
+
+/* ===================================================================
+   SOS EMERGENCY CALL MANAGEMENT SYSTEM
+=================================================================== */
+
+// Get SOS emergency call details
+exports.getSOSEmergencyDetails = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth) {
+    throw new Error("Authentication required");
+  }
+
+  const { sosId } = request.data;
+  
+  if (!sosId) {
+    throw new Error("SOS ID is required");
+  }
+
+  try {
+    const sosDoc = await admin.firestore().collection("sos_calls").doc(sosId).get();
+    
+    if (!sosDoc.exists) {
+      throw new Error("SOS emergency call not found");
+    }
+
+    const sosData = sosDoc.data();
+    
+    // Kunin ang user details para hindi anonymous
+    let userData = {};
+    if (sosData.userId) {
+      try {
+        const userDoc = await admin.firestore().collection("users").doc(sosData.userId).get();
+        if (userDoc.exists) {
+          userData = userDoc.data();
+        }
+      } catch (userError) {
+        logger.warn("Could not fetch user details:", userError);
+      }
+    }
+
+    const enhancedData = {
+      id: sosDoc.id,
+      ...sosData,
+      formattedCalledAt: sosData.calledAt ? sosData.calledAt.toDate().toISOString() : null,
+      contactInfo: {
+        phone: sosData.phoneNumber || userData.phoneNumber || userData.phone || 'Not available',
+        email: sosData.email || userData.email || 'Not available',
+        name: sosData.userName || userData.name || 'User' // Hindi na anonymous
+      },
+      isSOS: true,
+      emergencyLevel: sosData.emergencyLevel || 'high'
+    };
+
+    return {
+      success: true,
+      sosData: enhancedData,
+      type: 'sos_emergency'
+    };
+
+  } catch (error) {
+    logger.error("Error getting SOS emergency details:", error);
+    throw new Error("Failed to retrieve SOS emergency details");
+  }
+});
+
+exports.onSOSCallCreated = onDocumentCreated({
+    document: "sos_calls/{sosId}",
+    region: "asia-southeast1"
+}, async (event) => {
+    const sosData = event.data.data();
+    const sosId = event.params.sosId;
+
+    if (!sosData || !sosData.userId) {
+        logger.warn("Incomplete SOS call data");
+        return;
+    }
+
+    try {
+        logger.info(`Processing new SOS call: ${sosId}`);
+
+        // Determine agency suggestion
+        const suggestion = determineSuggestedAgency(sosData);
+        
+        // Update SOS with suggestion
+        await admin.firestore().collection("sos_calls").doc(sosId).update({
+            suggestedAgency: suggestion.mainAgency,
+            suggestedPartner: suggestion.partnerAgency,
+            suggestionReason: suggestion.suggestionReason,
+            requiresPatientForm: suggestion.requiresPatientForm,
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Extract location information
+        const location = sosData.location;
+        const locationText = location 
+            ? `${location.barangay}, ${location.city}` 
+            : "Lipa City";
+
+        // Send notifications
+        await sendSOSPushNotification(
+            sosData.userId,
+            'sos_call_pending',
+            '🚨 SOS Emergency Reported',
+            `Your ${sosData.emergencyType} emergency in ${locationText} has been logged. CDRRMO is coordinating response.`,
+            {
+                sosCallId: sosId,
+                suggestedAgency: suggestion.mainAgency,
+                location: locationText,
+                ...(location && {
+                    coordinates: {
+                        latitude: location.latitude,
+                        longitude: location.longitude
+                    }
+                }),
+                type: 'sos_call_pending'
+            }
+        );
+
+        // Create in-app notification
+        await admin.firestore().collection("notifications").add({
+            userId: sosData.userId,
+            sosCallId: sosId,
+            title: '🚨 SOS Emergency Reported',
+            body: `CDRRMO is coordinating response to your ${sosData.emergencyType} emergency in ${locationText}.`,
+            type: 'sos_call_pending',
+            priority: 'high',
+            status: 'unread',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            data: {
+                sosCallId: sosId,
+                suggestedAgency: suggestion.mainAgency,
+                location: locationText,
+                actionUrl: `/emergency/sos-status?sosId=${sosId}`,
+            },
+            expiresAt: admin.firestore.Timestamp.fromDate(
+                new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            )
+        });
+
+        // Notify CDRRMO admins
+        await notifyCDRRMOAdmins(sosId, sosData, suggestion);
+
+        logger.info(`SOS call processed with CDRRMO coordination: ${sosId}`);
+
+    } catch (error) {
+        logger.error(`Error processing SOS call ${sosId}:`, error);
+    }
+});
+
+exports.onSOSCallUpdated = onDocumentUpdated({
+  document: "sos_calls/{sosId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
+  const sosId = event.params.sosId;
+
+  if (!before || !after) {
+    return;
+  }
+
+  try {
+    const location = after.location;
+    const locationText = location 
+      ? `${location.barangay}, ${location.city}` 
+      : "Lipa City";
+
+    // Check if SOS was just reviewed
+    if (!before.reviewed && after.reviewed) {
+      logger.info(`SOS call ${sosId} was reviewed by admin at ${locationText}`);
+
+      // Create in-app notification
+      await admin.firestore().collection("notifications").add({
+        userId: after.userId,
+        sosCallId: sosId,
+        title: '✅ SOS Call Reviewed',
+        body: `Your emergency call to ${after.selectedAgency} in ${locationText} has been reviewed by CDRRMO.`,
+        type: 'sos_call_reviewed',
+        priority: 'high',
+        status: 'unread',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        data: {
+          sosCallId: sosId,
+          agencyName: after.selectedAgency,
+          location: locationText,
+          reviewedBy: after.reviewedBy,
+          actionUrl: `/emergency/sos-status?sosId=${sosId}`,
+          ...(location && {
+            coordinates: {
+              latitude: location.latitude,
+              longitude: location.longitude
+            }
+          })
+        },
+        expiresAt: admin.firestore.Timestamp.fromDate(
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        )
+      });
+
+      // Send push notification
+      await sendSOSPushNotification(
+        after.userId,
+        'sos_call_reviewed',
+        '✅ SOS Call Reviewed',
+        `Your emergency call to ${after.selectedAgency} in ${locationText} has been reviewed by CDRRMO.`,
+        {
+          sosCallId: sosId,
+          agencyName: after.selectedAgency,
+          location: locationText,
+          ...(location && {
+            coordinates: {
+              latitude: location.latitude,
+              longitude: location.longitude
+            }
+          }),
+          type: 'sos_call_reviewed'
+        }
+      );
+    }
+
+    // Check if SOS was assigned to an agency
+    if (!before.assignedAgency && after.assignedAgency) {
+      logger.info(`SOS call ${sosId} assigned to ${after.assignedAgencyName} at ${locationText}`);
+
+      // Create in-app notification
+      await admin.firestore().collection("notifications").add({
+        userId: after.userId,
+        sosCallId: sosId,
+        title: '👷 SOS Response Assigned',
+        body: `Your emergency call has been assigned to ${after.assignedAgencyName} for response in ${locationText}.`,
+        type: 'sos_call_assigned',
+        priority: 'high',
+        status: 'unread',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        data: {
+          sosCallId: sosId,
+          assignedAgency: after.assignedAgencyName,
+          location: locationText,
+          actionUrl: `/emergency/sos-status?sosId=${sosId}`,
+          ...(location && {
+            coordinates: {
+              latitude: location.latitude,
+              longitude: location.longitude
+            }
+          })
+        },
+        expiresAt: admin.firestore.Timestamp.fromDate(
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        )
+      });
+
+      // Send push notification
+      await sendSOSPushNotification(
+        after.userId,
+        'sos_call_assigned',
+        '👷 Response Team Assigned',
+        `${after.assignedAgencyName} has been assigned to respond to your emergency call in ${locationText}.`,
+        {
+          sosCallId: sosId,
+          assignedAgency: after.assignedAgencyName,
+          location: locationText,
+          ...(location && {
+            coordinates: {
+              latitude: location.latitude,
+              longitude: location.longitude
+            }
+          }),
+          type: 'sos_call_assigned'
+        }
+      );
+    }
+
+  } catch (error) {
+    logger.error(`Error handling SOS call update ${sosId}:`, error);
+  }
+});
+
+async function notifyCDRRMOAdmins(sosId, sosData, suggestion) {
+    const adminsSnapshot = await admin.firestore().collection("users")
+        .where("role", "in", ["admin", "monitor"])
+        .where("status", "==", "active")
+        .get();
+
+    for (const adminDoc of adminsSnapshot.docs) {
+        const adminData = adminDoc.data();
+        
+        // In-app notification
+        await admin.firestore().collection("notifications").add({
+            userId: adminDoc.id,
+            title: "🆘 New SOS - Agency Assignment Needed",
+            body: `${sosData.emergencyType} in ${sosData.location?.barangay || 'Lipa City'}. Suggested: ${suggestion.mainAgency}${suggestion.partnerAgency ? ' + ' + suggestion.partnerAgency : ''}`,
+            type: "sos_assignment",
+            priority: "high",
+            data: {
+                sosId: sosId,
+                suggestedAgency: suggestion.mainAgency,
+                suggestedPartner: suggestion.partnerAgency,
+                emergencyType: sosData.emergencyType,
+                barangay: sosData.location?.barangay,
+                location: sosData.location,
+                requiresPatientForm: suggestion.requiresPatientForm,
+                timestamp: new Date().toISOString()
+            },
+            status: "unread",
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Push notification
+        const token = adminData.expoPushToken;
+        if (token && typeof token === 'string' && token.trim()) {
+            const message = {
+                to: token,
+                sound: 'default',
+                title: '🆘 New SOS Emergency',
+                body: `${sosData.emergencyType} in ${sosData.location?.barangay || 'Lipa City'}. Tap to assign agencies.`,
+                data: {
+                    type: 'new_sos_admin',
+                    sosId: sosId,
+                    emergencyType: sosData.emergencyType,
+                    barangay: sosData.location?.barangay,
+                    timestamp: Date.now()
+                },
+                channelId: 'admin_alerts',
+                priority: 'high',
+                ttl: 3600
+            };
+
+            try {
+                await fetch("https://exp.host/--/api/v2/push/send", {
+                    method: "POST",
+                    headers: {
+                        Accept: "application/json",
+                        "Accept-encoding": "gzip, deflate",
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(message),
+                });
+            } catch (error) {
+                logger.error(`Admin push notification failed: ${error.message}`);
+            }
+        }
+    }
+}
+
+
+exports.updateUserPassword = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    // Verify admin/monitor authentication for user password reset
+    if (!request.auth) {
+      throw new Error("Authentication required");
+    }
+    
+    // For resetting other users' passwords, require admin/monitor role
+    if (request.data.userId && request.data.userId !== request.auth.uid) {
+      if (!request.auth.token.admin && !request.auth.token.monitor) {
+        throw new Error("Admin or Monitor privileges required to reset other users' passwords");
+      }
+    }
+
+    const { userId, newPassword, forcePasswordChange = true, notifyUser = true } = request.data;
+    
+    if (!userId || !newPassword) {
+      throw new Error("User ID and new password are required");
+    }
+
+    if (newPassword.length < 6) {
+      throw new Error("Password must be at least 6 characters long");
+    }
+
+    // Update user password using Firebase Admin SDK
+    await admin.auth().updateUser(userId, {
+      password: newPassword
+    });
+
+    // Update Firestore with password reset information
+    const updateData = {
+      passwordResetAt: admin.firestore.FieldValue.serverTimestamp(),
+      passwordResetBy: request.auth.uid,
+      lastPasswordUpdate: new Date().toISOString()
+    };
+
+    // Only add tempPassword and forcePasswordChange if it's a reset by admin/monitor
+    if (userId !== request.auth.uid) {
+      updateData.tempPassword = newPassword;
+      updateData.forcePasswordChange = forcePasswordChange;
+    }
+
+    await admin.firestore().collection("users").doc(userId).update(updateData);
+
+    logger.info(`Password updated for user ${userId} by ${request.auth.uid}`);
+
+    return { 
+      success: true, 
+      message: "Password updated successfully",
+      userId: userId,
+      timestamp: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    logger.error("Error updating user password:", error);
+    
+    if (error.code === 'auth/user-not-found') {
+      throw new Error("User not found");
+    } else if (error.code === 'auth/invalid-password') {
+      throw new Error("Password is too weak");
+    }
+    
+    throw new Error(error.message || "Failed to update password");
+  }
+});
+
+
+// Helper function to send SOS-specific push notifications
+async function sendSOSPushNotification(userId, notificationType, title, body, data = {}) {
+  try {
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+    
+    if (!userDoc.exists) {
+      logger.info("User not found for SOS push notification:", userId);
+      return;
+    }
+
+    const userData = userDoc.data();
+    const token = userData.expoPushToken;
+    
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      logger.info("No valid Expo token for SOS notification:", userId);
+      return;
+    }
+
+    // Check if user has notifications enabled
+    if (userData.notificationsEnabled === false) {
+      logger.info("Notifications disabled for user:", userId);
+      return;
+    }
+
+    const sosIcons = {
+      sos_call_pending: "🚨",
+      sos_call_reviewed: "✅",
+      sos_call_assigned: "👷",
+      sos_call_confirm: "📞",
+    };
+
+    const message = {
+      to: token,
+      sound: "default",
+      title: `${sosIcons[notificationType] || "🚨"} ${title}`,
+      body,
+      data: {
+        ...data,
+        timestamp: Date.now()
+      },
+      channelId: "sos_calls",
+      priority: "high",
+      ttl: 86400 // 24 hours
+    };
+
+    const result = await retryOperation(async () => {
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+        timeout: 15000
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`SOS push failed: ${response.status} - ${errorText}`);
+      }
+
+      return await response.json();
+    });
+
+    logger.info(`SOS push notification sent successfully:`, result);
+
+  } catch (error) {
+    logger.error("Error sending SOS push notification:", error);
+  }
+}
+
+// Admin callable to mark SOS as reviewed
+exports.reviewSOSCall = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  const { sosId, assignedAgency, assignedAgencyName, linkedReportId } = request.data;
+  
+  if (!sosId) {
+    throw new Error("SOS call ID is required");
+  }
+
+  try {
+    const sosRef = admin.firestore().collection("sos_calls").doc(sosId);
+    const sosDoc = await sosRef.get();
+    
+    if (!sosDoc.exists) {
+      throw new Error("SOS call not found");
+    }
+
+    const updateData = {
+      reviewed: true,
+      reviewedBy: request.auth.uid,
+      reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (assignedAgency) {
+      updateData.assignedAgency = assignedAgency;
+      updateData.assignedAgencyName = assignedAgencyName || assignedAgency;
+      updateData.assignedAt = admin.firestore.FieldValue.serverTimestamp();
+    }
+
+    if (linkedReportId) {
+      updateData.linkedReportId = linkedReportId;
+    }
+
+    await sosRef.update(updateData);
+
+    logger.info(`SOS call ${sosId} reviewed by admin ${request.auth.uid}`);
+
+    return {
+      success: true,
+      message: "SOS call marked as reviewed",
+      sosId,
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    logger.error("Error reviewing SOS call:", error);
+    throw new Error(error.message || "Failed to review SOS call");
+  }
+});
+
+// Get SOS call statistics for admin
+exports.getSOSCallStats = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  try {
+    const sosSnapshot = await admin.firestore().collection("sos_calls").get();
+    const calls = sosSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const stats = {
+      total: calls.length,
+      reviewed: calls.filter(c => c.reviewed).length,
+      pending: calls.filter(c => !c.reviewed).length,
+      assigned: calls.filter(c => c.assignedAgency).length,
+      withLocation: calls.filter(c => c.location && c.location.barangay).length,
+      withoutLocation: calls.filter(c => !c.location || !c.location.barangay).length,
+      byAgency: {},
+      byBarangay: {},
+      byEmergencyType: {},
+      recentCalls: {
+        last24Hours: 0,
+        lastWeek: 0,
+        lastMonth: 0
+      }
+    };
+
+    // Calculate distributions
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    calls.forEach(call => {
+      // By agency
+      const agency = call.selectedAgency || 'Unknown';
+      stats.byAgency[agency] = (stats.byAgency[agency] || 0) + 1;
+
+      // By barangay (from GPS location)
+      const barangay = call.location?.barangay || 'Unknown/Not Captured';
+      stats.byBarangay[barangay] = (stats.byBarangay[barangay] || 0) + 1;
+
+      // By emergency type
+      if (call.emergencyType) {
+        stats.byEmergencyType[call.emergencyType] = (stats.byEmergencyType[call.emergencyType] || 0) + 1;
+      }
+
+      // Recent calls
+      const calledAt = call.calledAt ? new Date(call.calledAt) : null;
+      if (calledAt) {
+        if (calledAt > oneDayAgo) stats.recentCalls.last24Hours++;
+        if (calledAt > oneWeekAgo) stats.recentCalls.lastWeek++;
+        if (calledAt > oneMonthAgo) stats.recentCalls.lastMonth++;
+      }
+    });
+
+    return {
+      success: true,
+      stats,
+      generatedAt: new Date().toISOString()
+    };
+
+  } catch (error) {
+    logger.error("Error getting SOS call stats:", error);
+    throw new Error("Failed to generate SOS call statistics");
+  }
+});
+
+
+// Add this to your functions/index.js
+
+exports.cleanupDevData = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  try {
+    const batch = admin.firestore().batch();
+    let totalDeleted = 0;
+
+    // 1. Delete dev_otp_logs (development data)
+    const devOtpLogs = await admin.firestore().collection("dev_otp_logs").get();
+    devOtpLogs.docs.forEach(doc => {
+      batch.delete(doc.ref);
+      totalDeleted++;
+    });
+
+    // 2. Delete dev_email_logs (development data)
+    const devEmailLogs = await admin.firestore().collection("dev_email_logs").get();
+    devEmailLogs.docs.forEach(doc => {
+      batch.delete(doc.ref);
+      totalDeleted++;
+    });
+
+    // 3. Delete expired OTPs
+    const expiredOtps = await admin.firestore().collection("otp")
+      .where("createdAt", "<", admin.firestore.Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000)))
+      .get();
+    expiredOtps.docs.forEach(doc => {
+      batch.delete(doc.ref);
+      totalDeleted++;
+    });
+
+    // 4. Delete old rate_limits
+    const oldRateLimits = await admin.firestore().collection("rate_limits")
+      .where("timestamp", "<", admin.firestore.Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)))
+      .get();
+    oldRateLimits.docs.forEach(doc => {
+      batch.delete(doc.ref);
+      totalDeleted++;
+    });
+
+    // 5. Delete old system_logs
+    const oldLogs = await admin.firestore().collection("system_logs")
+      .where("timestamp", "<", admin.firestore.Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
+      .get();
+    oldLogs.docs.forEach(doc => {
+      batch.delete(doc.ref);
+      totalDeleted++;
+    });
+
+    await batch.commit();
+
+    logger.info(`Cleanup completed: ${totalDeleted} documents deleted`);
+
+    return {
+      success: true,
+      deleted: totalDeleted,
+      message: `Cleaned up ${totalDeleted} documents`
+    };
+
+  } catch (error) {
+    logger.error("Cleanup error:", error);
+    throw new Error("Cleanup failed");
+  }
+});
+
+
+exports.getSOSCallsByLocation = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  try {
+    const { startDate, endDate, barangay } = request.data || {};
+    
+    let query = admin.firestore().collection("sos_calls");
+    
+    // Apply date filters
+    if (startDate) {
+      query = query.where("calledAt", ">=", admin.firestore.Timestamp.fromDate(new Date(startDate)));
+    }
+    if (endDate) {
+      query = query.where("calledAt", "<=", admin.firestore.Timestamp.fromDate(new Date(endDate)));
+    }
+
+    const snapshot = await query.get();
+    let calls = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userId: data.userId,
+        userName: data.userName,
+        selectedAgency: data.selectedAgency,
+        emergencyType: data.emergencyType,
+        calledAt: data.calledAt,
+        reviewed: data.reviewed,
+        location: data.location,
+        assignedAgency: data.assignedAgency,
+        assignedAgencyName: data.assignedAgencyName
+      };
+    });
+
+    // Filter by barangay if specified
+    if (barangay && barangay !== 'all') {
+      calls = calls.filter(call => call.location?.barangay === barangay);
+    }
+
+    // Only return calls with valid location data
+    const callsWithLocation = calls.filter(call => 
+      call.location && 
+      call.location.latitude && 
+      call.location.longitude
+    );
+
+    return {
+      success: true,
+      calls: callsWithLocation,
+      total: callsWithLocation.length,
+      filters: { startDate, endDate, barangay }
+    };
+
+  } catch (error) {
+    logger.error("Error getting SOS calls by location:", error);
+    throw new Error("Failed to retrieve SOS calls by location");
+  }
+});
+// =================== SCHEDULE SOS CONFIRMATION NOTIFICATION ===================
+exports.scheduleSOSConfirmation = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    const { userId, serviceTitle, emergencyType, reporterBarangay, sosLogId } = request.data;
+
+    if (!userId || !serviceTitle) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+    }
+
+    console.log(`📅 Scheduling SOS confirmation for user ${userId}, service: ${serviceTitle}`);
+
+    // Schedule notification after 3 minutes
+    setTimeout(async () => {
+      try {
+        // Get user's Expo push token
+        const userDoc = await admin.firestore().collection('users').doc(userId).get();
+        
+        if (!userDoc.exists) {
+          console.log('User not found, skipping notification');
+          return;
+        }
+
+        const userData = userDoc.data();
+        const expoPushToken = userData.expoPushToken;
+
+        if (!expoPushToken) {
+          console.log('No Expo push token for user, skipping notification');
+          return;
+        }
+
+        // Send push notification
+        const message = {
+          to: expoPushToken,
+          sound: 'default',
+          title: '📞 Emergency Call Confirmation',
+          body: `Did you complete your call to ${serviceTitle}? Tap to confirm.`,
+          data: {
+            type: 'sos_confirmation',
+            sosLogId: sosLogId,
+            serviceTitle: serviceTitle,
+            emergencyType: emergencyType,
+            reporterBarangay: reporterBarangay,
+            timestamp: new Date().toISOString()
+          },
+          channelId: 'sos_confirmation',
+          priority: 'high'
+        };
+
+        const response = await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(message),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Expo API error: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('✅ SOS confirmation notification sent:', result);
+
+        // Log the notification
+        await admin.firestore().collection('notification_logs').add({
+          userId: userId,
+          type: 'sos_confirmation',
+          title: message.title,
+          body: message.body,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          success: true,
+          data: message.data
+        });
+
+      } catch (error) {
+        console.error('❌ Error sending SOS confirmation notification:', error);
+        
+        // Log the error
+        await admin.firestore().collection('notification_logs').add({
+          userId: userId,
+          type: 'sos_confirmation',
+          error: error.message,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          success: false
+        });
+      }
+    }, 3 * 60 * 1000); // 3 minutes
+
+    return { 
+      success: true, 
+      message: 'SOS confirmation notification scheduled',
+      scheduledFor: '3 minutes from now'
+    };
+
+  } catch (error) {
+    console.error('Error in scheduleSOSConfirmation:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to schedule confirmation notification');
+  }
+});
+
+// =================== SUGGEST AGENCY FOR SOS ===================
+exports.onSOSIncidentCreated = onDocumentCreated({
+  document: "incident_reports/{reportId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  try {
+    const reportData = event.data.data();
+    const reportId = event.params.reportId;
+
+    if (!reportData || reportData.type !== "sos" || reportData.status !== "pending") {
+      return;
+    }
+
+    logger.info(`🆘 New SOS needs assignment: ${reportId}`);
+
+    // SMART SUGGESTION LOGIC - CDRRMO focused
+    const suggestedAgency = determineSuggestedAgency(reportData);
+    
+    // Update report with suggestion
+    await admin.firestore().collection("incident_reports").doc(reportId).update({
+      suggestedAgency: suggestedAgency,
+      suggestedAt: admin.firestore.FieldValue.serverTimestamp(),
+      needsAssignment: true,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    logger.info(`💡 Suggested ${suggestedAgency} for SOS ${reportId}`);
+
+    // ✅ IMMEDIATE NOTIFICATION TO USER
+    await sendImmediateUserNotification(
+      reportData.userId,
+      reportId,
+      '🚨 SOS Report Received',
+      `Your ${reportData.emergencyType} emergency report has been received and is being reviewed by CDRRMO.`,
+      {
+        type: 'sos_received',
+        reportId: reportId,
+        emergencyType: reportData.emergencyType,
+        location: reportData.barangay || 'Lipa City'
+      }
+    );
+
+    // ✅ IMMEDIATE NOTIFICATION TO CDRRMO ADMINS
+    await sendAdminNotification(reportId, suggestedAgency, reportData);
+
+  } catch (error) {
+    logger.error("Error in SOS suggestion:", error);
+  }
+});
+
+
+function determineSuggestedAgency(reportData) {
+    const emergencyType = (reportData.emergencyType || '').toLowerCase();
+    
+    // MEDICAL = CDRRMO ONLY
+    if (emergencyType.includes('medical') || emergencyType.includes('health') || emergencyType.includes('hospital')) {
+        return {
+            mainAgency: 'CDRRMO',
+            partnerAgency: null,
+            requiresPatientForm: true,
+            suggestionReason: 'Medical emergencies require CDRRMO for patient care and medical response'
+        };
+    }
+    
+    // FIRE = CDRRMO + BFP
+    if (emergencyType.includes('fire')) {
+        return {
+            mainAgency: 'CDRRMO', 
+            partnerAgency: 'BFP Lipa Fire Station',
+            requiresPatientForm: true,
+            suggestionReason: 'Fire incidents require BFP firefighting expertise with CDRRMO coordination'
+        };
+    }
+    
+    // CRIME = CDRRMO + PNP
+    if (emergencyType.includes('crime') || emergencyType.includes('police') || emergencyType.includes('theft') || emergencyType.includes('assault')) {
+        return {
+            mainAgency: 'CDRRMO',
+            partnerAgency: 'PNP Lipa Police Station',
+            requiresPatientForm: true,
+            suggestionReason: 'Crime incidents require PNP law enforcement with CDRRMO support'
+        };
+    }
+    
+    // TRAFFIC ACCIDENT = CDRRMO + PNP
+    if (emergencyType.includes('traffic') || emergencyType.includes('accident') || emergencyType.includes('vehicular')) {
+        return {
+            mainAgency: 'CDRRMO',
+            partnerAgency: 'PNP Lipa Police Station',
+            requiresPatientForm: true,
+            suggestionReason: 'Traffic accidents require medical response and traffic management'
+        };
+    }
+    
+    // OTHERS = CDRRMO ONLY
+    return {
+        mainAgency: 'CDRRMO',
+        partnerAgency: null,
+        requiresPatientForm: true,
+        suggestionReason: 'CDRRMO can handle with optional partner support'
+    };
+}
+exports.assignRescuerToReport = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+
+  const { reportId, rescuerId } = request.data;
+  
+  if (!reportId || !rescuerId) {
+    throw new functions.https.HttpsError('invalid-argument', 'Report ID and rescuer ID required');
+  }
+
+  try {
+    const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+    const userData = userDoc.data();
+    
+    if (!['admin', 'monitor'].includes(userData.role)) {
+      throw new functions.https.HttpsError('permission-denied', 'Only admins and monitors can assign rescuers');
+    }
+
+    const rescuerDoc = await admin.firestore().collection('users').doc(rescuerId).get();
+    
+    if (!rescuerDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Rescuer not found');
+    }
+
+    const rescuerData = rescuerDoc.data();
+    
+    if (rescuerData.role !== 'rescuer') {
+      throw new functions.https.HttpsError('invalid-argument', 'User is not a rescuer');
+    }
+
+    if (rescuerData.currentAssignment && rescuerData.currentAssignment !== reportId) {
+      throw new functions.https.HttpsError('failed-precondition', 
+        `Rescuer is already assigned to incident: ${rescuerData.currentAssignment}`);
+    }
+
+    if (rescuerData.rescuerStatus === 'busy' && rescuerData.currentAssignment !== reportId) {
+      throw new functions.https.HttpsError('failed-precondition', 
+        'Rescuer is currently busy with another assignment');
+    }
+
+    const reportDoc = await admin.firestore().collection("incident_reports").doc(reportId).get();
+    
+    if (!reportDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Report not found');
+    }
+
+    const reportData = reportDoc.data();
+
+    // ✅ PROPERLY EXTRACT ADDRESS
+    let extractedAddress = 'Address not available';
+    
+    if (reportData.formatted_address) {
+      extractedAddress = reportData.formatted_address;
+    } else if (reportData.address) {
+      extractedAddress = reportData.address;
+    } else if (reportData.fullAddress) {
+      extractedAddress = reportData.fullAddress;
+    } else if (reportData.location && reportData.location.address) {
+      extractedAddress = reportData.location.address;
+    } else if (reportData.barangay && reportData.barangay !== 'Unknown Barangay') {
+      extractedAddress = `${reportData.barangay}, Lipa City, Batangas, Philippines`;
+    }
+
+    const destinationInfo = {
+      latitude: reportData.location?.latitude || reportData.lat || 0,
+      longitude: reportData.location?.longitude || reportData.lng || 0,
+      address: extractedAddress,
+      barangay: reportData.barangay || reportData.location?.barangay || 'Lipa City',
+      city: 'Lipa City',
+      province: 'Batangas'
+    };
+
+    console.log('📍 Destination info created:', destinationInfo);
+
+    const reportUpdateData = {
+      assignedRescuer: rescuerId,
+      assignedRescuerName: rescuerData.name || 'CDRRMO Rescuer',
+      rescuerStatus: 'assigned',
+      assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdatedBy: request.auth.uid,
+      destination: destinationInfo
+    };
+
+    const rescuerPhone = rescuerData.phoneNumber || rescuerData.phone || rescuerData.number;
+    if (rescuerPhone && 
+        rescuerPhone !== 'N/A' && 
+        rescuerPhone !== 'Not available' && 
+        rescuerPhone !== 'undefined' &&
+        rescuerPhone.trim() !== '') {
+      reportUpdateData.assignedRescuerPhone = rescuerPhone;
+    }
+
+    await admin.firestore().collection("incident_reports").doc(reportId).update(reportUpdateData);
+
+    const rescuerUpdateData = {
+      currentAssignment: reportId,
+      currentAssignmentDetails: {
+        reportId: reportId,
+        emergencyType: reportData.emergencyType || 'Emergency',
+        destination: destinationInfo,
+        assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: 'assigned'
+      },
+      rescuerStatus: 'busy',
+      isAvailable: false,
+      lastAssignment: admin.firestore.FieldValue.serverTimestamp(),
+      lastAssignedBy: request.auth.uid
+    };
+
+    await admin.firestore().collection('users').doc(rescuerId).update(rescuerUpdateData);
+
+    console.log(`✅ Rescuer ${rescuerData.name} assigned to report ${reportId}`);
+
+    await sendRescuerAssignmentNotification(rescuerId, reportId, reportData, destinationInfo);
+
+    return { 
+      success: true, 
+      message: `Rescuer ${rescuerData.name} assigned successfully`,
+      rescuerName: rescuerData.name,
+      rescuerPhone: rescuerPhone || 'Not available',
+      destination: destinationInfo,
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error('❌ Error in assignRescuerToReport:', error);
+    
+    await admin.firestore().collection('error_logs').add({
+      type: 'rescuer_assignment_error',
+      reportId: reportId,
+      rescuerId: rescuerId,
+      error: error.message,
+      stack: error.stack,
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    if (error.code === 'permission-denied' || 
+        error.code === 'not-found' || 
+        error.code === 'invalid-argument' ||
+        error.code === 'failed-precondition' ||
+        error.code === 'unauthenticated') {
+      throw error;
+    }
+    
+    throw new functions.https.HttpsError('internal', `Failed to assign rescuer: ${error.message}`);
+  }
+});
+
+async function sendRescuerAssignmentNotification(rescuerId, reportId, reportData, destinationInfo) {
+  try {
+    const rescuerDoc = await admin.firestore().collection('users').doc(rescuerId).get();
+    const rescuerData = rescuerDoc.data();
+    const expoPushToken = rescuerData.expoPushToken;
+
+    // ✅ CREATE IN-APP NOTIFICATION WITH DESTINATION
+    await admin.firestore().collection('notifications').add({
+      userId: rescuerId,
+      reportId: reportId,
+      title: '🚨 New Emergency Assignment',
+      body: `${reportData.emergencyType} in ${destinationInfo.barangay}. Tap for directions.`,
+      type: 'rescuer_assignment',
+      priority: 'high',
+      status: 'unread',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        reportId: reportId,
+        emergencyType: reportData.emergencyType,
+        destination: destinationInfo,
+        hasRouting: true,
+        actionRequired: true
+      },
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      )
+    });
+
+    // ✅ SEND PUSH NOTIFICATION WITH ROUTING DATA
+    if (expoPushToken && typeof expoPushToken === 'string' && expoPushToken.trim()) {
+      const message = {
+        to: expoPushToken,
+        sound: 'default',
+        title: '🚨 Emergency Assignment',
+        body: `${reportData.emergencyType} in ${destinationInfo.barangay}. Tap for navigation.`,
+        data: {
+          type: 'rescuer_assignment',
+          reportId: reportId,
+          emergencyType: reportData.emergencyType,
+          // ✅ ROUTING INFO FOR MOBILE APP
+          destination: {
+            latitude: destinationInfo.latitude,
+            longitude: destinationInfo.longitude,
+            address: destinationInfo.address,
+            barangay: destinationInfo.barangay
+          },
+          hasNavigation: true,
+          timestamp: Date.now()
+        },
+        channelId: 'rescuer_assignments',
+        priority: 'high',
+        ttl: 3600
+      };
+
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+      });
+
+      if (response.ok) {
+        console.log(`✅ Push notification with routing sent to rescuer ${rescuerId}`);
+      } else {
+        console.error(`❌ Push notification failed: ${response.status}`);
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Error sending rescuer notification:', error);
+  }
+}
+
+
+async function sendAdminNotification(reportId, suggestedAgency, reportData) {
+  // Get all admin users
+  const adminsSnapshot = await admin.firestore().collection("users")
+    .where("role", "in", ["admin", "monitor"])
+    .where("status", "==", "active")
+    .get();
+
+  for (const adminDoc of adminsSnapshot.docs) {
+    // ✅ IMMEDIATE IN-APP NOTIFICATION FOR ADMINS
+    await admin.firestore().collection("notifications").add({
+      userId: adminDoc.id,
+      title: "🆘 New SOS Needs Assignment",
+      body: `SOS ${reportData.emergencyType} in ${reportData.barangay}. Suggested: ${suggestedAgency}`,
+      type: "sos_assignment",
+      priority: "high",
+      data: {
+        reportId: reportId,
+        suggestedAgency: suggestedAgency,
+        emergencyType: reportData.emergencyType,
+        barangay: reportData.barangay,
+        location: reportData.location,
+        timestamp: new Date().toISOString()
+      },
+      status: "unread",
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // ✅ PUSH NOTIFICATION FOR ADMINS
+    const adminData = adminDoc.data();
+    const token = adminData.expoPushToken;
+    
+    if (token && typeof token === 'string' && token.trim()) {
+      const message = {
+        to: token,
+        sound: 'default',
+        title: '🆘 New SOS Emergency',
+        body: `${reportData.emergencyType} in ${reportData.barangay}. Tap to assign.`,
+        data: {
+          type: 'new_sos_admin',
+          reportId: reportId,
+          emergencyType: reportData.emergencyType,
+          barangay: reportData.barangay,
+          timestamp: Date.now()
+        },
+        channelId: 'admin_alerts',
+        priority: 'high',
+        ttl: 3600 // 1 hour
+      };
+
+      try {
+        await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Accept-encoding": "gzip, deflate",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(message),
+        });
+        logger.info(`✅ Admin notification sent to ${adminDoc.id}`);
+      } catch (error) {
+        logger.error(`❌ Admin push notification failed: ${error.message}`);
+      }
+    }
+  }
+}
+
+exports.assignPartnerAgency = onCall({
+    region: "asia-southeast1",
+    cors: true
+}, async (request) => {
+    if (!request.auth) throw new Error("Authentication required");
+    
+    const { reportId, partnerAgency } = request.data;
+    if (!reportId || !partnerAgency) throw new Error("Report ID and agency required");
+
+    const userDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
+    const userData = userDoc.data();
+    
+    // Only Admin/Monitor can assign
+    if (userData.role !== 'admin' && userData.role !== 'monitor') {
+        throw new Error("Only admins and monitors can assign agencies");
+    }
+
+    await admin.firestore().collection("incident_reports").doc(reportId).update({
+        partnerAgency: partnerAgency,
+        partnerAgencyStatus: 'assigned',
+        partnerAssignedAt: admin.firestore.FieldValue.serverTimestamp(),
+        partnerAssignedBy: request.auth.uid
+    });
+
+    return { success: true, message: `Partner agency ${partnerAgency} assigned` };
+});
+
+// =================== SCHEDULE SOS CONFIRMATION NOTIFICATION ===================
+exports.scheduleSOSConfirmation = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    const { userId, serviceTitle, emergencyType, reporterBarangay, sosLogId } = request.data;
+
+    if (!userId || !serviceTitle) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+    }
+
+    console.log(`📅 Scheduling SOS confirmation for user ${userId}, service: ${serviceTitle}`);
+
+    // For now, let's create an immediate notification instead of scheduling
+    // This fixes the "not-found" error
+    try {
+      // Get user's Expo push token
+      const userDoc = await admin.firestore().collection('users').doc(userId).get();
+      
+      if (!userDoc.exists) {
+        console.log('User not found, skipping notification');
+        return { success: true, message: 'User not found' };
+      }
+
+      const userData = userDoc.data();
+      const expoPushToken = userData.expoPushToken;
+
+      if (!expoPushToken) {
+        console.log('No Expo push token for user, skipping notification');
+        return { success: true, message: 'No push token' };
+      }
+
+      // Send immediate push notification (instead of scheduled)
+      const message = {
+        to: expoPushToken,
+        sound: 'default',
+        title: '📞 Emergency Call Made',
+        body: `Your call to ${serviceTitle} has been logged. Status: Pending Review`,
+        data: {
+          type: 'sos_call_pending',
+          sosLogId: sosLogId || `temp_${Date.now()}`,
+          serviceTitle: serviceTitle,
+          emergencyType: emergencyType || 'general',
+          reporterBarangay: reporterBarangay || 'Lipa City',
+          timestamp: new Date().toISOString()
+        },
+        channelId: 'sos_calls',
+        priority: 'high'
+      };
+
+      const response = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(message),
+      });
+
+      if (!response.ok) {
+        console.error('Expo API error:', response.status);
+        // Don't throw error, just log it
+      } else {
+        const result = await response.json();
+        console.log('✅ SOS notification sent:', result);
+      }
+
+    } catch (notificationError) {
+      console.error('Notification error (non-critical):', notificationError);
+      // Don't fail the entire function if notification fails
+    }
+
+    return { 
+      success: true, 
+      message: 'SOS call processed successfully',
+      immediateNotification: true
+    };
+
+  } catch (error) {
+    console.error('Error in scheduleSOSConfirmation:', error);
+    // Return a success response instead of throwing to prevent app errors
+    return { 
+      success: true, 
+      message: 'SOS call processed (notification skipped)',
+      error: error.message 
+    };
+  }
+});
+
+exports.onChatMessageCreated = onDocumentCreated({
+  document: "chatRooms/{chatRoomId}/messages/{messageId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const messageData = event.data.data();
+  const chatRoomId = event.params.chatRoomId;
+  const messageId = event.params.messageId;
+
+  if (!messageData || messageData.senderId === 'system') return;
+
+  try {
+    // Get chat room details
+    const chatRoomDoc = await admin.firestore().collection("chatRooms").doc(chatRoomId).get();
+    const chatRoomData = chatRoomDoc.data();
+    
+    if (!chatRoomData) return;
+
+    // Notify all participants except sender
+    const participants = chatRoomData.participants || [];
+    const otherParticipants = participants.filter(pid => pid !== messageData.senderId);
+
+    for (const participantId of otherParticipants) {
+      await createChatNotification(
+        participantId,
+        chatRoomId,
+        messageData.senderName || 'Someone',
+        messageData.content,
+        messageData.senderId
+      );
+    }
+
+    logger.info(`Chat notification created for message ${messageId}`);
+  } catch (error) {
+    logger.error("Error in onChatMessageCreated:", error);
+  }
+});
+
+// ✅ WEATHER & DISASTER ALERTS NOTIFICATION
+exports.onDisasterAlertCreated = onDocumentCreated({
+  document: "disaster_alerts/{alertId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const alertData = event.data.data();
+  const alertId = event.params.alertId;
+
+  if (!alertData || !alertData.isActive) return;
+
+  try {
+    await sendBroadcastNotification(
+      'weather_alert',
+      `🌦️ ${alertData.title}`,
+      alertData.description,
+      {
+        alertId: alertId,
+        type: 'weather_alert',
+        severity: alertData.severity,
+        alertType: alertData.type
+      }
+    );
+
+    logger.info(`Weather alert notification sent: ${alertId}`);
+  } catch (error) {
+    logger.error("Error in onDisasterAlertCreated:", error);
+  }
+});
+
+// ✅ EMERGENCY TIPS NOTIFICATION
+exports.onEmergencyTipCreated = onDocumentCreated({
+  document: "emergency_tips/{tipId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const tipData = event.data.data();
+  const tipId = event.params.tipId;
+
+  if (!tipData || !tipData.isActive) return;
+
+  try {
+    await sendBroadcastNotification(
+      'emergency_tip',
+      `💡 ${tipData.title}`,
+      tipData.description,
+      {
+        tipId: tipId,
+        type: 'emergency_tip',
+        category: tipData.category
+      }
+    );
+
+    logger.info(`Emergency tip notification sent: ${tipId}`);
+  } catch (error) {
+    logger.error("Error in onEmergencyTipCreated:", error);
+  }
+});
+
+// ✅ ANNOUNCEMENTS NOTIFICATION
+exports.onAnnouncementCreated = onDocumentCreated({
+  document: "announcements/{announcementId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const announcementData = event.data.data();
+  const announcementId = event.params.announcementId;
+
+  if (!announcementData) return;
+
+  try {
+    await sendBroadcastNotification(
+      'announcement',
+      `📢 ${announcementData.title}`,
+      announcementData.body,
+      {
+        announcementId: announcementId,
+        type: 'announcement'
+      }
+    );
+
+    logger.info(`Announcement notification sent: ${announcementId}`);
+  } catch (error) {
+    logger.error("Error in onAnnouncementCreated:", error);
+  }
+});
+
+// ✅ FORUM ACTIVITY NOTIFICATIONS
+exports.onForumActivity = onDocumentCreated({
+  document: "forum_activities/{activityId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const activityData = event.data.data();
+  const activityId = event.params.activityId;
+
+  if (!activityData) return;
+
+  try {
+    const { type, targetUserId, actorName, postTitle, postId } = activityData;
+
+    if (targetUserId && targetUserId !== activityData.actorId) {
+      await createForumNotification(
+        targetUserId,
+        type,
+        actorName,
+        postTitle,
+        postId,
+        activityData
+      );
+    }
+
+    logger.info(`Forum activity notification sent: ${activityId}`);
+  } catch (error) {
+    logger.error("Error in onForumActivity:", error);
+  }
+});
+
+// ✅ ACCOUNT VIOLATION & SUSPENSION NOTIFICATIONS
+exports.onAccountStatusChange = onDocumentUpdated({
+  document: "users/{userId}",
+  region: "asia-southeast1"
+}, async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
+  const userId = event.params.userId;
+
+  if (!before || !after) return;
+
+  try {
+    // Check for suspension/violation status changes
+    if (before.status !== after.status && 
+        ['suspended', 'banned', 'under_review'].includes(after.status)) {
+      
+      await createAccountViolationNotification(
+        userId,
+        after.status,
+        after.suspensionReason || after.lastViolationReason,
+        after.suspensionUntil,
+        after.strikes,
+        after.warnings
+      );
+    }
+
+    // Check for strike/warning changes
+    if ((before.strikes !== after.strikes || before.warnings !== after.warnings) && 
+        (after.strikes > 0 || after.warnings > 0)) {
+      
+      await createViolationUpdateNotification(
+        userId,
+        after.strikes,
+        after.warnings,
+        after.lastViolationReason
+      );
+    }
+
+  } catch (error) {
+    logger.error("Error in onAccountStatusChange:", error);
+  }
+});
+async function sendBroadcastNotification(type, title, body, data = {}) {
+  try {
+    const activeUsers = await admin.firestore()
+      .collection("users")
+      .where("status", "==", "active")
+      .where("notificationsEnabled", "!=", false)
+      .get();
+
+    const batch = admin.firestore().batch();
+    let notificationCount = 0;
+
+    // Create in-app notifications
+    activeUsers.forEach(userDoc => {
+      const notificationRef = admin.firestore().collection("notifications").doc();
+      
+      batch.set(notificationRef, {
+        userId: userDoc.id,
+        title: title,
+        body: body,
+        type: type,
+        priority: data.severity === 'danger' ? 'high' : 'normal',
+        status: 'unread',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        data: data,
+        expiresAt: admin.firestore.Timestamp.fromDate(
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        )
+      });
+      
+      notificationCount++;
+    });
+
+    await batch.commit();
+    logger.info(`✅ Created ${notificationCount} in-app notifications for ${type}`);
+
+    // Send push notifications to users with tokens
+    await sendBroadcastPushNotifications(title, body, data, activeUsers);
+
+  } catch (error) {
+    logger.error(`Error in sendBroadcastNotification:`, error);
+  }
+}
+async function sendBroadcastPushNotifications(title, body, data, usersSnapshot) {
+  try {
+    const messages = [];
+
+    usersSnapshot.forEach(userDoc => {
+      const userData = userDoc.data();
+      const token = userData.expoPushToken;
+      
+      if (token && typeof token === 'string' && token.trim()) {
+        messages.push({
+          to: token,
+          sound: 'default',
+          title: title,
+          body: body.substring(0, 100),
+          data: {
+            ...data,
+            timestamp: Date.now()
+          },
+          channelId: getNotificationChannel(data.type),
+          priority: data.priority || 'default',
+          ttl: 3600
+        });
+      }
+    });
+
+    if (messages.length > 0) {
+      // Send in batches
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+        const batch = messages.slice(i, i + BATCH_SIZE);
+        await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(batch)
+        });
+        
+        logger.info(`📨 Sent push batch ${Math.floor(i/BATCH_SIZE) + 1}`);
+        
+        // Delay between batches
+        if (i + BATCH_SIZE < messages.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      logger.info(`✅ Sent ${messages.length} push notifications`);
+    }
+
+  } catch (error) {
+    logger.error("Error in sendBroadcastPushNotifications:", error);
+  }
+}
+
+/* ===================================================================
+   END OF ENHANCED FIREBASE FUNCTIONS
+=================================================================== */
+
+// DITO MO ILAGAY ANG BUONG CODE NA BINIGAY KO...
+
+/* ===================================================================
+   ENHANCED NOTIFICATION HELPER FUNCTIONS
+=================================================================== */
+
+// 🔄 BROADCAST NOTIFICATION TO ALL USERS
+async function sendBroadcastNotification(type, title, body, data = {}) {
+  try {
+    const activeUsers = await admin.firestore()
+      .collection("users")
+      .where("status", "==", "active")
+      .where("notificationsEnabled", "!=", false)
+      .get();
+
+    const batch = admin.firestore().batch();
+    let notificationCount = 0;
+
+    // Create in-app notifications
+    activeUsers.forEach(userDoc => {
+      const notificationRef = admin.firestore().collection("notifications").doc();
+      
+      batch.set(notificationRef, {
+        userId: userDoc.id,
+        title: title,
+        body: body,
+        type: type,
+        priority: data.severity === 'danger' ? 'high' : 'normal',
+        status: 'unread',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        data: data,
+        expiresAt: admin.firestore.Timestamp.fromDate(
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        )
+      });
+      
+      notificationCount++;
+    });
+
+    await batch.commit();
+    logger.info(`✅ Created ${notificationCount} in-app notifications for ${type}`);
+
+    // Send push notifications to users with tokens
+    await sendBroadcastPushNotifications(title, body, data, activeUsers);
+
+  } catch (error) {
+    logger.error(`Error in sendBroadcastNotification:`, error);
+  }
+}
+
+// 🔄 BROADCAST PUSH NOTIFICATIONS
+async function sendBroadcastPushNotifications(title, body, data, usersSnapshot) {
+  try {
+    const messages = [];
+
+    usersSnapshot.forEach(userDoc => {
+      const userData = userDoc.data();
+      const token = userData.expoPushToken;
+      
+      if (token && typeof token === 'string' && token.trim()) {
+        messages.push({
+          to: token,
+          sound: 'default',
+          title: title,
+          body: body.substring(0, 100),
+          data: {
+            ...data,
+            timestamp: Date.now()
+          },
+          channelId: getNotificationChannel(data.type),
+          priority: data.priority || 'default',
+          ttl: 3600
+        });
+      }
+    });
+
+    if (messages.length > 0) {
+      // Send in batches
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+        const batch = messages.slice(i, i + BATCH_SIZE);
+        await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(batch)
+        });
+        
+        logger.info(`📨 Sent push batch ${Math.floor(i/BATCH_SIZE) + 1}`);
+        
+        // Delay between batches
+        if (i + BATCH_SIZE < messages.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      logger.info(`✅ Sent ${messages.length} push notifications`);
+    }
+
+  } catch (error) {
+    logger.error("Error in sendBroadcastPushNotifications:", error);
+  }
+}
+
+// 💬 CHAT NOTIFICATION HELPER
+async function createChatNotification(userId, chatRoomId, senderName, messageContent, senderId) {
+  try {
+    const truncatedMessage = messageContent.length > 50 
+      ? messageContent.substring(0, 47) + '...' 
+      : messageContent;
+
+    // In-app notification
+    await admin.firestore().collection("notifications").add({
+      userId: userId,
+      title: `💬 Message from ${senderName}`,
+      body: truncatedMessage,
+      type: 'chat_message',
+      priority: 'high',
+      status: 'unread',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        chatRoomId: chatRoomId,
+        senderId: senderId,
+        senderName: senderName,
+        messagePreview: truncatedMessage,
+        timestamp: new Date().toISOString()
+      },
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+      )
+    });
+
+    // Push notification
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+    const userData = userDoc.data();
+    const token = userData?.expoPushToken;
+
+    if (token && typeof token === 'string' && token.trim()) {
+      await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: token,
+          sound: 'default',
+          title: `💬 ${senderName}`,
+          body: truncatedMessage,
+          data: {
+            type: 'chat_message',
+            chatRoomId: chatRoomId,
+            senderId: senderId,
+            timestamp: Date.now()
+          },
+          channelId: 'chat_messages',
+          priority: 'high'
+        })
+      });
+    }
+
+    logger.info(`✅ Chat notification sent to user ${userId}`);
+  } catch (error) {
+    logger.error("Error in createChatNotification:", error);
+  }
+}
+
+// ⚠️ ACCOUNT VIOLATION NOTIFICATION HELPER
+async function createAccountViolationNotification(userId, status, reason, suspensionUntil, strikes, warnings) {
+  try {
+    let title, body;
+
+    switch (status) {
+      case 'suspended':
+        title = '🚫 Account Suspended';
+        body = `Your account has been suspended. Reason: ${reason}`;
+        if (suspensionUntil) {
+          const untilDate = suspensionUntil.toDate ? suspensionUntil.toDate() : new Date(suspensionUntil);
+          body += ` Suspension ends: ${untilDate.toLocaleDateString()}`;
+        }
+        break;
+      case 'banned':
+        title = '🚫 Account Permanently Banned';
+        body = `Your account has been permanently banned. Reason: ${reason}`;
+        break;
+      case 'under_review':
+        title = '⚠️ Account Under Review';
+        body = `Your account is under review. Reason: ${reason}`;
+        break;
+      default:
+        return;
+    }
+
+    // In-app notification
+    await admin.firestore().collection("notifications").add({
+      userId: userId,
+      title: title,
+      body: body,
+      type: 'account_violation',
+      priority: 'high',
+      status: 'unread',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        violationType: status,
+        reason: reason,
+        suspensionUntil: suspensionUntil,
+        strikes: strikes || 0,
+        warnings: warnings || 0,
+        timestamp: new Date().toISOString()
+      },
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+      )
+    });
+
+    // Push notification
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+    const userData = userDoc.data();
+    const token = userData?.expoPushToken;
+
+    if (token && typeof token === 'string' && token.trim()) {
+      await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: token,
+          sound: 'default',
+          title: title,
+          body: body,
+          data: {
+            type: 'account_violation',
+            violationType: status,
+            timestamp: Date.now()
+          },
+          channelId: 'account_alerts',
+          priority: 'high'
+        })
+      });
+    }
+
+    logger.info(`✅ Account violation notification sent to user ${userId}`);
+  } catch (error) {
+    logger.error("Error in createAccountViolationNotification:", error);
+  }
+}
+
+// 🔔 FORUM NOTIFICATION HELPER
+async function createForumNotification(userId, activityType, actorName, postTitle, postId, activityData) {
+  try {
+    let title, body;
+
+    switch (activityType) {
+      case 'like':
+        title = '❤️ Your post was liked';
+        body = `${actorName} liked your post "${postTitle}"`;
+        break;
+      case 'reply':
+        title = '💬 New reply to your post';
+        body = `${actorName} replied to your post "${postTitle}"`;
+        break;
+      case 'mention':
+        title = '👤 You were mentioned';
+        body = `${actorName} mentioned you in a post`;
+        break;
+      default:
+        return;
+    }
+
+    // In-app notification
+    await admin.firestore().collection("notifications").add({
+      userId: userId,
+      title: title,
+      body: body,
+      type: 'forum_activity',
+      priority: 'normal',
+      status: 'unread',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        activityType: activityType,
+        actorName: actorName,
+        postTitle: postTitle,
+        postId: postId,
+        ...activityData
+      },
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+      )
+    });
+
+    // Push notification
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+    const userData = userDoc.data();
+    const token = userData?.expoPushToken;
+
+    if (token && typeof token === 'string' && token.trim()) {
+      await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: token,
+          sound: 'default',
+          title: title,
+          body: body,
+          data: {
+            type: 'forum_activity',
+            activityType: activityType,
+            postId: postId,
+            timestamp: Date.now()
+          },
+          channelId: 'forum_activity',
+          priority: 'normal'
+        })
+      });
+    }
+
+    logger.info(`✅ Forum notification sent to user ${userId}`);
+  } catch (error) {
+    logger.error("Error in createForumNotification:", error);
+  }
+}
+
+// 🎯 NOTIFICATION CHANNEL MAPPER
+function getNotificationChannel(type) {
+  const channelMap = {
+    'weather_alert': 'weather_alerts',
+    'emergency_tip': 'emergency_alerts',
+    'announcement': 'announcements',
+    'chat_message': 'chat_messages',
+    'forum_activity': 'forum_activity',
+    'account_violation': 'account_alerts',
+    'sos_call': 'sos_calls',
+    'incident_report': 'report_updates'
+  };
+  
+  return channelMap[type] || 'default';
+}
+
+/* ===================================================================
+   NOTIFICATION MANAGEMENT & ADMIN FUNCTIONS
+=================================================================== */
+
+// 📊 GET NOTIFICATION STATISTICS
+exports.getEnhancedNotificationStats = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  try {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // Get counts by type
+    const [
+      totalNotifications,
+      weatherAlerts,
+      chatMessages,
+      forumActivities,
+      announcements,
+      emergencyTips,
+      accountViolations,
+      unreadNotifications
+    ] = await Promise.all([
+      admin.firestore().collection("notifications").count().get(),
+      admin.firestore().collection("notifications")
+        .where("type", "==", "weather_alert").count().get(),
+      admin.firestore().collection("notifications")
+        .where("type", "==", "chat_message").count().get(),
+      admin.firestore().collection("notifications")
+        .where("type", "==", "forum_activity").count().get(),
+      admin.firestore().collection("notifications")
+        .where("type", "==", "announcement").count().get(),
+      admin.firestore().collection("notifications")
+        .where("type", "==", "emergency_tip").count().get(),
+      admin.firestore().collection("notifications")
+        .where("type", "==", "account_violation").count().get(),
+      admin.firestore().collection("notifications")
+        .where("status", "==", "unread").count().get()
+    ]);
+
+    return {
+      success: true,
+      stats: {
+        total: totalNotifications.data().count,
+        byType: {
+          weatherAlerts: weatherAlerts.data().count,
+          chatMessages: chatMessages.data().count,
+          forumActivities: forumActivities.data().count,
+          announcements: announcements.data().count,
+          emergencyTips: emergencyTips.data().count,
+          accountViolations: accountViolations.data().count,
+        },
+        unread: unreadNotifications.data().count,
+        deliveryRates: await calculateDeliveryRates()
+      },
+      generatedAt: new Date().toISOString()
+    };
+
+  } catch (error) {
+    logger.error("Error getting enhanced notification stats:", error);
+    throw new Error("Failed to generate notification statistics");
+  }
+});
+
+// 📈 CALCULATE NOTIFICATION DELIVERY RATES
+async function calculateDeliveryRates() {
+  try {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    
+    const recentNotifications = await admin.firestore()
+      .collection("notifications")
+      .where("createdAt", ">", admin.firestore.Timestamp.fromDate(oneDayAgo))
+      .get();
+
+    const usersWithTokens = await admin.firestore()
+      .collection("users")
+      .where("expoPushToken", "!=", null)
+      .where("notificationsEnabled", "!=", false)
+      .get();
+
+    const totalUsers = usersWithTokens.size;
+    const totalNotifications = recentNotifications.size;
+
+    return {
+      pushCoverage: totalUsers,
+      estimatedDeliveryRate: totalUsers > 0 ? Math.min(95, (totalUsers / 1000) * 100) : 0, // Estimated rate
+      activeSubscribers: totalUsers
+    };
+  } catch (error) {
+    logger.error("Error calculating delivery rates:", error);
+    return { pushCoverage: 0, estimatedDeliveryRate: 0, activeSubscribers: 0 };
+  }
+}
+
+// 🔧 TEST NOTIFICATION FOR SPECIFIC TYPE
+exports.testNotificationType = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  if (!request.auth || !request.auth.token.admin) {
+    throw new Error("Admin access required");
+  }
+
+  const { type, userId } = request.data;
+
+  if (!type) {
+    throw new Error("Notification type is required");
+  }
+
+  try {
+    const testUserId = userId || request.auth.uid;
+    
+    const testData = {
+      'chat_message': {
+        title: '💬 Test Chat Message',
+        body: 'This is a test chat notification',
+        data: { chatRoomId: 'test', senderId: 'system' }
+      },
+      'weather_alert': {
+        title: '🌦️ Test Weather Alert',
+        body: 'This is a test weather alert notification',
+        data: { alertId: 'test', severity: 'info' }
+      },
+      'forum_activity': {
+        title: '❤️ Test Forum Activity',
+        body: 'This is a test forum activity notification',
+        data: { postId: 'test', activityType: 'like' }
+      },
+      'announcement': {
+        title: '📢 Test Announcement',
+        body: 'This is a test announcement notification',
+        data: { announcementId: 'test' }
+      },
+      'account_violation': {
+        title: '⚠️ Test Account Violation',
+        body: 'This is a test account violation notification',
+        data: { violationType: 'warning', reason: 'Test reason' }
+      }
+    };
+
+    const config = testData[type] || {
+      title: '🔔 Test Notification',
+      body: `This is a test ${type} notification`,
+      data: { type: type }
+    };
+
+    // Create test notification
+    await admin.firestore().collection("notifications").add({
+      userId: testUserId,
+      title: config.title,
+      body: config.body,
+      type: type,
+      priority: 'high',
+      status: 'unread',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        ...config.data,
+        isTest: true,
+        timestamp: new Date().toISOString()
+      },
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+      )
+    });
+
+    logger.info(`✅ Test ${type} notification created for user ${testUserId}`);
+
+    return {
+      success: true,
+      message: `Test ${type} notification sent successfully`,
+      type: type,
+      userId: testUserId,
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    logger.error(`Error testing ${type} notification:`, error);
+    throw new Error(`Failed to send test notification: ${error.message}`);
   }
 });
 

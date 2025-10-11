@@ -8,7 +8,7 @@ import { notificationService } from '../../services/notifications';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
-  handleNotification: async (notification: Notifications.Notification) => ({
+  handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
@@ -17,9 +17,9 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Notification badge component
+// Notification badge component - FIXED
 const NotificationBadge = ({ count }: { count: number }) => {
-  if (count === 0) return null;
+  if (!count || count === 0) return null;
   
   return (
     <View style={styles.badge}>
@@ -30,7 +30,7 @@ const NotificationBadge = ({ count }: { count: number }) => {
   );
 };
 
-// Custom tab bar icon with notification badge
+// Custom tab bar icon with notification badge - FIXED
 const TabBarIcon = ({ 
   name, 
   color, 
@@ -50,7 +50,9 @@ const TabBarIcon = ({
       size={28} 
       color={color} 
     />
-    {showBadge && badgeCount && badgeCount > 0 && <NotificationBadge count={badgeCount} />}
+    {showBadge && badgeCount !== undefined && badgeCount > 0 && (
+      <NotificationBadge count={badgeCount} />
+    )}
   </View>
 );
 
@@ -62,27 +64,26 @@ export default function MainLayout() {
   const notificationListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
+  // FIX: Proper type checking for segments
   useEffect(() => {
-    if (loading) return; // Wait for auth to load
+    if (loading) return;
 
-    // Check if user is accessing SOS routes
-    const isSOSRoute = segments.includes('emergency') && 
-                      (segments.includes('sos') || segments.includes('sos-services'));
+    // Convert segments to string for safe checking
+    const path = Array.isArray(segments) ? segments.join('/') : '';
+    const isSOSRoute = path.includes('emergency') && 
+                      (path.includes('sos') || path.includes('sos-services'));
     
-    // If not authenticated and not accessing SOS, redirect to login
     if (!user && !isSOSRoute) {
       router.replace("/(auth)/login");
     }
   }, [user, loading, segments]);
 
-  // Subscribe to notifications for badge count and push notification handling
   useEffect(() => {
     if (!user?.uid) {
       setUnreadCount(0);
       return;
     }
 
-    // Initialize push notifications
     const initNotifications = async () => {
       try {
         await notificationService.initializePushNotifications();
@@ -93,7 +94,6 @@ export default function MainLayout() {
 
     initNotifications();
 
-    // Subscribe to notifications for badge count
     const unsubscribe = notificationService.getUserNotifications(user.uid, (notifications) => {
       if (Array.isArray(notifications)) {
         const unread = notifications.filter(n => n && n.status === 'unread').length;
@@ -103,25 +103,20 @@ export default function MainLayout() {
       }
     });
 
-    // Handle incoming notifications while app is running
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
       console.log('Notification received:', notification);
       
-      // Handle weather alert notifications
       const data = notification.request.content.data;
       if (data?.type === 'weather_alert' && data?.alertId) {
-        // Update badge count immediately for weather alerts
         setUnreadCount(prev => prev + 1);
       }
     });
 
-    // Handle notification responses (when user taps notification)
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       console.log('Notification response:', response);
       
       const data = response.notification.request.content.data;
       
-      // Handle weather alert navigation
       if (data?.type === 'weather_alert' && data?.alertId && typeof data.alertId === 'string') {
         router.push({
           pathname: '/(main)/weather/detailed',
@@ -130,7 +125,6 @@ export default function MainLayout() {
         return;
       }
 
-      // Handle report update notifications
       if (data?.type === 'report_update' && data?.reportId && typeof data.reportId === 'string') {
         router.push({
           pathname: '/(main)/report/status',
@@ -139,7 +133,6 @@ export default function MainLayout() {
         return;
       }
 
-      // Handle forum notifications
       if (data?.type === 'forum_reply' && data?.forumPostId && typeof data.forumPostId === 'string') {
         router.push({
           pathname: '/(main)/forum/post',
@@ -164,7 +157,6 @@ export default function MainLayout() {
         return;
       }
 
-      // Default to notifications screen for other types
       router.push('/(main)/notifications/index');
     });
 
@@ -183,7 +175,6 @@ export default function MainLayout() {
     };
   }, [user?.uid, router]);
 
-  // Handle deep linking for notifications that launched the app
   useEffect(() => {
     const getInitialNotification = async () => {
       try {
@@ -191,7 +182,6 @@ export default function MainLayout() {
         if (response?.notification.request.content.data) {
           const data = response.notification.request.content.data;
           
-          // Handle weather alert deep link
           if (data.type === 'weather_alert' && data.alertId && typeof data.alertId === 'string') {
             setTimeout(() => {
               router.push({
@@ -202,7 +192,6 @@ export default function MainLayout() {
             return;
           }
 
-          // Handle other notification types
           if (data.type === 'report_update' && data.reportId && typeof data.reportId === 'string') {
             setTimeout(() => {
               router.push({
@@ -233,7 +222,6 @@ export default function MainLayout() {
     }
   }, [user?.uid, loading, router]);
 
-  // Show loading screen with proper component
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -245,63 +233,33 @@ export default function MainLayout() {
 
   return (
     <Tabs
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap;
-
-          // Define the icon for each tab depending on the route
-          switch (route.name) {
-            case 'index':
-              iconName = 'home';
-              return <TabBarIcon name={iconName} color={color} focused={focused} />;
-            case 'notifications/index':
-              iconName = 'notifications';
-              return (
-                <TabBarIcon 
-                  name={iconName} 
-                  color={color} 
-                  focused={focused} 
-                  showBadge={true}
-                  badgeCount={unreadCount}
-                />
-              );
-            case 'maps/index':
-              iconName = 'location';
-              return <TabBarIcon name={iconName} color={color} focused={focused} />;
-            case 'weather/index':
-              iconName = 'partly-sunny';
-              return <TabBarIcon name={iconName} color={color} focused={focused} />;
-            case 'profile/index':
-              iconName = 'person';
-              return <TabBarIcon name={iconName} color={color} focused={focused} />;
-            default:
-              iconName = 'ellipse';
-              return <TabBarIcon name={iconName} color={color} focused={focused} />;
-          }
-        },
-        tabBarActiveTintColor: '#D32F2F', // Active tab color (Red)
-        tabBarInactiveTintColor: '#D32F2F', // Inactive tab color (Same red)
-        headerShown: false, // Hide header for each screen
+      screenOptions={{
+        tabBarActiveTintColor: '#D32F2F',
+        tabBarInactiveTintColor: '#D32F2F',
+        headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#fff', // Tab bar background color (white)
+          backgroundColor: '#fff',
           borderTopWidth: 0.5,
-          borderTopColor: '#E5E5E7', // Border color at the top
-          height: 90, // Height of the tab bar (increased to avoid overlap)
-          paddingBottom: 25, // More padding to avoid phone controls
+          borderTopColor: '#E5E5E7',
+          height: 90,
+          paddingBottom: 25,
           paddingTop: 10,
           position: 'absolute',
           bottom: 0,
         },
         tabBarLabelStyle: {
-          display: 'none', // Hide labels
+          display: 'none',
         },
-      })}
+      }}
     >
       {/* TAB 1: Home */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name="home" color={color} focused={focused} />
+          ),
         }}
       />
 
@@ -310,6 +268,15 @@ export default function MainLayout() {
         name="notifications/index"
         options={{
           title: 'Notifications',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon 
+              name="notifications" 
+              color={color} 
+              focused={focused} 
+              showBadge={true}
+              badgeCount={unreadCount}
+            />
+          ),
         }}
       />
 
@@ -318,6 +285,9 @@ export default function MainLayout() {
         name="maps/index"
         options={{
           title: 'Maps',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name="location" color={color} focused={focused} />
+          ),
         }}
       />
 
@@ -326,6 +296,9 @@ export default function MainLayout() {
         name="weather/index"
         options={{
           title: 'Weather',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name="partly-sunny" color={color} focused={focused} />
+          ),
         }}
       />
 
@@ -334,37 +307,32 @@ export default function MainLayout() {
         name="profile/index"
         options={{
           title: 'Profile',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name="person" color={color} focused={focused} />
+          ),
         }}
       />
 
-      {/* HIDDEN ROUTES - Not shown in tab bar */}
-      <Tabs.Screen name="emergency/index" options={{ href: null }} />
-      <Tabs.Screen name="report/create" options={{ href: null }} />
-      <Tabs.Screen name="report/status" options={{ href: null }} />
-
-      <Tabs.Screen name="forum/index" options={{ href: null }} />
-      <Tabs.Screen name="forum/post" options={{ href: null }} />
-      <Tabs.Screen name="forum/create" options={{ href: null }} />
-
-      <Tabs.Screen name="chat/[id]" options={{ href: null }} />
-      <Tabs.Screen name="chat/index" options={{ href: null }} />
-
-      
-      <Tabs.Screen name="maps/evacuation" options={{ href: null }} />
-
-
-      <Tabs.Screen name="weather/detailed" options={{ href: null }} />
-
-      <Tabs.Screen name="emergency/sos" options={{ href: null }} />
-      <Tabs.Screen name="emergency/tips" options={{ href: null }} />
-      <Tabs.Screen name="emergency/tips-category" options={{ href: null }} />
-      <Tabs.Screen name="emergency/sos-services" options={{ href: null }} />
-
-      <Tabs.Screen name="profile/change-password/index" options={{ href: null }} />
-  
-
-      <Tabs.Screen name="announcements/index" options={{ href: null }} />
-      <Tabs.Screen name="announcements/details" options={{ href: null }} />
+      {/* HIDDEN ROUTES */}
+      <Tabs.Screen name="emergency/index" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="report/create" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="report/status" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="forum/index" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="forum/post" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="forum/create" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="chat/[id]" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="chat/index" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="maps/evacuation" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="weather/detailed" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="emergency/sos" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="emergency/tips" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="emergency/tips-category" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="emergency/sos-services" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="emergency/sos-status" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="profile/change-password/index" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="profile/strikes" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="announcements/index" options={{ href: null, title: '' }} />
+      <Tabs.Screen name="announcements/details" options={{ href: null, title: '' }} />
     </Tabs>
   );
 }

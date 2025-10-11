@@ -1,4 +1,4 @@
-// hooks/useChat.tsx - Fixed Chat Hook (No More Infinite Loop)
+// hooks/useChat.tsx - Fixed Chat Hook (No Infinite Loops)
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChatMessage, ChatRoom, chatService } from '../services/chat';
 import { useAuth } from './useAuth';
@@ -15,24 +15,40 @@ export const useChat = () => {
   // Use refs to prevent unnecessary re-initializations
   const initializingRef = useRef(false);
   const hasInitializedRef = useRef(false);
+  const userIdRef = useRef<string | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   // Reset chat state when user changes
-  const resetChatState = useCallback(() => {
-    setMessages([]);
-    setChatRoom(null);
-    setUnreadCount(0);
-    setConnected(false);
-    setLoading(false);
-    setSending(false);
-    hasInitializedRef.current = false;
-    initializingRef.current = false;
-  }, []);
-
-  // Initialize chat ONLY when user changes and hasn't been initialized
   useEffect(() => {
     if (!user) {
-      resetChatState();
+      // Clean up
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+      
+      setMessages([]);
+      setChatRoom(null);
+      setUnreadCount(0);
+      setConnected(false);
+      setLoading(false);
+      setSending(false);
+      hasInitializedRef.current = false;
+      initializingRef.current = false;
+      userIdRef.current = null;
       return;
+    }
+
+    // Only initialize if user changed
+    if (userIdRef.current === user.uid && hasInitializedRef.current) {
+      return;
+    }
+
+    // User changed, reset and reinitialize
+    if (userIdRef.current !== user.uid) {
+      userIdRef.current = user.uid;
+      hasInitializedRef.current = false;
+      initializingRef.current = false;
     }
 
     // Prevent multiple initializations
@@ -70,19 +86,23 @@ export const useChat = () => {
   useEffect(() => {
     if (!user || !connected || !hasInitializedRef.current) return;
 
-    let unsubscribe: (() => void) | null = null;
-
     const setupListener = async () => {
       try {
+        // Clean up previous listener
+        if (unsubscribeRef.current) {
+          unsubscribeRef.current();
+          unsubscribeRef.current = null;
+        }
+
         const unsubscribePromise = chatService.subscribeToMessages((newMessages) => {
           setMessages(newMessages);
           setUnreadCount(0); // Reset since user is viewing messages
         });
 
         if (unsubscribePromise instanceof Promise) {
-          unsubscribe = await unsubscribePromise;
+          unsubscribeRef.current = await unsubscribePromise;
         } else if (typeof unsubscribePromise === 'function') {
-          unsubscribe = unsubscribePromise;
+          unsubscribeRef.current = unsubscribePromise;
         }
       } catch (error) {
         console.error('Error setting up messages listener:', error);
@@ -92,39 +112,14 @@ export const useChat = () => {
     setupListener();
 
     return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
+      if (unsubscribeRef.current && typeof unsubscribeRef.current === 'function') {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
       }
     };
   }, [user?.uid, connected]);
 
-  // Manual initialize function for components that need it
-  const initializeChat = useCallback(async () => {
-    if (!user || hasInitializedRef.current || initializingRef.current) {
-      return;
-    }
-
-    initializingRef.current = true;
-    setLoading(true);
-
-    try {
-      const roomId = await chatService.getOrCreateChatRoom();
-      const roomInfo = await chatService.getChatRoomInfo();
-      
-      setChatRoom(roomInfo);
-      setConnected(true);
-      hasInitializedRef.current = true;
-      
-      console.log('Chat manually initialized:', roomId);
-    } catch (error) {
-      console.error('Error manually initializing chat:', error);
-      setConnected(false);
-    } finally {
-      setLoading(false);
-      initializingRef.current = false;
-    }
-  }, [user?.uid]);
-
+  // Send message callback - stable reference
   const sendMessage = useCallback(async (content: string, attachments?: any[]) => {
     if (!user || !content.trim() || sending || !connected) return false;
 
@@ -142,6 +137,7 @@ export const useChat = () => {
     }
   }, [user, sending, connected]);
 
+  // Mark messages as read - stable reference
   const markMessagesAsRead = useCallback(async () => {
     if (!chatRoom?.id || !user) return;
 
@@ -150,8 +146,9 @@ export const useChat = () => {
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
-  }, [chatRoom, user]);
+  }, [chatRoom?.id, user]);
 
+  // Refresh chat info - stable reference
   const refreshChat = useCallback(async () => {
     if (!user || initializingRef.current) return;
 
@@ -169,11 +166,13 @@ export const useChat = () => {
     }
   }, [user]);
 
+  // Get last message - stable reference
   const getLastMessage = useCallback(() => {
     if (messages.length === 0) return null;
     return messages[messages.length - 1];
   }, [messages]);
 
+  // Format timestamp - stable reference
   const formatLastMessageTime = useCallback((timestamp: any) => {
     if (!timestamp) return '';
     
@@ -204,7 +203,6 @@ export const useChat = () => {
     // Actions
     sendMessage,
     markMessagesAsRead,
-    initializeChat, // Only call this manually if needed
     refreshChat,
     
     // Utils

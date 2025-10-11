@@ -18,5 +18,109 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "admin-dashboard",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/report",
+        "destination": "/report.html"
+      },
+      {
+        "source": "/sos",
+        "destination": "/sos.html"
+      },
+      {
+        "source": "/dashboard",
+        "destination": "/Dashboard.html"
+      },
+      {
+        "source": "/accounts",
+        "destination": "/Accounts.html"
+      },
+      {
+        "source": "/analytics",
+        "destination": "/Analytics.html"
+      },
+      {
+        "source": "/announcements",
+        "destination": "/Announcements.html"
+      },
+      {
+        "source": "/chats",
+        "destination": "/Chats.html"
+      },
+      {
+        "source": "/contacts",
+        "destination": "/Contacts.html"
+      },
+      {
+        "source": "/emergency-tips",
+        "destination": "/EmergencyTips.html"
+      },
+      {
+        "source": "/evacuation-centers",
+        "destination": "/evacuation-centers.html"
+      },
+      {
+        "source": "/forums",
+        "destination": "/Forums.html"
+      },
+      {
+        "source": "/incident-reports",
+        "destination": "/IncidentReportList.html"
+      },
+      {
+        "source": "/maps",
+        "destination": "/Maps.html"
+      },
+      {
+        "source": "/patient-form",
+        "destination": "/PatientForm.html"
+      },
+      {
+        "source": "/weather-disasters",
+        "destination": "/WeatherDisasters.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|ico)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=7200"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(js|css)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=3600"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(html)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }

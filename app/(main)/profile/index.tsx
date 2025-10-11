@@ -1,10 +1,10 @@
-// app/(main)/profile/index.tsx - Complete with Violations & Real-time Updates
+// app/(main)/profile/index.tsx - FIXED VERSION
 import { auth, db } from "@/services/firebase";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -32,6 +32,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [originalProfile, setOriginalProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [violations, setViolations] = useState<ViolationData>({
@@ -39,27 +40,74 @@ export default function ProfileScreen() {
     strikes: 0
   });
 
+  // Track listeners and component mount state
+  const profileUnsubscribeRef = useRef<(() => void) | null>(null);
+  const isMountedRef = useRef(true);
+  const isLoggingOutRef = useRef(false);
+
+  // Track component mount state
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        setUser(u);
-        // Set up real-time listener instead of just fetching once
-        setupProfileListener(u.uid);
-      } else {
-        router.replace("/(auth)/login");
-      }
-    });
-    return unsubscribe;
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
-  // Real-time profile listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      // Clean up previous profile listener when auth state changes
+      if (profileUnsubscribeRef.current) {
+        profileUnsubscribeRef.current();
+        profileUnsubscribeRef.current = null;
+      }
+
+      if (u && !isLoggingOutRef.current) {
+        if (isMountedRef.current) {
+          setUser(u);
+          setupProfileListener(u.uid);
+        }
+      } else {
+        // User logged out - clean up state
+        if (isMountedRef.current && !isLoggingOutRef.current) {
+          setUser(null);
+          setProfile(null);
+          setOriginalProfile(null);
+          setLoading(false);
+          router.replace("/(auth)/login");
+        }
+      }
+    });
+
+    return () => {
+      // Clean up auth listener
+      unsubscribe();
+      // Clean up profile listener
+      if (profileUnsubscribeRef.current) {
+        profileUnsubscribeRef.current();
+        profileUnsubscribeRef.current = null;
+      }
+    };
+  }, []);
+
   const setupProfileListener = (uid: string) => {
+    // Clean up any existing listener first
+    if (profileUnsubscribeRef.current) {
+      profileUnsubscribeRef.current();
+      profileUnsubscribeRef.current = null;
+    }
+
     const unsubscribe = onSnapshot(
       doc(db, "users", uid),
       (docSnap) => {
+        // Only update state if component is still mounted and not logging out
+        if (!isMountedRef.current || isLoggingOutRef.current) {
+          return;
+        }
+
         if (docSnap.exists()) {
           const data = docSnap.data();
           setProfile(data);
+          setOriginalProfile(data);
           setViolations({
             warnings: data.warnings || 0,
             strikes: data.strikes || 0,
@@ -73,16 +121,21 @@ export default function ProfileScreen() {
       },
       (error) => {
         console.error("Profile listener error:", error);
-        setLoading(false);
+        // Only show error if not logging out
+        if (isMountedRef.current && !isLoggingOutRef.current) {
+          setLoading(false);
+        }
       }
     );
+
+    // Store the unsubscribe function
+    profileUnsubscribeRef.current = unsubscribe;
     return unsubscribe;
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || isLoggingOutRef.current) return;
     
-    // Validate fields
     if (!profile.name?.trim() || !profile.number?.trim() || !profile.barangay?.trim()) {
       Alert.alert("Error", "Please fill in all required fields.");
       return;
@@ -90,27 +143,55 @@ export default function ProfileScreen() {
 
     try {
       setSaving(true);
+      
       await updateDoc(doc(db, "users", user.uid), {
         name: profile.name.trim(),
         number: profile.number.trim(),
+        phoneNumber: profile.number.trim(),
         barangay: profile.barangay.trim(),
-        updatedAt: new Date(),
+        updatedAt: new Date()
       });
-      Alert.alert("Success", "Profile updated successfully!");
-    } catch (err) {
+      
+      if (isMountedRef.current && !isLoggingOutRef.current) {
+        Alert.alert("Success", "Profile updated successfully!");
+        
+        setOriginalProfile({
+          ...originalProfile,
+          name: profile.name.trim(),
+          number: profile.number.trim(),
+          phoneNumber: profile.number.trim(),
+          barangay: profile.barangay.trim()
+        });
+      }
+      
+    } catch (err: any) {
       console.error("Update error:", err);
-      Alert.alert("Error", "Could not update profile. Please try again.");
+      
+      if (isMountedRef.current && !isLoggingOutRef.current) {
+        let errorMessage = "Could not update profile. Please try again.";
+        if (err.code === 'permission-denied') {
+          errorMessage = "You don't have permission to update this information.";
+        }
+        
+        Alert.alert("Error", errorMessage);
+      }
     } finally {
-      setSaving(false);
+      if (isMountedRef.current && !isLoggingOutRef.current) {
+        setSaving(false);
+      }
     }
   };
 
   const handleChangePassword = () => {
-    router.push("/(main)/profile/change-password");
+    if (!isLoggingOutRef.current) {
+      router.push("/(main)/profile/change-password");
+    }
   };
 
-  const handleViewViolations = () => {
-    router.push("/(main)/profile/strikes");
+  const handleViewAccountStatus = () => {
+    if (!isLoggingOutRef.current) {
+      router.push("/(main)/profile/strikes");
+    }
   };
 
   const handleLogout = async () => {
@@ -118,28 +199,49 @@ export default function ProfileScreen() {
       "Logout",
       "Are you sure you want to logout?",
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Logout",
           style: "destructive",
           onPress: async () => {
             try {
+              // Set logging out flag BEFORE starting logout
+              isLoggingOutRef.current = true;
+              
+              // Clean up profile listener immediately
+              if (profileUnsubscribeRef.current) {
+                profileUnsubscribeRef.current();
+                profileUnsubscribeRef.current = null;
+              }
+              
+              // Clear state immediately
+              setProfile(null);
+              setOriginalProfile(null);
+              setViolations({ warnings: 0, strikes: 0 });
+              
+              // Sign out from Firebase
               await signOut(auth);
-              router.replace("/(auth)/login");
+              
+              // Navigate to login
+              if (isMountedRef.current) {
+                router.replace("/(auth)/login");
+              }
             } catch (error) {
               console.error("Logout error:", error);
-              Alert.alert("Error", "Failed to logout. Please try again.");
+              
+              // Reset logging out flag on error
+              isLoggingOutRef.current = false;
+              
+              if (isMountedRef.current) {
+                Alert.alert("Error", "Failed to logout. Please try again.");
+              }
             }
-          },
-        },
+          }
+        }
       ]
     );
   };
 
-  // Get status badge info
   const getStatusBadge = () => {
     const status = violations.status || profile?.status;
     
@@ -148,12 +250,16 @@ export default function ProfileScreen() {
     }
     
     if (violations.suspensionUntil) {
-      const suspensionDate = violations.suspensionUntil.toDate 
-        ? violations.suspensionUntil.toDate() 
-        : new Date(violations.suspensionUntil);
-      
-      if (suspensionDate > new Date()) {
-        return { text: "⏸ Suspended", color: "#ff9800", bgColor: "#fff3cd" };
+      try {
+        const suspensionDate = violations.suspensionUntil.toDate 
+          ? violations.suspensionUntil.toDate() 
+          : new Date(violations.suspensionUntil);
+        
+        if (suspensionDate > new Date()) {
+          return { text: "⏸ Suspended", color: "#ff9800", bgColor: "#fff3cd" };
+        }
+      } catch (error) {
+        console.error("Error parsing suspension date:", error);
       }
     }
     
@@ -169,7 +275,6 @@ export default function ProfileScreen() {
   };
 
   const statusBadge = getStatusBadge();
-  const hasViolations = violations.warnings > 0 || violations.strikes > 0;
 
   if (loading) {
     return (
@@ -184,7 +289,6 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <StatusBar backgroundColor="#f8f9fa" barStyle="dark-content" />
       
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Image 
@@ -196,14 +300,12 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Main Content Container */}
       <ScrollView 
         style={styles.scrollContainer} 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* Profile Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatarCircle}>
@@ -212,7 +314,6 @@ export default function ProfileScreen() {
           </View>
           <Text style={styles.userName}>{profile?.name || "User"}</Text>
           
-          {/* Status Badge */}
           <View style={[styles.statusBadge, { backgroundColor: statusBadge.bgColor }]}>
             <Text style={[styles.statusText, { color: statusBadge.color }]}>
               {statusBadge.text}
@@ -220,65 +321,28 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Violations Summary Card */}
-        {hasViolations && (
-          <TouchableOpacity 
-            style={styles.violationsCard}
-            onPress={handleViewViolations}
-            activeOpacity={0.7}
-          >
-            <View style={styles.violationsHeader}>
-              <Ionicons name="alert-circle" size={24} color="#e74c3c" />
-              <Text style={styles.violationsTitle}>Account Violations</Text>
+        <TouchableOpacity 
+          style={styles.accountStatusButton}
+          onPress={handleViewAccountStatus}
+          activeOpacity={0.7}
+        >
+          <View style={styles.statusButtonLeft}>
+            <View style={styles.statusIconCircle}>
+              <Ionicons name="shield-checkmark" size={24} color="#3498db" />
             </View>
-            
-            <View style={styles.violationsContent}>
-              <View style={styles.violationItem}>
-                <Text style={styles.violationIcon}>🔸</Text>
-                <Text style={styles.violationLabel}>Warnings</Text>
-                <Text style={styles.violationValue}>{violations.warnings}</Text>
-              </View>
-              
-              <View style={styles.violationSeparator} />
-              
-              <View style={styles.violationItem}>
-                <Text style={styles.violationIcon}>🔺</Text>
-                <Text style={styles.violationLabel}>Strikes</Text>
-                <Text style={styles.violationValue}>{violations.strikes}</Text>
-              </View>
+            <View style={styles.statusButtonText}>
+              <Text style={styles.statusButtonTitle}>Account Status</Text>
+              <Text style={styles.statusButtonSubtitle}>
+                {violations.warnings + violations.strikes > 0 
+                  ? `${violations.warnings} warnings, ${violations.strikes} strikes`
+                  : "No violations"}
+              </Text>
             </View>
-
-            {violations.lastViolationReason && (
-              <View style={styles.lastViolation}>
-                <Text style={styles.lastViolationLabel}>Latest:</Text>
-                <Text style={styles.lastViolationText} numberOfLines={1}>
-                  {violations.lastViolationReason}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.violationsFooter}>
-              <Text style={styles.violationsLink}>View Full History</Text>
-              <Ionicons name="chevron-forward" size={18} color="#e74c3c" />
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Warning Message for High Violations */}
-        {violations.strikes >= 2 && (
-          <View style={styles.warningBanner}>
-            <Ionicons name="warning" size={20} color="#dc3545" />
-            <Text style={styles.warningText}>
-              {violations.strikes === 2 
-                ? "Warning: One more strike will result in a permanent ban."
-                : "Your account has been flagged. Please review community guidelines."}
-            </Text>
           </View>
-        )}
+          <Ionicons name="chevron-forward" size={24} color="#999" />
+        </TouchableOpacity>
 
-        {/* Form Fields Container */}
         <View style={styles.formContainer}>
-          {/* Name Field */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>NAME</Text>
             <TextInput
@@ -290,7 +354,6 @@ export default function ProfileScreen() {
             />
           </View>
 
-          {/* Email Field */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>EMAIL</Text>
             <TextInput
@@ -302,7 +365,6 @@ export default function ProfileScreen() {
             />
           </View>
 
-          {/* Password Field */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>PASSWORD</Text>
             <View style={styles.passwordContainer}>
@@ -321,7 +383,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Number Field */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>NUMBER</Text>
             <TextInput
@@ -334,7 +395,6 @@ export default function ProfileScreen() {
             />
           </View>
 
-          {/* Barangay Field */}
           <View style={[styles.fieldContainer, styles.lastField]}>
             <Text style={styles.fieldLabel}>BARANGAY</Text>
             <TextInput
@@ -347,13 +407,11 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Action Buttons Container */}
         <View style={styles.buttonContainer}>
-          {/* Save Changes Button */}
           <TouchableOpacity
             style={[styles.actionButton, styles.saveButton]}
             onPress={handleSave}
-            disabled={saving}
+            disabled={saving || isLoggingOutRef.current}
             activeOpacity={0.8}
           >
             {saving ? (
@@ -366,10 +424,10 @@ export default function ProfileScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Logout Button */}
           <TouchableOpacity
             style={[styles.actionButton, styles.logoutButton]}
             onPress={handleLogout}
+            disabled={isLoggingOutRef.current}
             activeOpacity={0.8}
           >
             <Ionicons name="log-out-outline" size={20} color="#fff" style={styles.buttonIcon} />
@@ -382,22 +440,9 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8f9fa",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f8f9fa",
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#666",
-    fontWeight: "500",
-  },
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f8f9fa" },
+  loadingText: { marginTop: 10, fontSize: 16, color: "#666", fontWeight: "500" },
   header: {
     backgroundColor: "#fff",
     paddingTop: Platform.OS === 'ios' ? 50 : 25,
@@ -409,38 +454,15 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 4
   },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoImage: {
-    width: 30,
-    height: 30,
-    marginRight: 10,
-  },
-  logoText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'ios' ? 140 : 120,
-  },
-  avatarSection: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  avatarContainer: {
-    marginBottom: 15,
-  },
+  logoContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  logoImage: { width: 30, height: 30, marginRight: 10 },
+  logoText: { fontSize: 18, fontWeight: "700", color: "#333" },
+  scrollContainer: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: Platform.OS === 'ios' ? 140 : 120 },
+  avatarSection: { alignItems: 'center', paddingVertical: 20 },
+  avatarContainer: { marginBottom: 15 },
   avatarCircle: {
     width: 100,
     height: 100,
@@ -454,125 +476,41 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 4
   },
-  userName: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#333",
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  statusBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 15,
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  violationsCard: {
+  userName: { fontSize: 24, fontWeight: "700", color: "#333", textAlign: 'center', marginBottom: 8 },
+  statusBadge: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 15 },
+  statusText: { fontSize: 13, fontWeight: "600" },
+  accountStatusButton: {
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
-    marginBottom: 15,
+    marginTop: 15,
+    marginBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     borderLeftWidth: 4,
-    borderLeftColor: "#e74c3c",
+    borderLeftColor: "#3498db"
   },
-  violationsHeader: {
-    flexDirection: "row",
+  statusButtonLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
+  statusIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#e3f2fd",
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginRight: 12
   },
-  violationsTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginLeft: 8,
-  },
-  violationsContent: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 12,
-  },
-  violationItem: {
-    alignItems: "center",
-    flex: 1,
-  },
-  violationIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  violationLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
-  },
-  violationValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#e74c3c",
-  },
-  violationSeparator: {
-    width: 1,
-    backgroundColor: "#e0e0e0",
-    marginHorizontal: 12,
-  },
-  lastViolation: {
-    backgroundColor: "#fff3cd",
-    borderRadius: 6,
-    padding: 10,
-    marginTop: 10,
-    marginBottom: 8,
-  },
-  lastViolationLabel: {
-    fontSize: 11,
-    color: "#856404",
-    fontWeight: "600",
-    marginBottom: 3,
-  },
-  lastViolationText: {
-    fontSize: 13,
-    color: "#856404",
-  },
-  violationsFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  violationsLink: {
-    fontSize: 14,
-    color: "#e74c3c",
-    fontWeight: "600",
-    marginRight: 4,
-  },
-  warningBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f8d7da",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
-    borderLeftWidth: 3,
-    borderLeftColor: "#dc3545",
-  },
-  warningText: {
-    flex: 1,
-    fontSize: 13,
-    color: "#721c24",
-    marginLeft: 10,
-    fontWeight: "500",
-  },
+  statusButtonText: { flex: 1 },
+  statusButtonTitle: { fontSize: 16, fontWeight: "600", color: "#333", marginBottom: 4 },
+  statusButtonSubtitle: { fontSize: 13, color: "#666" },
   formContainer: {
     backgroundColor: "#fff",
     borderRadius: 12,
@@ -582,21 +520,17 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 4
   },
-  fieldContainer: {
-    marginBottom: 18,
-  },
-  lastField: {
-    marginBottom: 0,
-  },
+  fieldContainer: { marginBottom: 18 },
+  lastField: { marginBottom: 0 },
   fieldLabel: {
     fontSize: 12,
     fontWeight: "600",
     color: "#666",
     marginBottom: 8,
     letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    textTransform: 'uppercase'
   },
   textInput: {
     backgroundColor: "#f8f9fa",
@@ -606,35 +540,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: "#e0e0e0"
   },
-  disabledInput: {
-    backgroundColor: "#f0f0f0",
-    color: "#999",
-  },
-  passwordContainer: {
-    position: "relative",
-  },
-  passwordInput: {
-    paddingRight: 80,
-  },
+  disabledInput: { backgroundColor: "#f0f0f0", color: "#999" },
+  passwordContainer: { position: "relative" },
+  passwordInput: { paddingRight: 80 },
   changePasswordLink: {
     position: "absolute",
     right: 15,
     top: 0,
     bottom: 0,
-    justifyContent: "center",
+    justifyContent: "center"
   },
-  changeLinkText: {
-    color: "#3498db",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  buttonContainer: {
-    marginTop: 25,
-    gap: 15,
-    marginBottom: 40,
-  },
+  changeLinkText: { color: "#3498db", fontSize: 14, fontWeight: "600" },
+  buttonContainer: { marginTop: 25, gap: 15, marginBottom: 40 },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -645,20 +564,10 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowRadius: 2
   },
-  saveButton: {
-    backgroundColor: "#e74c3c",
-  },
-  logoutButton: {
-    backgroundColor: "#dc3545",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  buttonIcon: {
-    marginRight: 6,
-  },
+  saveButton: { backgroundColor: "#e74c3c" },
+  logoutButton: { backgroundColor: "#dc3545" },
+  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  buttonIcon: { marginRight: 6 }
 });

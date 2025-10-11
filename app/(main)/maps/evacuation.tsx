@@ -1,4 +1,4 @@
-// app/(main)/maps/evacuation.tsx
+// app/(main)/maps/evacuation.tsx - FIXED RESPONSIVE VERSION
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -7,6 +7,7 @@ import {
   Dimensions,
   Image,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -20,6 +21,8 @@ import { getCurrentLocation, getDirections, getRegionFromBounds, LocationCoords,
 
 const { width, height } = Dimensions.get('window');
 const PRIMARY_RED = '#d73527';
+const isSmallDevice = width < 375;
+const isMediumDevice = width >= 375 && width < 414;
 
 interface SelectedCenter {
   center: EvacuationCenter;
@@ -141,41 +144,6 @@ const EvacuationCentersScreen = () => {
     setRefreshing(false);
   }, [getUserLocation]);
 
-  const renderCenterCard = useCallback((center: EvacuationCenter) => (
-    <TouchableOpacity
-      key={center.id}
-      style={styles.centerCard}
-      onPress={() => handleCenterFromList(center)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardContent}>
-        <View style={styles.photoContainer}>
-          {center.photoUrl ? (
-            <Image source={{ uri: center.photoUrl }} style={styles.centerPhoto} />
-          ) : (
-            <View style={styles.placeholderPhoto}>
-              <Text style={styles.placeholderText}>🏠</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.cardInfo}>
-          <Text style={styles.centerName} numberOfLines={2}>
-            {center.name}
-          </Text>
-          <Text style={styles.centerBarangay} numberOfLines={1}>
-            📍 {center.barangay}
-          </Text>
-          <Text style={styles.tapHint}>Tap to view on map</Text>
-        </View>
-
-        <View style={styles.cardArrow}>
-          <Text style={styles.arrowText}>›</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  ), [handleCenterFromList]);
-
   const renderModal = () => {
     if (!selectedCenter) return null;
 
@@ -200,49 +168,51 @@ const EvacuationCentersScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalPhotoContainer}>
-              {center.photoUrl ? (
-                <Image source={{ uri: center.photoUrl }} style={styles.modalPhoto} />
-              ) : (
-                <View style={styles.modalPlaceholder}>
-                  <Text style={styles.modalPlaceholderText}>🏠</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.modalInfo}>
-              <Text style={styles.modalTitle}>{center.name}</Text>
-              <Text style={styles.modalBarangay}>📍 {center.barangay}</Text>
-              
-              {route && (
-                <View style={styles.routeInfo}>
-                  <Text style={styles.routeDistance}>🚗 {route.distance} • {route.duration}</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.directionsButton]}
-                onPress={handleGetDirections}
-                disabled={loadingRoute}
-                activeOpacity={0.8}
-              >
-                {loadingRoute ? (
-                  <ActivityIndicator color="#ffffff" size="small" />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalPhotoContainer}>
+                {center.photoUrl ? (
+                  <Image source={{ uri: center.photoUrl }} style={styles.modalPhoto} />
                 ) : (
-                  <Text style={styles.actionButtonText}>📍 Get Directions</Text>
+                  <View style={styles.modalPlaceholder}>
+                    <Text style={styles.modalPlaceholderText}>🏠</Text>
+                  </View>
                 )}
-              </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                style={[styles.actionButton, styles.chatButton]}
-                onPress={handleChatWithCDRRMO}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.actionButtonText}>💬 Chat with CDRRMO</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.modalInfo}>
+                <Text style={styles.modalTitle}>{center.name}</Text>
+                <Text style={styles.modalBarangay}>📍 {center.barangay}</Text>
+                
+                {route && (
+                  <View style={styles.routeInfo}>
+                    <Text style={styles.routeDistance}>🚗 {route.distance} • {route.duration}</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.directionsButton]}
+                  onPress={handleGetDirections}
+                  disabled={loadingRoute}
+                  activeOpacity={0.8}
+                >
+                  {loadingRoute ? (
+                    <ActivityIndicator color="#ffffff" size="small" />
+                  ) : (
+                    <Text style={styles.actionButtonText}>📍 Get Directions</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.chatButton]}
+                  onPress={handleChatWithCDRRMO}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.actionButtonText}>💬 Chat with CDRRMO</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -332,45 +302,54 @@ const EvacuationCentersScreen = () => {
             <Text style={styles.locationButtonText}>📍</Text>
           )}
         </TouchableOpacity>
+
+        {/* Floating Box - Now More Visible */}
+        {centers.length > 0 && (
+          <View style={styles.floatingBox}>
+            <View style={styles.floatingBoxHeader}>
+              <Text style={styles.floatingBoxTitle}>Centers</Text>
+              <View style={styles.floatingBoxBadge}>
+                <Text style={styles.floatingBoxCount}>{centers.length}</Text>
+              </View>
+            </View>
+            
+            <ScrollView
+              style={styles.floatingBoxList}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+            >
+              {centers.map((center) => (
+                <TouchableOpacity
+                  key={center.id}
+                  style={styles.floatingBoxItem}
+                  onPress={() => handleCenterFromList(center)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.floatingBoxItemContent}>
+                    <Text style={styles.floatingBoxItemIcon}>🏠</Text>
+                    <View style={styles.floatingBoxItemText}>
+                      <Text style={styles.floatingBoxItemName} numberOfLines={1}>
+                        {center.name}
+                      </Text>
+                      <Text style={styles.floatingBoxItemLocation} numberOfLines={1}>
+                        📍 {center.barangay}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
-      {/* Floating White Box - Bottom Right */}
-      <View style={styles.floatingBox}>
-        <View style={styles.floatingBoxHeader}>
-          <Text style={styles.floatingBoxTitle}>Evacuation Centers</Text>
-          <Text style={styles.floatingBoxCount}>({centers.length})</Text>
-        </View>
-        
-        <ScrollView
-          style={styles.floatingBoxList}
-          showsVerticalScrollIndicator={true}
-          nestedScrollEnabled={true}
-        >
-          {centers.length === 0 ? (
-            <Text style={styles.floatingBoxEmptyText}>No active centers</Text>
-          ) : (
-            centers.map((center) => (
-              <TouchableOpacity
-                key={center.id}
-                style={styles.floatingBoxItem}
-                onPress={() => handleCenterFromList(center)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.floatingBoxItemName} numberOfLines={1}>
-                  {center.name}
-                </Text>
-                <Text style={styles.floatingBoxItemLocation} numberOfLines={1}>
-                  {center.barangay}
-                </Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </ScrollView>
-      </View>
-
+      {/* Bottom List */}
       <View style={styles.listContainer}>
         <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>Active Evacuation Centers ({centers.length})</Text>
+          <Text style={styles.listTitle}>Active Evacuation Centers</Text>
+          <View style={styles.listCountBadge}>
+            <Text style={styles.listCountText}>{centers.length}</Text>
+          </View>
         </View>
         
         <ScrollView
@@ -386,12 +365,46 @@ const EvacuationCentersScreen = () => {
         >
           {centers.length === 0 ? (
             <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>🏠</Text>
               <Text style={styles.emptyStateText}>
                 No active evacuation centers available
               </Text>
             </View>
           ) : (
-            centers.map(renderCenterCard)
+            centers.map((center) => (
+              <TouchableOpacity
+                key={center.id}
+                style={styles.centerCard}
+                onPress={() => handleCenterFromList(center)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.cardContent}>
+                  <View style={styles.photoContainer}>
+                    {center.photoUrl ? (
+                      <Image source={{ uri: center.photoUrl }} style={styles.centerPhoto} />
+                    ) : (
+                      <View style={styles.placeholderPhoto}>
+                        <Text style={styles.placeholderText}>🏠</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.centerName} numberOfLines={2}>
+                      {center.name}
+                    </Text>
+                    <Text style={styles.centerBarangay} numberOfLines={1}>
+                      📍 {center.barangay}
+                    </Text>
+                    <Text style={styles.tapHint}>Tap to view on map</Text>
+                  </View>
+
+                  <View style={styles.cardArrow}>
+                    <Text style={styles.arrowText}>›</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))
           )}
           
           <View style={styles.listBottomSpacing} />
@@ -475,8 +488,8 @@ const styles = StyleSheet.create({
   },
   locationButton: {
     position: 'absolute',
-    top: 20,
-    right: 20,
+    top: Platform.OS === 'ios' ? 60 : 20,
+    right: 15,
     backgroundColor: '#ffffff',
     width: 44,
     height: 44,
@@ -490,30 +503,123 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   locationButtonText: {
-    fontSize: 18,
+    fontSize: 20,
+  },
+
+  // Floating Box - IMPROVED VISIBILITY (ADJUSTED FOR NAVBAR)
+  floatingBox: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 120 : 80, // Below location button
+    right: 12,
+    width: isSmallDevice ? 200 : isMediumDevice ? 220 : 250,
+    maxHeight: isSmallDevice ? 180 : 240,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+    borderWidth: 2,
+    borderColor: PRIMARY_RED,
+  },
+  floatingBoxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: PRIMARY_RED,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+  },
+  floatingBoxTitle: {
+    fontSize: isSmallDevice ? 14 : 15,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  floatingBoxBadge: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  floatingBoxCount: {
+    fontSize: isSmallDevice ? 12 : 13,
+    fontWeight: 'bold',
+    color: PRIMARY_RED,
+  },
+  floatingBoxList: {
+    maxHeight: isSmallDevice ? 160 : 240,
+  },
+  floatingBoxItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  floatingBoxItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  floatingBoxItemIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  floatingBoxItemText: {
+    flex: 1,
+  },
+  floatingBoxItemName: {
+    fontSize: isSmallDevice ? 13 : 14,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 2,
+  },
+  floatingBoxItemLocation: {
+    fontSize: isSmallDevice ? 11 : 12,
+    color: '#666666',
   },
 
   // List
   listContainer: {
     backgroundColor: '#ffffff',
     maxHeight: height * 0.4,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 8,
   },
   listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
   listTitle: {
-    fontSize: 18,
+    fontSize: isSmallDevice ? 16 : 18,
     fontWeight: 'bold',
     color: '#1f2937',
+    flex: 1,
+  },
+  listCountBadge: {
+    backgroundColor: PRIMARY_RED,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    minWidth: 32,
+    alignItems: 'center',
+  },
+  listCountText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
   centersList: {
     flex: 1,
@@ -535,12 +641,12 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     flexDirection: 'row',
-    padding: 16,
+    padding: isSmallDevice ? 12 : 14,
     alignItems: 'center',
   },
   photoContainer: {
-    width: 60,
-    height: 60,
+    width: isSmallDevice ? 50 : 60,
+    height: isSmallDevice ? 50 : 60,
     borderRadius: 8,
     marginRight: 12,
     overflow: 'hidden',
@@ -557,24 +663,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   placeholderText: {
-    fontSize: 24,
+    fontSize: isSmallDevice ? 20 : 24,
   },
   cardInfo: {
     flex: 1,
   },
   centerName: {
-    fontSize: 16,
+    fontSize: isSmallDevice ? 14 : 16,
     fontWeight: 'bold',
     color: PRIMARY_RED,
     marginBottom: 4,
   },
   centerBarangay: {
-    fontSize: 14,
+    fontSize: isSmallDevice ? 12 : 14,
     color: '#6b7280',
     marginBottom: 4,
   },
   tapHint: {
-    fontSize: 12,
+    fontSize: isSmallDevice ? 10 : 12,
     color: '#9ca3af',
     fontStyle: 'italic',
   },
@@ -590,37 +696,36 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: height * 0.7,
-    minHeight: 300,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: height * 0.75,
+    minHeight: isSmallDevice ? 350 : 400,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     padding: 16,
-    paddingBottom: 0,
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButtonText: {
-    fontSize: 20,
+    fontSize: 24,
     color: '#6b7280',
     fontWeight: '300',
   },
   modalPhotoContainer: {
-    height: 180,
+    height: isSmallDevice ? 150 : 180,
     marginHorizontal: 16,
     borderRadius: 12,
     overflow: 'hidden',
@@ -646,13 +751,13 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: isSmallDevice ? 20 : 24,
     fontWeight: 'bold',
     color: PRIMARY_RED,
     marginBottom: 8,
   },
   modalBarangay: {
-    fontSize: 16,
+    fontSize: isSmallDevice ? 14 : 16,
     color: '#6b7280',
     marginBottom: 12,
   },
@@ -662,7 +767,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   routeDistance: {
-    fontSize: 14,
+    fontSize: isSmallDevice ? 13 : 14,
     color: '#374151',
     fontWeight: '500',
   },
@@ -686,7 +791,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: isSmallDevice ? 14 : 16,
     fontWeight: '600',
   },
 
@@ -695,6 +800,10 @@ const styles = StyleSheet.create({
     padding: 40,
     alignItems: 'center',
   },
+  emptyStateIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
   emptyStateText: {
     fontSize: 16,
     color: '#6b7280',
@@ -702,69 +811,6 @@ const styles = StyleSheet.create({
   },
   listBottomSpacing: {
     height: 20,
-  },
-
-  // Floating White Box - Bottom Right
-  floatingBox: {
-    position: 'absolute',
-    bottom: 20,
-    right: 15,
-    width: 280,
-    maxHeight: 300,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  floatingBoxHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  floatingBoxTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333333',
-  },
-  floatingBoxCount: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: PRIMARY_RED,
-  },
-  floatingBoxList: {
-    maxHeight: 240,
-  },
-  floatingBoxItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  floatingBoxItemName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 4,
-  },
-  floatingBoxItemLocation: {
-    fontSize: 12,
-    color: '#666666',
-  },
-  floatingBoxEmptyText: {
-    textAlign: 'center',
-    padding: 20,
-    fontSize: 14,
-    color: '#666666',
-    fontStyle: 'italic',
   },
 });
 

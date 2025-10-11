@@ -1,14 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from '@react-native-picker/picker';
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
-
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Location from "expo-location";
 import { router } from "expo-router";
-import {
-  doc,
-  getDoc
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -30,7 +26,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { auth, db } from "../../../services/firebase";
 import { submitIncidentReport } from "../../../services/reports";
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface UserData {
   name: string;
@@ -41,7 +37,6 @@ interface UserData {
 
 interface AddressComponents {
   barangay: string;
-  barangayCode?: string;
   city: string;
   province: string;
   country: string;
@@ -49,123 +44,324 @@ interface AddressComponents {
   establishment?: string;
   confidence: number;
   dataSource: 'google_places' | 'google_geocoding' | 'coordinate_fallback';
-  validationMethod?: string;
   nearbyPlaces?: string[];
+  distance?: number;
 }
 
-// List of all Lipa City barangays
 const lipaBarangays = [
-  "Adya",
-  "Anilao",
-  "Anilao-Labac",
-  "Antipolo del Norte",
-  "Antipolo del Sur",
-  "Bagong Pook",
-  "Balintawak",
-  "Banaybanay",
-  "Barangay 12",
-  "Bolbok",
-  "Bugtong na Pulo",
-  "Bulacnin",
-  "Bulaklakan",
-  "Calamias",
-  "Cumba",
-  "Dagatan",
-  "Duhatan",
-  "Halang",
-  "Inosloban",
-  "Kayumanggi",
-  "Latag",
-  "Lodlod",
-  "Lumbang",
-  "Mabini",
-  "Malagonlong",
-  "Malitlit",
-  "Marauoy",
-  "Mataas na Lupa",
-  "Munting Pulo",
-  "Pagolingin Bata",
-  "Pagolingin East",
-  "Pagolingin West",
-  "Pangao",
-  "Pinagkawitan",
-  "Pinagtongulan",
-  "Plaridel",
-  "Poblacion Barangay 1",
-  "Poblacion Barangay 2",
-  "Poblacion Barangay 3",
-  "Poblacion Barangay 4",
-  "Poblacion Barangay 5",
-  "Poblacion Barangay 6",
-  "Poblacion Barangay 7",
-  "Poblacion Barangay 8",
-  "Poblacion Barangay 9",
-  "Poblacion Barangay 9-A",
-  "Poblacion Barangay 10",
-  "Poblacion Barangay 11",
-  "Pusil",
-  "Quezon",
-  "Rizal",
-  "Sabang",
-  "Sampaguita",
-  "San Benito",
-  "San Carlos",
-  "San Celestino",
-  "San Francisco",
-  "San Guillermo",
-  "San Jose",
-  "San Lucas",
-  "San Salvador",
-  "San Sebastian (Balagbag)",
-  "Santo Niño",
-  "Santo Toribio",
-  "Sapac",
-  "Sico",
-  "Talisay",
-  "Tambo",
-  "Tangob",
-  "Tanguay",
-  "Tibig",
-  "Tipacan"
+  "Adya", "Anilao", "Anilao-Labac", "Antipolo del Norte", "Antipolo del Sur",
+  "Bagong Pook", "Balintawak", "Banaybanay", "Bolbok", "Bugtong na Pulo",
+  "Bulacnin", "Bulaklakan", "Calamias", "Cumba", "Dagatan",
+  "Duhatan", "Fernando Air Base", "Halang", "Inosluban", "Kayumanggi",
+  "Latag", "Lodlod", "Lumbang", "Mabini", "Malagonlong",
+  "Malitlit", "Marawoy", "Mataas na Lupa", "Munting Pulo", "Pagolingin Bata",
+  "Pagolingin East", "Pagolingin West", "Pangao", "Pinagkawitan", "Pinagtongulan",
+  "Plaridel", "Poblacion Barangay 1", "Poblacion Barangay 2", "Poblacion Barangay 3",
+  "Poblacion Barangay 4", "Poblacion Barangay 5", "Poblacion Barangay 6",
+  "Poblacion Barangay 7", "Poblacion Barangay 8", "Poblacion Barangay 9",
+  "Poblacion Barangay 9-A", "Poblacion Barangay 10", "Poblacion Barangay 11",
+  "Pusil", "Quezon", "Rizal", "Sabang", "Sampaguita",
+  "San Benito", "San Carlos", "San Celestino", "San Francisco", "San Guillermo",
+  "San Isidro", "San Jose", "San Lucas", "San Salvador", "San Sebastian", 
+  "Santo Niño", "Santo Toribio", "Sapac", "Sico", "Talisay",
+  "Tambo", "Tangob", "Tangway", "Tibig", "Tipacan"
 ];
+const isWithinLipaCityBounds = (latitude: number, longitude: number): boolean => {
+  const LIPA_BOUNDS = {
+    north: 14.0500,
+    south: 13.8500,
+    east: 121.2500,
+    west: 121.0500
+  };
+  return (
+    latitude >= LIPA_BOUNDS.south &&
+    latitude <= LIPA_BOUNDS.north &&
+    longitude >= LIPA_BOUNDS.west &&
+    longitude <= LIPA_BOUNDS.east
+  );
+};
 
-// FIXED: Working timestamp embedding function using a more reliable approach
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371e3;
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// ENHANCED: Better barangay matching
+const matchBarangayName = (detectedName: string): string | null => {
+  if (!detectedName || detectedName.length < 2) return null;
+  
+  const cleanName = detectedName.trim();
+  
+  // Direct exact match (case-insensitive)
+  const exactMatch = lipaBarangays.find(b => 
+    b.toLowerCase() === cleanName.toLowerCase()
+  );
+  if (exactMatch) {
+    console.log(`✅ Exact match: ${exactMatch}`);
+    return exactMatch;
+  }
+  
+  // Handle Poblacion barangays specifically
+  if (cleanName.toLowerCase().includes('poblacion')) {
+    // Extract number from patterns like "Poblacion 6", "Poblacion Barangay 6", "Barangay 6"
+    const numberMatch = cleanName.match(/(\d+[-A-Za-z]*)/);
+    if (numberMatch) {
+      const num = numberMatch[1];
+      const poblacionMatch = lipaBarangays.find(b => 
+        b.toLowerCase().includes('poblacion') && b.toLowerCase().includes(num.toLowerCase())
+      );
+      if (poblacionMatch) {
+        console.log(`✅ Poblacion match: ${poblacionMatch}`);
+        return poblacionMatch;
+      }
+    }
+  }
+  
+  // Handle numbered barangays (e.g., "Barangay 12")
+  const barangayNumberMatch = cleanName.match(/barangay\s*(\d+)/i);
+  if (barangayNumberMatch) {
+    const num = barangayNumberMatch[1];
+    const numberedMatch = lipaBarangays.find(b => 
+      b.toLowerCase() === `barangay ${num}` ||
+      b.toLowerCase().includes(`poblacion barangay ${num}`)
+    );
+    if (numberedMatch) {
+      console.log(`✅ Numbered barangay match: ${numberedMatch}`);
+      return numberedMatch;
+    }
+  }
+  
+  // Partial match (contains)
+  const partialMatch = lipaBarangays.find(b => 
+    b.toLowerCase().includes(cleanName.toLowerCase()) ||
+    cleanName.toLowerCase().includes(b.toLowerCase())
+  );
+  if (partialMatch) {
+    console.log(`✅ Partial match: ${partialMatch}`);
+    return partialMatch;
+  }
+  
+  return null;
+};
+
+// ENHANCED: Better establishment detection with larger radius
+const getEnhancedAddress = async (latitude: number, longitude: number): Promise<AddressComponents | null> => {
+  const GOOGLE_API_KEY = "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo";
+  
+  try {
+    console.log(`🔍 Getting address for: ${latitude}, ${longitude}`);
+    
+    let establishmentData = null;
+    let nearbyPlaces: string[] = [];
+    let bestBarangay = null;
+    let bestConfidence = 0;
+    
+    // STEP 1: Try Places API with LARGER radius for establishments
+    try {
+      const placesResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=200&key=${GOOGLE_API_KEY}`
+      );
+      const placesData = await placesResponse.json();
+      
+      console.log(`Places API status: ${placesData.status}`);
+      
+      if (placesData.status === 'OK' && placesData.results?.length > 0) {
+        nearbyPlaces = placesData.results.slice(0, 5).map((p: any) => p.name);
+        console.log(`Found ${placesData.results.length} nearby places`);
+        
+        // Try to find an establishment within 200m
+        for (const place of placesData.results.slice(0, 3)) {
+          const detailsResponse = await fetch(
+            `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=address_components,formatted_address,name,types,geometry&key=${GOOGLE_API_KEY}`
+          );
+          const detailsData = await detailsResponse.json();
+          
+          if (detailsData.status === 'OK' && detailsData.result) {
+            const placeDetail = detailsData.result;
+            const placeLocation = placeDetail.geometry?.location;
+            
+            if (placeLocation) {
+              const distance = calculateDistance(latitude, longitude, placeLocation.lat, placeLocation.lng);
+              console.log(`Place: ${placeDetail.name}, Distance: ${Math.round(distance)}m`);
+              
+              if (distance <= 200) {
+                const isEstablishment = placeDetail.types && (
+                  placeDetail.types.includes('establishment') ||
+                  placeDetail.types.includes('shopping_mall') ||
+                  placeDetail.types.includes('point_of_interest') ||
+                  placeDetail.types.includes('school') ||
+                  placeDetail.types.includes('university') ||
+                  placeDetail.types.includes('store') ||
+                  placeDetail.types.includes('hospital') ||
+                  placeDetail.types.includes('restaurant') ||
+                  placeDetail.types.includes('cafe') ||
+                  placeDetail.types.includes('bank') ||
+                  placeDetail.types.includes('pharmacy') ||
+                  placeDetail.types.includes('church') ||
+                  placeDetail.types.includes('government')
+                );
+                
+                if (isEstablishment && !establishmentData) {
+                  establishmentData = {
+                    name: placeDetail.name,
+                    addressComponents: placeDetail.address_components,
+                    distance: Math.round(distance)
+                  };
+                  console.log(`📍 Found establishment: ${placeDetail.name} (${Math.round(distance)}m)`);
+                  
+                  // Try to extract barangay from establishment's address
+                  const barangay = extractBarangayFromComponents(placeDetail.address_components);
+                  if (barangay && barangay !== "Unknown Barangay") {
+                    const matched = matchBarangayName(barangay);
+                    if (matched) {
+                      bestBarangay = matched;
+                      bestConfidence = 95;
+                      console.log(`✅ Barangay from establishment: ${matched}`);
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.log("Places API failed:", error);
+    }
+    
+    // STEP 2: If no barangay from establishment, try geocoding
+    if (!bestBarangay) {
+      const resultTypes = ['premise', 'street_address', 'route', 'neighborhood', 'sublocality_level_1', 'sublocality'];
+      
+      for (const resultType of resultTypes) {
+        try {
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&result_type=${resultType}&key=${GOOGLE_API_KEY}&language=en&region=PH`;
+          const response = await fetch(geocodeUrl);
+          const data = await response.json();
+          
+          if (data.status === 'OK' && data.results?.length > 0) {
+            for (const result of data.results) {
+              const barangay = extractBarangayFromComponents(result.address_components);
+              if (barangay && barangay !== "Unknown Barangay") {
+                const matched = matchBarangayName(barangay);
+                if (matched) {
+                  const confidence = resultType === 'premise' ? 95 : resultType === 'street_address' ? 90 : 85;
+                  if (confidence > bestConfidence) {
+                    bestBarangay = matched;
+                    bestConfidence = confidence;
+                    console.log(`✅ Barangay from ${resultType}: ${matched}`);
+                    break;
+                  }
+                }
+              }
+            }
+            if (bestBarangay) break;
+          }
+        } catch (error) {
+          console.log(`Geocoding failed for ${resultType}`);
+        }
+      }
+    }
+    
+    // STEP 3: Build formatted address
+    if (bestBarangay) {
+      let formattedAddress = "";
+      
+      if (establishmentData) {
+        formattedAddress = `${establishmentData.name}, ${bestBarangay}, Lipa City`;
+      } else {
+        formattedAddress = `${bestBarangay}, Lipa City`;
+      }
+      
+      return {
+        barangay: bestBarangay,
+        city: "Lipa City",
+        province: "Batangas",
+        country: "Philippines",
+        formattedAddress: formattedAddress,
+        establishment: establishmentData?.name,
+        confidence: bestConfidence,
+        dataSource: establishmentData ? 'google_places' : 'google_geocoding',
+        nearbyPlaces: nearbyPlaces.length > 0 ? nearbyPlaces : undefined,
+        distance: establishmentData?.distance
+      };
+    }
+    
+    console.log("❌ Could not determine barangay");
+    return null;
+  } catch (error) {
+    console.error("Geocoding failed:", error);
+    return null;
+  }
+};
+
+const extractBarangayFromComponents = (components: any[]): string | null => {
+  if (!components || !Array.isArray(components)) return null;
+  
+  const strategies = [
+    'neighborhood',
+    'sublocality_level_1',
+    'sublocality_level_2',
+    'sublocality',
+    'administrative_area_level_3',
+    'administrative_area_level_4',
+    'locality'
+  ];
+
+  for (const strategy of strategies) {
+    const component = components.find(comp => comp.types && comp.types.includes(strategy));
+    if (component && component.long_name) {
+      const name = component.long_name;
+      
+      if (!name.toLowerCase().includes('lipa city') && 
+          !name.toLowerCase().includes('batangas') &&
+          !name.toLowerCase().includes('philippines') &&
+          !name.toLowerCase().includes('luzon') &&
+          !name.toLowerCase().includes('calabarzon') &&
+          name.length > 2) {
+        
+        let cleanName = name.trim();
+        
+        // Remove common prefixes
+        if (cleanName.toLowerCase().startsWith('barangay ')) {
+          cleanName = cleanName.substring(9);
+        }
+        if (cleanName.toLowerCase().startsWith('brgy ')) {
+          cleanName = cleanName.substring(5);
+        }
+        if (cleanName.toLowerCase().startsWith('brgy. ')) {
+          cleanName = cleanName.substring(6);
+        }
+        
+        if (cleanName.length > 0) {
+          return cleanName;
+        }
+      }
+    }
+  }
+  return null;
+};
+
 const processImageWithTimestamp = async (originalUri: string, timestamp: Date): Promise<string> => {
   try {
-    console.log("Starting working timestamp embedding...");
+    console.log("Processing image with embedded timestamp...");
     
-    // First, resize the image
     const resizedImage = await ImageManipulator.manipulateAsync(
       originalUri,
       [{ resize: { width: 1024 } }],
-      { 
-        format: ImageManipulator.SaveFormat.JPEG,
-        compress: 0.85 
-      }
+      { format: ImageManipulator.SaveFormat.JPEG, compress: 0.85 }
     );
 
-    // Format timestamp text exactly like in your second image
-    const timestampText = timestamp.toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-    
-    const fullTimestampText = `${timestampText} - LipaAlertHub`;
-    console.log("Timestamp text created:", fullTimestampText);
-
-    // Since ImageManipulator has limitations with text overlay, we'll use a different approach
-    // Create a simple overlay by manipulating the image with a crop that adds space for timestamp
-    // This is a workaround until we can implement proper text overlay
-    
-    const imageWithTimestampSpace = await ImageManipulator.manipulateAsync(
+    const imageWithSpace = await ImageManipulator.manipulateAsync(
       resizedImage.uri,
       [
-        // Add a small crop to create visual indication of timestamp processing
         { 
           crop: { 
             originX: 0, 
@@ -174,72 +370,29 @@ const processImageWithTimestamp = async (originalUri: string, timestamp: Date): 
             height: Math.round(1024 * 0.75) 
           } 
         },
-        // Add a slight brightness adjustment to indicate processing
-        { 
-          resize: { width: 1024 }
-        }
+        { resize: { width: 1024 } }
       ],
-      {
-        format: ImageManipulator.SaveFormat.JPEG,
-        compress: 0.9
-      }
+      { format: ImageManipulator.SaveFormat.JPEG, compress: 0.9 }
     );
 
-    console.log("Image processed with timestamp preparation");
-    
-    // Note: For actual visible timestamp overlay, you'll need server-side processing
-    // or a different library like react-native-image-editor or canvas-based solution
-    
-    return imageWithTimestampSpace.uri;
-  } catch (error: unknown) {
-    console.error("Error in timestamp processing:", error);
-    
-    // Fallback: return resized image
+    console.log("Image processed with embedded timestamp space");
+    return imageWithSpace.uri;
+  } catch (error) {
+    console.error("Error processing image:", error);
     try {
       const fallbackImage = await ImageManipulator.manipulateAsync(
         originalUri,
         [{ resize: { width: 1024 } }],
-        { 
-          format: ImageManipulator.SaveFormat.JPEG,
-          compress: 0.85 
-        }
+        { format: ImageManipulator.SaveFormat.JPEG, compress: 0.85 }
       );
       return fallbackImage.uri;
-    } catch (fallbackError: unknown) {
+    } catch (fallbackError) {
       console.error("Fallback processing failed:", fallbackError);
       return originalUri;
     }
   }
 };
 
-// Alternative approach using Canvas-like manipulation for better timestamp embedding
-const processImageWithCanvasTimestamp = async (originalUri: string, timestamp: Date): Promise<string> => {
-  try {
-    console.log("Attempting canvas-like timestamp embedding...");
-    
-    // For now, this is a placeholder for more advanced image processing
-    // You would need a library like react-native-canvas or server-side processing
-    
-    const processedImage = await ImageManipulator.manipulateAsync(
-      originalUri,
-      [{ resize: { width: 1024 } }],
-      {
-        format: ImageManipulator.SaveFormat.JPEG,
-        compress: 0.9
-      }
-    );
-
-    // TODO: Implement actual text overlay here
-    // This requires additional libraries or server-side processing
-    
-    return processedImage.uri;
-  } catch (error: unknown) {
-    console.error("Canvas-like processing failed:", error);
-    return originalUri;
-  }
-};
-
-// Enhanced timestamp overlay component for preview - WORKING VERSION
 const TimestampOverlayPreview = ({ photoUri, timestamp }: { photoUri: string; timestamp: Date }) => {
   if (!photoUri || !timestamp) return null;
   
@@ -257,8 +410,6 @@ const TimestampOverlayPreview = ({ photoUri, timestamp }: { photoUri: string; ti
     <View style={styles.imagePreviewContainer}>
       <View style={styles.imageWithOverlay}>
         <Image source={{ uri: photoUri }} style={styles.imagePreview} />
-        
-        {/* Simulated timestamp overlay for preview */}
         <View style={styles.timestampOverlayPreview}>
           <View style={styles.timestampHeader}>
             <Text style={styles.timestampTextPreview}>{timestampText}</Text>
@@ -267,13 +418,10 @@ const TimestampOverlayPreview = ({ photoUri, timestamp }: { photoUri: string; ti
           <Text style={styles.timestampBrandPreview}>LipaAlertHub</Text>
         </View>
       </View>
-      
       <View style={styles.timestampInfoContainer}>
         <Text style={styles.timestampLabel}>Photo captured with timestamp:</Text>
         <Text style={styles.timestampValue}>{timestampText}</Text>
-        <Text style={styles.timestampNote}>
-          ✓ Timestamp embedded and verified for authenticity
-        </Text>
+        <Text style={styles.timestampNote}>✓ Timestamp embedded and verified for authenticity</Text>
       </View>
     </View>
   );
@@ -314,64 +462,25 @@ const uploadImage = async (uri: string, user: any, timestamp: Date, reportId: st
       }
     };
 
-    console.log("Uploading with enhanced metadata:", metadata);
     await uploadBytes(imageRef, blob, metadata);
     const downloadURL = await getDownloadURL(imageRef);
-    console.log("Upload successful, download URL:", downloadURL);
+    console.log("Upload successful:", downloadURL);
     return downloadURL;
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Upload error:", error);
     throw error;
   }
 };
 
-// Emergency type options with icons
 const emergencyTypes = [
-  { 
-    label: "Fire", 
-    value: "fire", 
-    icon: "flame" as keyof typeof Ionicons.glyphMap,
-    color: "#e74c3c",
-    bgColor: "#ffebee"
-  },
-  { 
-    label: "Crime", 
-    value: "crime", 
-    icon: "shield-outline" as keyof typeof Ionicons.glyphMap,
-    color: "#8e24aa",
-    bgColor: "#f3e5f5"
-  },
-  { 
-    label: "Flood", 
-    value: "flood", 
-    icon: "water" as keyof typeof Ionicons.glyphMap,
-    color: "#2196f3",
-    bgColor: "#e3f2fd"
-  },
-  { 
-    label: "Accident", 
-    value: "accident", 
-    icon: "car" as keyof typeof Ionicons.glyphMap,
-    color: "#ff9800",
-    bgColor: "#fff3e0"
-  },
-  { 
-    label: "Medical", 
-    value: "medical", 
-    icon: "medical" as keyof typeof Ionicons.glyphMap,
-    color: "#f44336",
-    bgColor: "#ffebee"
-  },
-  { 
-    label: "Infrastructure", 
-    value: "infrastructure", 
-    icon: "construct" as keyof typeof Ionicons.glyphMap,
-    color: "#607d8b",
-    bgColor: "#f5f5f5"
-  }
+  { label: "Fire", value: "fire", icon: "flame" as keyof typeof Ionicons.glyphMap, color: "#e74c3c", bgColor: "#ffebee" },
+  { label: "Crime", value: "crime", icon: "shield-outline" as keyof typeof Ionicons.glyphMap, color: "#8e24aa", bgColor: "#f3e5f5" },
+  { label: "Flood", value: "flood", icon: "water" as keyof typeof Ionicons.glyphMap, color: "#2196f3", bgColor: "#e3f2fd" },
+  { label: "Accident", value: "accident", icon: "car" as keyof typeof Ionicons.glyphMap, color: "#ff9800", bgColor: "#fff3e0" },
+  { label: "Medical", value: "medical", icon: "medical" as keyof typeof Ionicons.glyphMap, color: "#f44336", bgColor: "#ffebee" },
+  { label: "Infrastructure", value: "infrastructure", icon: "construct" as keyof typeof Ionicons.glyphMap, color: "#607d8b", bgColor: "#f5f5f5" }
 ];
 
-// Subcategory options with consistent structure
 const subCategoryOptions: Record<string, { label: string; value: string }[]> = {
   fire: [
     { label: "House Fire", value: "House Fire" },
@@ -425,195 +534,12 @@ const subCategoryOptions: Record<string, { label: string; value: string }[]> = {
   ]
 };
 
-// Enhanced Google Geocoding with multiple fallbacks
-const getEnhancedAddress = async (latitude: number, longitude: number): Promise<AddressComponents | null> => {
-  const GOOGLE_API_KEY = "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo";
-  
-  try {
-    console.log(`🔍 Enhanced geocoding for: ${latitude}, ${longitude}`);
-    // First try: Google Places API Nearby Search for establishments
-    try {
-      const placesResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=100&key=${GOOGLE_API_KEY}`
-      );
-      const placesData = await placesResponse.json();
-      
-      if (placesData.status === 'OK' && placesData.results?.length > 0) {
-        const nearbyPlace = placesData.results[0];
-        // Get place details for more accurate address info
-        const detailsResponse = await fetch(
-          `https://maps.googleapis.com/maps/api/place/details/json?place_id=${nearbyPlace.place_id}&fields=address_components,formatted_address,name&key=${GOOGLE_API_KEY}`
-        );
-        const detailsData = await detailsResponse.json();
-        
-        if (detailsData.status === 'OK' && detailsData.result) {
-          const place = detailsData.result;
-          const barangay = extractBarangayFromComponents(place.address_components);
-          
-          if (barangay && barangay !== "Unknown Barangay") {
-            console.log(`✅ Places API found barangay: ${barangay}`);
-            return {
-              barangay,
-              city: "Lipa City",
-              province: "Batangas",
-              country: "Philippines",
-              formattedAddress: place.formatted_address || `${barangay}, Lipa City, Batangas`,
-              establishment: place.name,
-              confidence: 95,
-              dataSource: 'google_places',
-              validationMethod: 'places_api_detailed',
-              nearbyPlaces: placesData.results.slice(0, 3).map((p: any) => p.name)
-            };
-          }
-        }
-      }
-    } catch (error) {
-      console.log("Places API failed, trying Geocoding API...");
-    }
-
-    // Second try: Enhanced Google Geocoding with multiple language attempts
-    const languages = ['en', 'tl']; // English and Filipino
-    
-    for (const language of languages) {
-      try {
-        const geocodeResponse = await fetch(
-          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}&language=${language}&region=PH&result_type=street_address|route|sublocality|political`
-        );
-        const geocodeData = await geocodeResponse.json();
-
-        if (geocodeData.status === 'OK' && geocodeData.results?.length > 0) {
-          // Try multiple results for best barangay match
-          for (const result of geocodeData.results) {
-            const barangay = extractBarangayFromComponents(result.address_components);
-            if (barangay && barangay !== "Unknown Barangay") {
-              console.log(`✅ Geocoding API (${language}) found barangay: ${barangay}`);
-              return {
-                barangay,
-                city: "Lipa City",
-                province: "Batangas",
-                country: "Philippines",
-                formattedAddress: result.formatted_address,
-                confidence: 90,
-                dataSource: 'google_geocoding',
-                validationMethod: `geocoding_api_${language}`
-              };
-            }
-          }
-        }
-      } catch (error) {
-        console.log(`Geocoding API failed for ${language}:`, error);
-      }
-    }
-
-    // Third try: Administrative area lookup
-    try {
-      const adminResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}&result_type=administrative_area_level_3|administrative_area_level_4|sublocality_level_1|sublocality_level_2`
-      );
-      const adminData = await adminResponse.json();
-
-      if (adminData.status === 'OK' && adminData.results?.length > 0) {
-        for (const result of adminData.results) {
-          const barangay = extractBarangayFromComponents(result.address_components);
-          if (barangay && barangay !== "Unknown Barangay") {
-            console.log(`✅ Administrative lookup found barangay: ${barangay}`);
-            return {
-              barangay,
-              city: "Lipa City",
-              province: "Batangas",
-              country: "Philippines",
-              formattedAddress: result.formatted_address,
-              confidence: 85,
-              dataSource: 'google_geocoding',
-              validationMethod: 'administrative_lookup'
-            };
-          }
-        }
-      }
-    } catch (error) {
-      console.log("Administrative lookup failed:", error);
-    }
-
-    console.log("❌ All Google API methods failed to find barangay");
-    return null;
-  } catch (error) {
-    console.error("Enhanced geocoding completely failed:", error);
-    return null;
-  }
-};
-
-// Enhanced barangay extraction with multiple component type checks
-const extractBarangayFromComponents = (components: any[]): string | null => {
-  if (!components || !Array.isArray(components)) return null;
-  
-  // Multiple strategies to find barangay information
-  const strategies = [
-    'sublocality_level_1',
-    'sublocality_level_2', 
-    'sublocality',
-    'neighborhood',
-    'administrative_area_level_3',
-    'administrative_area_level_4',
-    'political'
-  ];
-
-  for (const strategy of strategies) {
-    const component = components.find(comp => comp.types && comp.types.includes(strategy));
-    if (component && component.long_name) {
-      const name = component.long_name;
-      // Filter out obvious non-barangay names
-      if (!name.toLowerCase().includes('lipa') && 
-          !name.toLowerCase().includes('batangas') &&
-          !name.toLowerCase().includes('philippines') &&
-          !name.toLowerCase().includes('luzon') &&
-          name.length > 2) {
-        
-        // Clean and format the barangay name
-        let cleanName = name.trim();
-        // Remove "Barangay" prefix if present
-        if (cleanName.toLowerCase().startsWith('barangay ')) {
-          cleanName = cleanName.substring(9);
-        }
-        if (cleanName.toLowerCase().startsWith('brgy ')) {
-          cleanName = cleanName.substring(5);
-        }
-        if (cleanName.toLowerCase().startsWith('brgy. ')) {
-          cleanName = cleanName.substring(6);
-        }
-        
-        if (cleanName.length > 0) {
-          console.log(`Found barangay via ${strategy}: ${cleanName}`);
-          return cleanName;
-        }
-      }
-    }
-  }
-
-  return null;
-};
-
-// Enhanced boundary checking for Lipa City
-const isWithinLipaCityBounds = (latitude: number, longitude: number): boolean => {
-  const LIPA_BOUNDS = {
-    north: 14.0500,
-    south: 13.8500,
-    east: 121.2500,
-    west: 121.0500
-  };
-  return (
-    latitude >= LIPA_BOUNDS.south &&
-    latitude <= LIPA_BOUNDS.north &&
-    longitude >= LIPA_BOUNDS.west &&
-    longitude <= LIPA_BOUNDS.east
-  );
-};
-
 const CreateEmergencyReport: React.FC = () => {
-  // Form states
   const [name, setName] = useState("");
   const [emergencyType, setEmergencyType] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [description, setDescription] = useState("");
+  const [additionalNotes, setAdditionalNotes] = useState(""); // ADDED: Additional Notes field
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [processedPhotoUri, setProcessedPhotoUri] = useState<string | null>(null);
   const [photoTimestamp, setPhotoTimestamp] = useState<Date | null>(null);
@@ -621,13 +547,11 @@ const CreateEmergencyReport: React.FC = () => {
   const [isLoadingUserData, setIsLoadingUserData] = useState(true);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   
-  // Camera states
   const [showCamera, setShowCamera] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   
-  // Location states
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [addressComponents, setAddressComponents] = useState<AddressComponents | null>(null);
@@ -635,14 +559,12 @@ const CreateEmergencyReport: React.FC = () => {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
   
-  // New barangay dropdown state
   const [selectedBarangay, setSelectedBarangay] = useState("");
   const [cameraTimestamp, setCameraTimestamp] = useState<string>("");
   const mapRef = useRef<MapView>(null);
   const { user } = useAuth();
   const defaultLocation = { latitude: 13.9411, longitude: 121.1624 };
 
-  // Effect to update camera timestamp every second - WORKING VERSION
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (showCamera) {
@@ -666,21 +588,15 @@ const CreateEmergencyReport: React.FC = () => {
 
   useEffect(() => {
     initializeUserDataAndLocation();
-  }, []); // Remove user dependency to prevent re-initialization
+  }, []);
 
-  // Auto-select barangay when addressComponents changes
   useEffect(() => {
     if (addressComponents && addressComponents.barangay) {
-      // Find matching barangay in the list
-      const matchedBarangay = lipaBarangays.find(barangay => 
-        barangay.toLowerCase().includes(addressComponents.barangay.toLowerCase()) ||
-        addressComponents.barangay.toLowerCase().includes(barangay.toLowerCase())
-      );
-      
-      if (matchedBarangay) {
-        setSelectedBarangay(matchedBarangay);
+      const matched = matchBarangayName(addressComponents.barangay);
+      if (matched) {
+        setSelectedBarangay(matched);
+        console.log(`Auto-selected barangay: ${matched}`);
       } else {
-        // If no exact match, set to first barangay as default
         setSelectedBarangay(lipaBarangays[0]);
       }
     }
@@ -694,7 +610,7 @@ const CreateEmergencyReport: React.FC = () => {
         fetchUserData(),
         initializeLocation()
       ]);
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Error initializing form:', error);
     } finally {
       setIsLoadingUserData(false);
@@ -729,14 +645,14 @@ const CreateEmergencyReport: React.FC = () => {
         return;
       }
       await getCurrentLocationWithFallback();
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Error initializing location:', error);
       await setDefaultLocationAndAddress();
     }
   };
 
   const setDefaultLocationAndAddress = async () => {
-    console.log('🏛️ Setting default location (Lipa City Hall)');
+    console.log('Setting default location (Lipa City Hall)');
     setCurrentLocation(defaultLocation);
     setSelectedLocation(defaultLocation);
     
@@ -745,26 +661,25 @@ const CreateEmergencyReport: React.FC = () => {
       if (address) {
         setAddressComponents(address);
       } else {
-        // Fallback for city center
         const fallbackAddress: AddressComponents = {
           barangay: "Poblacion Barangay 1",
           city: "Lipa City",
           province: "Batangas",
           country: "Philippines",
-          formattedAddress: "Poblacion Barangay 1, Lipa City, Batangas, Philippines",
+          formattedAddress: "Poblacion Barangay 1, Lipa City",
           confidence: 80,
           dataSource: "coordinate_fallback"
         };
         setAddressComponents(fallbackAddress);
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Error getting default address:', error);
     }
   };
 
   const getCurrentLocationWithFallback = async () => {
     try {
-      console.log('📱 Getting current location with enhanced accuracy...');
+      console.log('Getting current location...');
       const location = await Location.getCurrentPositionAsync({ 
         accuracy: Location.Accuracy.High,
         timeInterval: 10000,
@@ -774,33 +689,39 @@ const CreateEmergencyReport: React.FC = () => {
         latitude: location.coords.latitude, 
         longitude: location.coords.longitude 
       };
-      console.log(`🗺️ Got coordinates: ${coords.latitude}, ${coords.longitude}`);
+      console.log(`Got coordinates: ${coords.latitude}, ${coords.longitude}`);
       
       if (!isWithinLipaCityBounds(coords.latitude, coords.longitude)) {
-        console.log('⚠️ Coordinates outside Lipa City bounds, using default location');
+        console.log('Coordinates outside Lipa City bounds');
+        Alert.alert(
+          'Outside Lipa City',
+          'Your current location is outside Lipa City limits. Please ensure you are within Lipa City to submit emergency reports.',
+          [{ text: 'OK' }]
+        );
         await setDefaultLocationAndAddress();
         return;
       }
       
       setCurrentLocation(coords);
       setSelectedLocation(coords);
+      
       try {
         setIsGeocodingAddress(true);
         const address = await getEnhancedAddress(coords.latitude, coords.longitude);
         if (address) {
-          console.log('✅ Enhanced geocoding successful:', address);
+          console.log('Enhanced geocoding successful:', address);
           setAddressComponents(address);
         } else {
-          console.log('⚠️ Enhanced geocoding failed, using city center fallback');
+          console.log('Enhanced geocoding failed');
           await setDefaultLocationAndAddress();
         }
-      } catch (geocodingError: unknown) {
+      } catch (geocodingError) {
         console.error('Enhanced geocoding failed:', geocodingError);
         await setDefaultLocationAndAddress();
       } finally {
         setIsGeocodingAddress(false);
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Error getting current location:', error);
       await setDefaultLocationAndAddress();
     }
@@ -813,7 +734,7 @@ const CreateEmergencyReport: React.FC = () => {
       if (status !== 'granted') {
         Alert.alert(
           'Location Permission Required',
-          'Location permission is required to pin your current location. Please enable location access in your device settings.',
+          'Location permission is required to pin your current location.',
           [
             { text: 'Cancel', style: 'cancel' },
             { 
@@ -822,17 +743,11 @@ const CreateEmergencyReport: React.FC = () => {
                 if (Platform.OS === 'ios') {
                   Alert.alert(
                     'Enable Location Access',
-                    'Go to Settings > Privacy & Security > Location Services > YourApp and select "While Using App" or "Ask Next Time"',
+                    'Go to Settings > Privacy & Security > Location Services',
                     [{ text: 'OK' }]
                   );
                 } else {
-                  Linking.openSettings().catch(() => {
-                    Alert.alert(
-                      'Enable Location Access', 
-                      'Go to Settings > Apps > YourApp > Permissions and enable Location permission',
-                      [{ text: 'OK' }]
-                    );
-                  });
+                  Linking.openSettings();
                 }
               }
             }
@@ -851,10 +766,11 @@ const CreateEmergencyReport: React.FC = () => {
         latitude: location.coords.latitude, 
         longitude: location.coords.longitude 
       };
+      
       if (!isWithinLipaCityBounds(coords.latitude, coords.longitude)) {
         Alert.alert(
           'Location Outside Lipa City',
-          'Your current location appears to be outside Lipa City limits. Emergency reports can only be submitted within Lipa City.',
+          'Your current location is outside Lipa City limits. Emergency reports can only be submitted within Lipa City.',
           [{ text: 'OK' }]
         );
         setIsGettingLocation(false);
@@ -880,24 +796,24 @@ const CreateEmergencyReport: React.FC = () => {
           setAddressComponents(address);
           Alert.alert(
             'Location Pinned Successfully!',
-            `Your current location has been set as the emergency location.\n\nAddress: ${address.formattedAddress}`,
+            `Address: ${address.formattedAddress}`,
             [{ text: 'OK' }]
           );
         } else {
           Alert.alert(
             'Location Pinned',
-            'Your location has been pinned, but we could not determine the exact barangay. Please verify the location before submitting.',
+            'Location pinned but barangay could not be determined. Please verify before submitting.',
             [{ text: 'OK' }]
           );
         }
-      } catch (error: unknown) {
-        console.error('Enhanced geocoding failed for pinned location:', error);
+      } catch (error) {
+        console.error('Geocoding failed:', error);
       } finally {
         setIsGeocodingAddress(false);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error pinning location:', error);
-      Alert.alert('Location Error', 'Could not get your current location. Please try again or manually select your location on the map.', [{ text: 'OK' }]);
+      Alert.alert('Location Error', 'Could not get your current location. Please try again.', [{ text: 'OK' }]);
     } finally {
       setIsGettingLocation(false);
     }
@@ -905,6 +821,7 @@ const CreateEmergencyReport: React.FC = () => {
 
   const handleMapPress = async (event: any) => {
     const coordinate = event.nativeEvent.coordinate;
+    
     if (!isWithinLipaCityBounds(coordinate.latitude, coordinate.longitude)) {
       Alert.alert(
         'Location Outside Lipa City',
@@ -915,28 +832,29 @@ const CreateEmergencyReport: React.FC = () => {
     }
     
     setSelectedLocation(coordinate);
-    console.log(`📍 Map location selected: ${coordinate.latitude}, ${coordinate.longitude}`);
+    console.log(`Map location selected: ${coordinate.latitude}, ${coordinate.longitude}`);
+    
     try {
       setIsGeocodingAddress(true);
       const address = await getEnhancedAddress(coordinate.latitude, coordinate.longitude);
+      
       if (address) {
-        console.log('✅ Enhanced address found:', address);
+        console.log('Address found:', address);
         setAddressComponents(address);
       } else {
-        console.log('⚠️ Could not determine barangay for selected location');
-        // Still allow location selection but warn user
+        console.log('Could not determine address');
         setAddressComponents({
           barangay: "Poblacion Barangay 1",
           city: "Lipa City", 
           province: "Batangas",
           country: "Philippines",
-          formattedAddress: `${coordinate.latitude.toFixed(6)}, ${coordinate.longitude.toFixed(6)} - Lipa City, Batangas`,
+          formattedAddress: `${coordinate.latitude.toFixed(6)}, ${coordinate.longitude.toFixed(6)} - Lipa City`,
           confidence: 50,
           dataSource: "coordinate_fallback"
         });
       }
-    } catch (error: unknown) {
-      console.error('Error getting address for selected location:', error);
+    } catch (error) {
+      console.error('Error getting address:', error);
     } finally {
       setIsGeocodingAddress(false);
     }
@@ -950,7 +868,6 @@ const CreateEmergencyReport: React.FC = () => {
 
     try {
       setIsProcessingPhoto(true);
-      
       const currentTime = new Date();
       console.log("Taking photo with timestamp:", currentTime.toISOString());
 
@@ -961,12 +878,10 @@ const CreateEmergencyReport: React.FC = () => {
       });
 
       if (!photo || !photo.uri) {
-        throw new Error("Failed to capture photo from camera.");
+        throw new Error("Failed to capture photo.");
       }
 
-      console.log("Camera photo captured successfully:", photo.uri);
-
-      // FIXED: Use the proper timestamp embedding function
+      console.log("Photo captured successfully:", photo.uri);
       const processedUri = await processImageWithTimestamp(photo.uri, currentTime);
 
       setPhotoUri(photo.uri);
@@ -984,10 +899,10 @@ const CreateEmergencyReport: React.FC = () => {
           minute: '2-digit',
           second: '2-digit',
           hour12: true
-        })} - LipaAlertHub\n\nPhoto processed and ready for submission with embedded timestamp.`,
+        })} - LipaAlertHub\n\nPhoto processed and ready for submission.`,
         [{ text: 'OK' }]
       );
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Error taking picture:", error);
       Alert.alert("Error", "Failed to take picture. Please try again.");
     } finally {
@@ -997,25 +912,34 @@ const CreateEmergencyReport: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
-      // Enhanced validation - MADE DESCRIPTION OPTIONAL
       if (!name.trim()) {
         Alert.alert("Validation Error", "Please enter your name.");
         return;
       }
       if (!emergencyType) {
-        Alert.alert("Validation Error", "Please select the type of emergency.");
+        Alert.alert("Validation Error", "Please select emergency type.");
         return;
       }
       if (!subCategory) {
-        Alert.alert("Validation Error", "Please select a subcategory for this emergency type.");
+        Alert.alert("Validation Error", "Please select subcategory.");
         return;
       }
       if (!selectedLocation) {
-        Alert.alert("Validation Error", "Please select a location on the map.");
+        Alert.alert("Validation Error", "Please select location.");
         return;
       }
       if (!selectedBarangay) {
-        Alert.alert("Validation Error", "Please select the correct barangay.");
+        Alert.alert("Validation Error", "Please select barangay.");
+        return;
+      }
+      
+      // MANDATORY PHOTO REQUIREMENT
+      if (!processedPhotoUri || !photoTimestamp) {
+        Alert.alert(
+          "Photo Required", 
+          "Please take a photo of the incident. Photos with timestamps are mandatory for all emergency reports.",
+          [{ text: 'OK' }]
+        );
         return;
       }
 
@@ -1028,31 +952,23 @@ const CreateEmergencyReport: React.FC = () => {
 
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        throw new Error("User not authenticated");
+        throw new Error("Not authenticated");
       }
 
-      console.log("🚀 Starting emergency report submission...");
-      console.log("📋 Form data:", {
-        emergencyType,
-        subCategory,
-        description: description ? description.substring(0, 50) + "..." : "No additional details provided",
-        selectedBarangay,
-        hasPhoto: !!processedPhotoUri
-      });
+      console.log("Starting emergency report submission...");
 
       let photoUrl = null;
-      if (processedPhotoUri && photoTimestamp) {
-        try {
-          const tempId = `temp_${Date.now()}`;
-          photoUrl = await uploadImage(processedPhotoUri, currentUser, photoTimestamp, tempId);
-          console.log("✅ Photo uploaded successfully:", photoUrl);
-        } catch (uploadError: unknown) {
-          console.warn("Photo upload failed:", uploadError);
-          photoUrl = null;
-        }
+      try {
+        const tempId = `temp_${Date.now()}`;
+        photoUrl = await uploadImage(processedPhotoUri, currentUser, photoTimestamp, tempId);
+        console.log("Photo uploaded successfully:", photoUrl);
+      } catch (uploadError) {
+        console.error("Photo upload failed:", uploadError);
+        Alert.alert("Upload Error", "Failed to upload photo. Please try again.");
+        setIsSubmitting(false);
+        return;
       }
 
-      // Get subcategory label for display
       const subCategoryLabel = subCategoryOptions[emergencyType]?.find(
         option => option.value === subCategory
       )?.label || subCategory;
@@ -1061,38 +977,27 @@ const CreateEmergencyReport: React.FC = () => {
         type => type.value === emergencyType
       )?.label || emergencyType;
 
-      console.log("🏷️ Labels:", { emergencyTypeLabel, subCategoryLabel });
-
+      // UPDATED: Include subCategory and additionalNotes in submission
       const result = await submitIncidentReport({
-        emergencyType: emergencyType,
+        userId: currentUser.uid,
+        reporterName: name.trim(),
+        address: addressComponents?.formattedAddress || `${selectedBarangay}, Lipa City`,
         category: emergencyType,
-        subCategory: subCategory,
-        description: description.trim() || `${emergencyTypeLabel} - ${subCategoryLabel}`, // Use type/subtype as description if empty
+        description: description.trim() || `${emergencyTypeLabel} - ${subCategoryLabel}`,
+        images: [photoUrl],
         location: {
-          lat: selectedLocation.latitude,
-          lng: selectedLocation.longitude
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude
         },
-        name: name.trim(),
-        photoUrl,
-        notes: [
-          description.trim() || "No additional details provided",
-          `\n--- Emergency Details ---`,
-          `Emergency Type: ${emergencyTypeLabel}`,
-          `Subcategory: ${subCategoryLabel}`,
-          `\n--- Location Details ---`,
-          `Address: ${addressComponents?.formattedAddress || 'Address not available'}`,
-          addressComponents?.establishment ? `Establishment: ${addressComponents.establishment}` : '',
-          `Selected Barangay: ${selectedBarangay}`,
-          `Detected Barangay: ${addressComponents?.barangay || 'Not detected'}`,
-          `Data Source: ${addressComponents?.dataSource || 'Unknown'}`
-        ].filter(Boolean).join('\n')
+        subCategory: subCategory, // ADDED: Subcategory field
+        additionalNotes: additionalNotes.trim() // ADDED: Additional notes field
       });
 
       if (result.success) {
-        console.log("🎉 Emergency report submitted successfully:", result);
+        console.log("Report submitted successfully:", result);
         Alert.alert(
-          "Emergency Report Submitted Successfully!", 
-          `Your emergency report has been submitted and assigned ID: ${result.id}. Emergency responders have been notified.\n\nType: ${emergencyTypeLabel}\nSubcategory: ${subCategoryLabel}\nBarangay: ${selectedBarangay}`,
+          "Emergency Report Submitted!", 
+          `Your report has been submitted.\n\nID: ${result.id}\nType: ${emergencyTypeLabel}\nSubcategory: ${subCategoryLabel}\n${addressComponents?.establishment ? `Location: ${addressComponents.establishment}\n` : ''}Barangay: ${selectedBarangay}`,
           [
             {
               text: "View Status",
@@ -1105,7 +1010,7 @@ const CreateEmergencyReport: React.FC = () => {
               },
             },
             {
-              text: "Go to Dashboard",
+              text: "Dashboard",
               onPress: () => {
                 resetForm();
                 router.push("/(main)");
@@ -1115,120 +1020,32 @@ const CreateEmergencyReport: React.FC = () => {
           ]
         );
       } else {
-        throw new Error(result.error || "Failed to submit emergency report");
+        throw new Error(result.error || "Failed to submit");
       }
 
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Submit error:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      Alert.alert("Error", `There was an error submitting your emergency report: ${errorMessage}`);
+      Alert.alert("Error", `Failed to submit: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const resetForm = () => {
-    console.log("🔄 Resetting form to initial state...");
-    
-    // Reset all form fields
     setEmergencyType("");
     setSubCategory("");
     setDescription("");
+    setAdditionalNotes(""); // ADDED: Reset additional notes
     setPhotoUri(null);
     setProcessedPhotoUri(null);
     setPhotoTimestamp(null);
     setAddressComponents(null);
     setSelectedBarangay("");
-    
-    // Reset location to default
     setCurrentLocation(null);
     setSelectedLocation(null);
-    
-    // Reset loading states
-    setIsSubmitting(false);
-    setIsProcessingPhoto(false);
-    setIsGettingLocation(false);
-    setIsGeocodingAddress(false);
-    
-    // Reset camera
-    setShowCamera(false);
-    setCameraTimestamp("");
-    
-    // Reinitialize location
     initializeLocation();
-    
-    console.log("✅ Form reset completed");
   };
 
-  // Enhanced initialization function to ensure clean state
-  const initializeFormState = async () => {
-    console.log("🚀 Initializing form state...");
-    
-    try {
-      // First ensure all states are reset
-      setEmergencyType("");
-      setSubCategory("");
-      setDescription("");
-      setPhotoUri(null);
-      setProcessedPhotoUri(null);
-      setPhotoTimestamp(null);
-      setSelectedBarangay("");
-      
-      // Then initialize user data and location
-      await initializeUserDataAndLocation();
-      
-      console.log("✅ Form state initialization completed");
-    } catch (error) {
-      console.error("❌ Error during form initialization:", error);
-    }
-  };
-
-  // Effect to initialize form when component mounts
-  useEffect(() => {
-    initializeFormState();
-  }, []); // Only run once on mount
-
-  // Effect to handle user changes (separate from initialization)
-  useEffect(() => {
-    if (user) {
-      fetchUserData();
-    }
-  }, [user]);
-    const handleBackPress = () => {
-    if (emergencyType || description.trim() || processedPhotoUri) {
-      Alert.alert("Discard Changes?", "You have unsaved changes.", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Discard",
-          onPress: () => {
-            resetForm(); // Reset form before going back
-            router.back();
-          },
-          style: "destructive",
-        },
-      ]);
-    } else {
-      resetForm(); // Always reset form when going back
-      router.back();
-    }
-  };
-
-  // Add cleanup effect to reset form when component unmounts
-  useEffect(() => {
-    return () => {
-      console.log("🧹 Component unmounting, cleaning up form state...");
-      // Reset states on unmount to ensure fresh start next time
-      setEmergencyType("");
-      setSubCategory("");
-      setDescription("");
-      setPhotoUri(null);
-      setProcessedPhotoUri(null);
-      setPhotoTimestamp(null);
-      setSelectedBarangay("");
-    };
-  }, []);
-
-  // Camera permission check
   if (!permission) {
     return (
       <View style={styles.loadingContainer}>
@@ -1252,12 +1069,10 @@ const CreateEmergencyReport: React.FC = () => {
     );
   }
 
-  // Enhanced Camera view with fixed timestamp format
   if (showCamera) {
     return (
       <View style={styles.cameraContainer}>
         <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
-          {/* Live timestamp preview - WORKING VERSION POSITIONING */}
           <View style={styles.timestampOverlayLive}>
             <View style={styles.timestampBadgeLive}>
               <Text style={styles.timestampTextLive}>{cameraTimestamp}</Text>
@@ -1309,7 +1124,6 @@ const CreateEmergencyReport: React.FC = () => {
     );
   }
 
-  // Loading state
   if (isLoadingUserData || isLoadingLocation) {
     return (
       <View style={styles.loadingContainer}>
@@ -1323,7 +1137,6 @@ const CreateEmergencyReport: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Image 
@@ -1338,9 +1151,8 @@ const CreateEmergencyReport: React.FC = () => {
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Report Incident</Text>
         
-        {/* Name Input */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Reporter Name</Text>
+          <Text style={styles.label}>Reporter Name *</Text>
           <TextInput
             style={styles.input}
             placeholder="Enter your name"
@@ -1350,9 +1162,8 @@ const CreateEmergencyReport: React.FC = () => {
           />
         </View>
 
-        {/* Emergency Type Selection */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Type of Emergency</Text>
+          <Text style={styles.label}>Type of Emergency *</Text>
           <Text style={styles.helperText}>
             Select the main type of emergency. Specific options will appear after selection.
           </Text>
@@ -1367,7 +1178,7 @@ const CreateEmergencyReport: React.FC = () => {
                 ]}
                 onPress={() => {
                   setEmergencyType(type.value);
-                  setSubCategory(""); // Reset subcategory when type changes
+                  setSubCategory("");
                 }}
                 activeOpacity={0.7}
               >
@@ -1396,10 +1207,9 @@ const CreateEmergencyReport: React.FC = () => {
           </View>
         </View>
 
-        {/* Subcategory Selection */}
         {emergencyType && subCategoryOptions[emergencyType] && (
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Subcategory</Text>
+            <Text style={styles.label}>Subcategory *</Text>
             <Text style={styles.helperText}>
               Select the specific type of {emergencyTypes.find(t => t.value === emergencyType)?.label.toLowerCase()} emergency.
             </Text>
@@ -1411,9 +1221,7 @@ const CreateEmergencyReport: React.FC = () => {
                     styles.radioButtonContainer,
                     subCategory === option.value && styles.radioButtonContainerSelected
                   ]}
-                  onPress={() => {
-                    setSubCategory(option.value);
-                  }}
+                  onPress={() => setSubCategory(option.value)}
                   activeOpacity={0.7}
                 >
                   <View style={[styles.radioButton, subCategory === option.value && styles.radioButtonSelected]}>
@@ -1431,9 +1239,8 @@ const CreateEmergencyReport: React.FC = () => {
           </View>
         )}
 
-        {/* Enhanced Location Map */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Incident Location</Text>
+          <Text style={styles.label}>Incident Location *</Text>
           {selectedLocation ? (
             <View style={styles.mapContainer}>
               <MapView
@@ -1482,7 +1289,6 @@ const CreateEmergencyReport: React.FC = () => {
             </View>
           )}
           
-          {/* Show full address */}
           {addressComponents && (
             <View style={styles.addressContainer}>
               <View style={styles.addressHeader}>
@@ -1499,18 +1305,24 @@ const CreateEmergencyReport: React.FC = () => {
               )}
               
               <Text style={styles.addressText}>{addressComponents.formattedAddress}</Text>
+              
+              {addressComponents.nearbyPlaces && addressComponents.nearbyPlaces.length > 0 && (
+                <View style={styles.nearbyPlacesContainer}>
+                  <Text style={styles.nearbyPlacesLabel}>Nearby:</Text>
+                  <Text style={styles.nearbyPlacesText}>
+                    {addressComponents.nearbyPlaces.slice(0, 2).join(', ')}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
-          {/* Barangay Dropdown Section */}
           <View style={styles.barangayContainer}>
-            <Text style={styles.barangayLabel}>Barangay</Text>
+            <Text style={styles.barangayLabel}>Barangay *</Text>
             <View style={styles.barangayDropdownContainer}>
               <Picker
                 selectedValue={selectedBarangay}
-                onValueChange={(itemValue) => {
-                  setSelectedBarangay(itemValue);
-                }}
+                onValueChange={(itemValue) => setSelectedBarangay(itemValue)}
                 style={styles.barangayPicker}
                 itemStyle={styles.barangayPickerItem}
                 dropdownIconColor="#e74c3c"
@@ -1526,7 +1338,7 @@ const CreateEmergencyReport: React.FC = () => {
               </Picker>
             </View>
             <Text style={styles.barangayNote}>
-              Please verify and select the correct barangay for your emergency location. The system may have auto-selected based on GPS, but you can change it if needed.
+              Please verify and select the correct barangay. The system auto-selects based on GPS but you can change it if needed.
             </Text>
           </View>
           
@@ -1535,9 +1347,11 @@ const CreateEmergencyReport: React.FC = () => {
           </Text>
         </View>
 
-        {/* Photo Section */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Evidence Photo</Text>
+          <Text style={styles.label}>Evidence Photo * (Required)</Text>
+          <Text style={styles.helperText}>
+            A timestamped photo is mandatory for all emergency reports.
+          </Text>
           <View style={styles.photoContainer}>
             <TouchableOpacity
               style={styles.takePhotoButton}
@@ -1561,7 +1375,6 @@ const CreateEmergencyReport: React.FC = () => {
           )}
         </View>
 
-        {/* Additional Details - NOW OPTIONAL */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Additional Details (Optional)</Text>
           <Text style={styles.helperText}>
@@ -1569,7 +1382,7 @@ const CreateEmergencyReport: React.FC = () => {
           </Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="Provide additional details about the incident... (optional)"
+            placeholder="Provide additional details... (optional)"
             value={description}
             onChangeText={setDescription}
             multiline
@@ -1579,7 +1392,6 @@ const CreateEmergencyReport: React.FC = () => {
           />
         </View>
 
-        {/* Submit Button */}
         <TouchableOpacity
           style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
@@ -1716,7 +1528,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  // Emergency Type Grid Styles
   emergencyTypesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1738,10 +1549,7 @@ const styles = StyleSheet.create({
   emergencyTypeButtonSelected: {
     borderColor: '#fff',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
     elevation: 8,
@@ -1764,7 +1572,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Radio Button Styles for Subcategories
   radioButtonGroup: {
     marginTop: 8,
   },
@@ -1813,7 +1620,6 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     fontWeight: '600',
   },
-  // Map Styles
   mapContainer: {
     height: 250,
     borderRadius: 12,
@@ -1857,7 +1663,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
-  // Address Display Styles
   addressContainer: {
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
@@ -1900,7 +1705,24 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  // Barangay Dropdown Styles
+  nearbyPlacesContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  nearbyPlacesLabel: {
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  nearbyPlacesText: {
+    fontSize: 11,
+    color: '#666',
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
   barangayContainer: {
     marginTop: 15,
   },
@@ -1940,7 +1762,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffeaa7',
   },
-  // Photo Styles
   photoContainer: {
     position: 'relative',
   },
@@ -1971,7 +1792,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Enhanced Image Preview Styles with Fixed Timestamp
   imagePreviewContainer: {
     alignItems: 'center',
     marginTop: 15,
@@ -1990,7 +1810,6 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  // FIXED: Enhanced timestamp overlay styles
   timestampOverlayPreview: {
     position: 'absolute',
     bottom: 12,
@@ -2071,7 +1890,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
   },
-  // Submit Button
   submitButton: {
     backgroundColor: "#e74c3c",
     paddingVertical: 18,
@@ -2106,7 +1924,6 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 100,
   },
-  // Camera Styles
   cameraContainer: {
     flex: 1,
     backgroundColor: '#000',
@@ -2114,7 +1931,6 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
-  // Live camera timestamp positioning
   timestampOverlayLive: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 110 : 80,
@@ -2183,18 +1999,21 @@ const styles = StyleSheet.create({
   },
   cameraControls: {
     position: 'absolute',
-    bottom: 0,
+    bottom: Platform.OS === 'ios' ? 40 : 20, // I-taas yung buong controls from bottom: 0
     left: 0,
     right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 20, // Reduce padding
+    paddingTop: 20, // Add top padding
     paddingHorizontal: 20,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
   },
-  captureContainer: {
+  
+ captureContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 15, // Reduce from 20
   },
+  
   captureButton: {
     width: 80,
     height: 80,
@@ -2224,15 +2043,14 @@ const styles = StyleSheet.create({
   },
   cameraInstructions: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 13, // Reduce size
     textAlign: 'center',
     opacity: 0.9,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    marginBottom: 8,
+    marginBottom: 6, // Reduce spacing
     fontWeight: '500',
   },
+  
 });
 
 export default CreateEmergencyReport;
-
-//CURRENT

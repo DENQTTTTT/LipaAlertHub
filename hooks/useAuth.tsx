@@ -1,4 +1,3 @@
-// hooks/useAuth.tsx - Enhanced with Violation & Suspension Monitoring
 import { auth, db } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import { User, onAuthStateChanged } from "firebase/auth";
@@ -10,25 +9,23 @@ export interface UserProfile {
   email: string | null;
   displayName: string | null;
   name?: string;
-  firstName?: string;
-  lastName?: string;
   phoneNumber?: string;
   number?: string;
   address?: string;
   photoURL?: string | null;
-  role?: "resident" | "admin" | "monitor" | "rescuer";
+  role?: "resident" | "admin" | "monitor" | "rescuer" | "agency";
   status?: "active" | "pending" | "declined" | "suspended" | "banned" | "under_review";
   verificationStatus?: "pending" | "verified" | "rejected";
   declineReason?: string;
   barangay?: string;
-  // Violation fields
   warnings?: number;
   strikes?: number;
   lastViolationReason?: string;
   lastViolationDate?: any;
   suspensionUntil?: any;
   duplicateFlag?: boolean;
-  // Timestamps
+  termsAccepted?: boolean;
+  termsAcceptedAt?: any;
   createdAt?: any;
   updatedAt?: any;
   expoPushToken?: string;
@@ -42,6 +39,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isStaff: boolean;
+  isResident: boolean;
   isApproved: boolean;
   isSuspended: boolean;
   isBanned: boolean;
@@ -55,10 +53,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const hasRedirectedRef = useRef(false); // Prevent double redirects
-  const lastStatusRef = useRef<string | undefined>(undefined); // Track status changes
+  const hasRedirectedRef = useRef(false);
+  const lastStatusRef = useRef<string | undefined>(undefined);
 
-  // Listen to Firebase Auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log("Auth state changed:", firebaseUser ? "User signed in" : "User signed out");
@@ -77,7 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  // Real-time profile updates with suspension monitoring
   useEffect(() => {
     if (!user) return;
 
@@ -96,18 +92,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
           
           setUserProfile(updatedProfile);
+          setLoading(false);
           
-          // Check if status changed significantly
+          // Check if user is resident
+          if (updatedProfile.role && updatedProfile.role !== 'resident') {
+            console.log('Non-resident user detected, handling access');
+            handleNonResidentAccess();
+            return;
+          }
+          
           const statusChanged = lastStatusRef.current !== profileData.status;
           lastStatusRef.current = profileData.status;
 
-          // Only redirect if status actually changed
           if (statusChanged && profileData.status) {
             console.log(`User status changed to: ${profileData.status}`);
-            hasRedirectedRef.current = false; // Allow new redirect for status change
+            hasRedirectedRef.current = false;
             checkAccountStatus(updatedProfile);
           } else if (!hasRedirectedRef.current) {
-            // Initial check
             checkAccountStatus(updatedProfile);
           }
         } else {
@@ -122,8 +123,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             warnings: 0,
             strikes: 0,
           });
+          setLoading(false);
         }
-        setLoading(false);
       },
       (error) => {
         console.error("Error listening to user profile:", error);
@@ -144,15 +145,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, [user]);
 
-  // Check account status and handle suspension/ban
+  const handleNonResidentAccess = async () => {
+    try {
+      console.log('Logging out non-resident user');
+      await auth.signOut();
+      router.replace({
+        pathname: "/(auth)/login",
+        params: { error: "non-resident" }
+      });
+    } catch (error) {
+      console.error("Error handling non-resident access:", error);
+    }
+  };
+
   const checkAccountStatus = (profile: UserProfile) => {
-    // Prevent multiple redirects
     if (hasRedirectedRef.current) {
       console.log("Already redirected, skipping status check");
       return;
     }
 
-    // Check if banned
+    // Check banned status
     if (profile.status === "banned") {
       console.log("Account is banned - redirecting to suspension screen");
       hasRedirectedRef.current = true;
@@ -168,7 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Check if suspended
+    // Check suspension
     if (profile.suspensionUntil) {
       const suspensionDate = profile.suspensionUntil.toDate 
         ? profile.suspensionUntil.toDate() 
@@ -191,10 +203,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Check if pending or under review (don't redirect for this, just log)
+    // Check pending/under_review status
     if (profile.status === "pending" || profile.status === "under_review") {
-      console.log("Account pending approval");
-      // Don't redirect - let account-status screen handle this
+      console.log("Account pending approval - redirecting to account status screen");
+      hasRedirectedRef.current = true;
+      router.replace("/(auth)/account-status");
+      return;
+    }
+
+    // Check declined status
+    if (profile.status === "declined") {
+      console.log("Account declined - redirecting to account status screen");
+      hasRedirectedRef.current = true;
+      router.replace("/(auth)/account-status");
+      return;
+    }
+
+    // Active account - redirect to main
+    if (profile.status === "active" && !hasRedirectedRef.current) {
+      console.log("Account active - redirecting to main");
+      hasRedirectedRef.current = true;
+      router.replace("/(main)");
       return;
     }
   };
@@ -218,7 +247,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserProfile(profile);
         lastStatusRef.current = profile.status;
         
-        // Log user info for debugging
+        // Check if user is resident
+        if (profile.role && profile.role !== 'resident') {
+          console.log('Non-resident user detected during profile fetch');
+          handleNonResidentAccess();
+          return;
+        }
+
         console.log("User profile loaded:", {
           uid: profile.uid,
           email: profile.email,
@@ -229,7 +264,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           suspended: !!profile.suspensionUntil
         });
 
-        // Check status on initial load
         checkAccountStatus(profile);
       } else {
         console.log("User profile document does not exist, creating basic profile");
@@ -245,6 +279,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUserProfile(basicProfile);
         lastStatusRef.current = "pending";
+        checkAccountStatus(basicProfile);
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -265,7 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
-      hasRedirectedRef.current = false; // Reset redirect flag on manual refresh
+      hasRedirectedRef.current = false;
       await fetchUserProfile(user.uid);
     }
   };
@@ -273,9 +308,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = !!user;
   const isAdmin = userProfile?.role === "admin" || false;
   const isStaff = ["admin", "monitor", "rescuer"].includes(userProfile?.role || "");
+  const isResident = userProfile?.role === "resident" || false;
   const isApproved = userProfile?.status === "active" || false;
   
-  // New status checks
   const isSuspended = (() => {
     if (!userProfile?.suspensionUntil) return false;
     const suspensionDate = userProfile.suspensionUntil.toDate 
@@ -293,6 +328,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     isAdmin,
     isStaff,
+    isResident,
     isApproved,
     isSuspended,
     isBanned,

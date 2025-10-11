@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LipaAlertHub - Smart Analytics</title>
+    <title>LipaAlertHub - Analytics</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
@@ -54,17 +54,6 @@
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes grow {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
         }
 
         .dashboard-container {
@@ -215,11 +204,113 @@
             background: linear-gradient(135deg, #d73527, #b92e20);
         }
 
+        /* IMPROVED FILTER SECTION */
+        .filter-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .filter-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .filter-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #d73527;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-input, .filter-select {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #d73527;
+            box-shadow: 0 0 0 2px rgba(215, 53, 39, 0.1);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .btn-filter {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-apply {
+            background: linear-gradient(135deg, #d73527, #b92e20);
+            color: white;
+        }
+
+        .btn-apply:hover {
+            background: linear-gradient(135deg, #b92e20, #9a251a);
+            transform: translateY(-2px);
+        }
+
+        .btn-clear {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
         .analytics-grid {
             display: grid;
-            grid-template-columns: repeat(6, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
-            padding: 20px;
+            padding: 0 20px 20px;
         }
 
         .stat-card {
@@ -231,7 +322,6 @@
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             position: relative;
             animation: fadeIn 0.5s ease;
-            grid-column: span 1;
         }
 
         .stat-card:hover {
@@ -253,118 +343,47 @@
             font-weight: 700;
             font-size: 28px;
             margin: 0;
-            transition: transform 0.3s ease;
         }
 
-        .stat-card h3.updated {
-            animation: grow 0.5s ease;
-        }
-
-        .trend-indicator {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .insights-section {
-            grid-column: 1 / -1;
+        .gender-stats {
             display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 15px;
-            animation: fadeIn 0.6s ease;
-        }
-
-        .insights-box {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
-        }
-
-        .insights-box h5 {
-            font-weight: 700;
-            margin-bottom: 12px;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .insights-box p {
-            margin-bottom: 8px;
-            line-height: 1.5;
-            opacity: 0.95;
-            font-size: 13px;
-        }
-
-        .filter-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        }
-
-        .filter-card h6 {
-            font-weight: 700;
-            margin-bottom: 12px;
-            color: #333;
-            font-size: 14px;
-        }
-
-        .filter-inputs {
-            display: flex;
-            flex-direction: column;
+            grid-template-columns: 1fr 1fr;
             gap: 10px;
+            margin-top: 10px;
         }
 
-        .filter-inputs input, .filter-inputs select {
-            padding: 8px 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 13px;
-        }
-
-        .filter-inputs button {
+        .gender-stat {
+            text-align: center;
             padding: 8px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .alert-badge {
-            background: rgba(255, 193, 7, 0.15);
-            border-left: 4px solid #ffc107;
-            color: #856404;
-            padding: 12px 15px;
             border-radius: 8px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 13px;
-            animation: slideDown 0.5s ease;
-            grid-column: 1 / -1;
+            background: #f8f9fa;
         }
 
-        .alert-badge.danger {
-            background: rgba(220, 53, 69, 0.15);
-            border-left-color: #dc3545;
-            color: #721c24;
+        .gender-stat.male {
+            border-left: 3px solid #007bff;
         }
 
-        .alert-badge.success {
-            background: rgba(40, 167, 69, 0.15);
-            border-left-color: #28a745;
-            color: #155724;
+        .gender-stat.female {
+            border-left: 3px solid #e83e8c;
+        }
+
+        .gender-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .gender-count {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
         }
 
         .charts-grid {
-            grid-column: 1 / -1;
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            padding: 0 20px 20px;
         }
 
         .chart-card {
@@ -396,11 +415,11 @@
 
         .chart-body {
             padding: 15px;
-            height: 250px;
+            height: 300px;
         }
 
         .chart-body.tall {
-            height: 300px;
+            height: 350px;
         }
 
         canvas {
@@ -408,83 +427,42 @@
             height: 100% !important;
         }
 
-        .ranking-section {
-            grid-column: 1 / -1;
+        .export-section {
             background: white;
             border-radius: 12px;
             padding: 20px;
+            margin: 20px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             animation: fadeIn 0.8s ease;
         }
 
-        .ranking-section h5 {
-            color: #333;
+        .export-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .export-title {
+            font-size: 18px;
             font-weight: 700;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .ranking-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-        }
-
-        .ranking-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            transition: transform 0.3s ease;
-        }
-
-        .ranking-item:hover {
-            transform: translateX(5px);
-        }
-
-        .ranking-medal {
-            font-size: 24px;
-        }
-
-        .ranking-info {
-            flex: 1;
-        }
-
-        .ranking-name {
-            font-weight: 600;
-            color: #333;
-            font-size: 14px;
-        }
-
-        .ranking-count {
             color: #d73527;
-            font-weight: 700;
-            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .export-buttons {
-            position: fixed;
-            bottom: 25px;
-            right: 25px;
+        .export-actions {
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 99;
+            gap: 15px;
+            flex-wrap: wrap;
         }
 
         .export-btn {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
+            padding: 12px 24px;
             border: none;
-            padding: 14px 24px;
-            border-radius: 50px;
+            border-radius: 8px;
             font-weight: 600;
-            font-size: 14px;
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
@@ -492,18 +470,24 @@
             gap: 8px;
         }
 
-        .export-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.5);
-        }
-
         .export-btn.pdf {
             background: linear-gradient(135deg, #dc3545, #c82333);
-            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+            color: white;
         }
 
         .export-btn.pdf:hover {
-            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.5);
+            background: linear-gradient(135deg, #c82333, #bd2130);
+            transform: translateY(-2px);
+        }
+
+        .export-btn.excel {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .export-btn.excel:hover {
+            background: linear-gradient(135deg, #20c997, #17a2b8);
+            transform: translateY(-2px);
         }
 
         .sidebar-overlay {
@@ -524,14 +508,6 @@
             visibility: visible;
         }
 
-        .comparison-toggle {
-            grid-column: 1 / -1;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            padding: 10px;
-        }
-
         @media (min-width: 769px) {
             .sidebar {
                 transform: translateX(0);
@@ -546,73 +522,26 @@
             }
         }
 
-        @media (max-width: 1400px) {
-            .analytics-grid {
-                grid-template-columns: repeat(6, 1fr);
-            }
-            
-            .charts-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .chart-card.wide {
-                grid-column: span 1;
-            }
-        }
-
-        @media (max-width: 992px) {
-            .analytics-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            
-            .insights-section {
-                grid-template-columns: 1fr;
-            }
-            
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .chart-card.wide {
-                grid-column: span 1;
-            }
-        }
-
         @media (max-width: 768px) {
-            .analytics-grid {
-                grid-template-columns: repeat(2, 1fr);
-                padding: 15px;
-                gap: 12px;
+            .filter-controls {
+                grid-template-columns: 1fr;
             }
             
-            .header {
-                padding: 12px 15px;
-            }
-
-            .page-title {
-                font-size: 20px;
+            .charts-grid {
+                grid-template-columns: 1fr;
             }
             
-            .stat-card {
-                padding: 15px;
+            .chart-card.wide {
+                grid-column: span 1;
             }
             
-            .stat-card h3 {
-                font-size: 24px;
+            .export-actions {
+                flex-direction: column;
             }
             
-            .chart-body {
-                height: 220px;
-            }
-            
-            .export-buttons {
-                bottom: 15px;
-                right: 15px;
-            }
-
             .export-btn {
-                padding: 12px 20px;
-                font-size: 13px;
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
@@ -622,9 +551,9 @@
         <div class="loading-spinner"></div>
         <div style="text-align: center;">
             <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
-                Loading Smart Analytics...
+                Loading Analytics...
             </div>
-            <small style="opacity: 0.8;">Processing emergency data with AI insights</small>
+            <small style="opacity: 0.8;">Processing data</small>
         </div>
     </div>
 
@@ -635,7 +564,7 @@
             <div class="sidebar-header">
                 <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
                 <div class="brand-title">LipaAlertHub</div>
-                <div class="brand-subtitle">Disaster Management System</div>
+                <div class="brand-subtitle">Report Management System</div>
             </div>
             
             <nav class="sidebar-nav">
@@ -711,6 +640,14 @@
                         <span>Contacts</span>
                     </a>
                 </div>
+
+                
+                   <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="changepassword.html" class="nav-link">
+                        <i class="fas fa-key"></i>
+                        Change Password
+                    </a>
+                </div>
             </nav>
         </div>
 
@@ -738,18 +675,63 @@
                 </div>
             </div>
 
+            <!-- IMPROVED FILTER SECTION -->
+            <div class="filter-section">
+                <div class="filter-header">
+                    <div class="filter-title">
+                        <i class="fas fa-filter"></i>
+                        Data Filters
+                    </div>
+                </div>
+                
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label class="filter-label">Start Date</label>
+                        <input type="date" id="startDate" class="filter-input">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">End Date</label>
+                        <input type="date" id="endDate" class="filter-input">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">Incident Type</label>
+                        <select id="incidentFilter" class="filter-select">
+                            <option value="">All Incident Types</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">Barangay</label>
+                        <select id="barangayFilter" class="filter-select">
+                            <option value="">All Barangays</option>
+                            <!-- Barangay options will be populated here -->
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="filter-actions">
+                    <button class="btn-filter btn-clear" id="clearFilter">
+                        <i class="fas fa-times"></i> Clear Filters
+                    </button>
+                    <button class="btn-filter btn-apply" id="applyFilter">
+                        <i class="fas fa-filter"></i> Apply Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- ANALYTICS GRID -->
             <div class="analytics-grid">
-                <!-- Summary Cards - All 6 in one row -->
+                <!-- Summary Cards -->
                 <div class="stat-card">
                     <h6>Total Reports</h6>
                     <h3 id="totalReports">0</h3>
-                    <span class="trend-indicator" id="trendReports"></span>
                 </div>
 
                 <div class="stat-card">
                     <h6>SOS Calls</h6>
                     <h3 id="totalSOS">0</h3>
-                    <span class="trend-indicator" id="trendSOS"></span>
                 </div>
 
                 <div class="stat-card">
@@ -760,145 +742,104 @@
                 <div class="stat-card">
                     <h6>Active Users</h6>
                     <h3 id="totalUsers">0</h3>
-                    <span class="trend-indicator" id="trendUsers"></span>
                 </div>
 
+                <!-- GENDER STATISTICS -->
                 <div class="stat-card">
-                    <h6>Avg Response</h6>
-                    <h3 id="avgResponse">--</h3>
+                    <h6>Gender Distribution</h6>
+                    <h3 id="totalPatients">0</h3>
+                    <div class="gender-stats">
+                        <div class="gender-stat male">
+                            <div class="gender-label">Male</div>
+                            <div class="gender-count" id="maleCount">0</div>
+                        </div>
+                        <div class="gender-stat female">
+                            <div class="gender-label">Female</div>
+                            <div class="gender-count" id="femaleCount">0</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="stat-card">
                     <h6>Resolved Rate</h6>
                     <h3 id="resolvedRate">0%</h3>
                 </div>
+            </div>
 
-                <!-- Alert Notifications -->
-                <div id="alertContainer"></div>
-
-                <!-- Insights Section -->
-                <div class="insights-section">
-                    <div class="insights-box">
-                        <h5><i class="fas fa-lightbulb"></i> Quick Suggestions</h5>
-                        <div id="insightsContent">
-                            <p><i class="fas fa-spinner fa-spin"></i> Loading suggestions...</p>
-                        </div>
+            <!-- CHARTS GRID -->
+            <div class="charts-grid">
+                <div class="chart-card wide">
+                    <div class="chart-header">
+                        <i class="fas fa-chart-area"></i> Incident Trends Over Time
                     </div>
-
-                    <div class="filter-card">
-                        <h6><i class="fas fa-filter"></i> Filters</h6>
-                        <div class="filter-inputs">
-                            <input type="date" id="startDate" placeholder="Start Date">
-                            <input type="date" id="endDate" placeholder="End Date">
-                            <select id="incidentFilter">
-                                <option value="">All Incident Types</option>
-                            </select>
-                            <select id="barangayFilter">
-                                <option value="">All Barangays</option>
-                            </select>
-                            <button class="btn btn-danger btn-sm" id="applyFilter">
-                                <i class="fas fa-filter"></i> Apply
-                            </button>
-                            <button class="btn btn-outline-secondary btn-sm" id="clearFilter">
-                                <i class="fas fa-times"></i> Clear
-                            </button>
-                        </div>
+                    <div class="chart-body tall">
+                        <canvas id="timelineChart"></canvas>
                     </div>
                 </div>
 
-                <!-- Comparison Toggle -->
-                <div class="comparison-toggle">
-                    <button class="btn btn-outline-danger" id="compareToggle">
-                        <i class="fas fa-chart-bar"></i> Week-over-Week Comparison
-                    </button>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <i class="fas fa-chart-pie"></i> Status Distribution
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="reportsChart"></canvas>
+                    </div>
                 </div>
 
-                <!-- Charts Grid -->
-                <div class="charts-grid">
-                    <div class="chart-card wide">
-                        <div class="chart-header">
-                            <i class="fas fa-chart-area"></i> Incident Trends Over Time
-                        </div>
-                        <div class="chart-body tall">
-                            <canvas id="timelineChart"></canvas>
-                        </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <i class="fas fa-venus-mars"></i> Gender Distribution
                     </div>
-
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <i class="fas fa-chart-pie"></i> Status Distribution
-                        </div>
-                        <div class="chart-body tall">
-                            <canvas id="reportsChart"></canvas>
-                        </div>
+                    <div class="chart-body">
+                        <canvas id="genderChart"></canvas>
                     </div>
+                </div>
 
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <i class="fas fa-fire"></i> Top 5 Incident Types
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="incidentTypeChart"></canvas>
-                        </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <i class="fas fa-fire"></i> Top Incident Types
                     </div>
-
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <i class="fas fa-phone-alt"></i> SOS Calls by Agency
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="sosAgencyChart"></canvas>
-                        </div>
+                    <div class="chart-body">
+                        <canvas id="incidentTypeChart"></canvas>
                     </div>
+                </div>
 
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <i class="fas fa-clock"></i> Hourly Report Distribution
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="reportTimeChart"></canvas>
-                        </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <i class="fas fa-phone-alt"></i> SOS Calls by Agency
                     </div>
-
-                    <div class="chart-card full">
-                        <div class="chart-header">
-                            <i class="fas fa-map-marker-alt"></i> Top Barangays by Reports
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="barangayChart"></canvas>
-                        </div>
+                    <div class="chart-body">
+                        <canvas id="sosAgencyChart"></canvas>
                     </div>
+                </div>
 
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <i class="fas fa-chart-line"></i> SOS Trend (Last 7 Days)
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="sosTrendChart"></canvas>
-                        </div>
+                <div class="chart-card full">
+                    <div class="chart-header">
+                        <i class="fas fa-map-marker-alt"></i> Top Barangays by Reports
                     </div>
-
-                    <div class="chart-card wide">
-                        <div class="chart-header">
-                            <i class="fas fa-map-marked-alt"></i> Barangay Activity
-                        </div>
-                        <div class="chart-body">
-                            <div id="rankingList" style="padding: 10px; overflow-y: auto; height: 100%;">
-                                <div style="text-align: center; color: #999;">Loading barangay data...</div>
-                            </div>
-                        </div>
+                    <div class="chart-body">
+                        <canvas id="barangayChart"></canvas>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="export-buttons">
-            <button class="export-btn pdf" onclick="generatePDF()">
-                <i class="fas fa-file-pdf"></i>Generate PDF
-            </button>
-            <button class="export-btn" onclick="exportToExcel()">
-                <i class="fas fa-file-excel"></i>Export Excel
-            </button>
+            <!-- EXPORT SECTION -->
+            <div class="export-section">
+                <div class="export-header">
+                    <div class="export-title">
+                        <i class="fas fa-download"></i>
+                        Export Reports
+                    </div>
+                </div>
+                <div class="export-actions">
+                    <button class="export-btn pdf" onclick="generatePDF()">
+                        <i class="fas fa-file-pdf"></i> Download PDF Report
+                    </button>
+                    <button class="export-btn excel" onclick="exportToExcel()">
+                        <i class="fas fa-file-excel"></i> Export Excel Data
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -930,8 +871,26 @@
         let allReports = [];
         let allSOSCalls = [];
         let allUsers = [];
-        let showComparison = false;
-        let previousWeekData = null;
+        let allPatientForms = [];
+
+        // Official 72 Barangays of Lipa City
+        const lipaBarangays = [
+            "Adya", "Anilao", "Anilao-Labac", "Antipolo Del Norte", "Antipolo Del Sur", 
+            "Bagong Pook", "Banaybanay", "Barangay 1", "Barangay 2", "Barangay 3", 
+            "Barangay 4", "Barangay 5", "Barangay 6", "Barangay 7", "Barangay 8", 
+            "Barangay 9", "Barangay 9-A", "Barangay 10", "Barangay 11 Balintawak", 
+            "Bolbok", "Bugtong na Pulo", "Bulacnin", "Bulaklakan", "Calamias", 
+            "Cumba", "Dagatan", "Duhatan", "Fernando Air Base", "Halang", 
+            "Inosluban", "Kayumanggi", "Latag", "Lodlod", "Lumbang", 
+            "Mabini", "Malagonlong", "Malitlit", "Marawoy", "Mataas na Lupa", 
+            "Munting Pulo", "Pag-olingin Bata", "Pag-olingin East", "Pag-olingin West", 
+            "Pangao", "Pinagkawitan", "Pinagtongulan", "Plaridel", "Pusil", 
+            "Quezon", "Rizal", "Sabang", "San Benito", "San Carlos", 
+            "San Celestino", "San Francisco", "San Guillermo", "San Isidro", 
+            "San Jose", "San Lucas", "San Salvador", "San Sebastian", "Sampaguita", 
+            "Sico", "Sto. Niño", "Sto. Toribio", "Talisay", "Tambo", 
+            "Tangob", "Tangway", "Tibig", "Tipacan"
+        ];
 
         window.toggleSidebar = function() {
             document.getElementById('sidebar').classList.toggle('show');
@@ -960,16 +919,46 @@
                 document.getElementById('loadingOverlay').style.display = 'none';
                 document.getElementById('dashboardContainer').style.display = 'block';
                 
+                // Set max date for date pickers to today
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('startDate').setAttribute('max', today);
+                document.getElementById('endDate').setAttribute('max', today);
+                
+                // Populate barangay dropdown
+                populateBarangayDropdown();
+                
                 loadFilterFromMemory();
                 loadAnalytics();
                 setupFilterListeners();
-                setupComparisonToggle();
             } catch (error) {
                 console.error("Auth error:", error);
                 alert("Error verifying permissions");
                 window.location.href = "Dashboard.html";
             }
         });
+
+        function populateBarangayDropdown() {
+            const barangayFilter = document.getElementById('barangayFilter');
+            const currentBrgy = barangayFilter.value;
+            
+            // Clear existing options except the first one
+            while (barangayFilter.options.length > 1) {
+                barangayFilter.remove(1);
+            }
+            
+            // Add all 72 barangays in alphabetical order
+            lipaBarangays.sort().forEach(brgy => {
+                const opt = document.createElement('option');
+                opt.value = brgy;
+                opt.textContent = brgy;
+                barangayFilter.appendChild(opt);
+            });
+            
+            // Restore previously selected value if any
+            if (currentBrgy) {
+                barangayFilter.value = currentBrgy;
+            }
+        }
 
         function loadFilterFromMemory() {
             const filters = window.analyticsFilters || {};
@@ -988,44 +977,6 @@
             };
         }
 
-        function setupComparisonToggle() {
-            document.getElementById('compareToggle').addEventListener('click', () => {
-                showComparison = !showComparison;
-                const btn = document.getElementById('compareToggle');
-                if (showComparison) {
-                    btn.classList.add('active');
-                    btn.innerHTML = '<i class="fas fa-chart-bar"></i> Hide Comparison';
-                    calculatePreviousWeek();
-                } else {
-                    btn.classList.remove('active');
-                    btn.innerHTML = '<i class="fas fa-chart-bar"></i> Week-over-Week Comparison';
-                }
-                applyDateFilter();
-            });
-        }
-
-        function calculatePreviousWeek() {
-            const currentEnd = new Date();
-            const currentStart = new Date(currentEnd);
-            currentStart.setDate(currentStart.getDate() - 7);
-            
-            const prevEnd = new Date(currentStart);
-            prevEnd.setDate(prevEnd.getDate() - 1);
-            const prevStart = new Date(prevEnd);
-            prevStart.setDate(prevStart.getDate() - 7);
-            
-            previousWeekData = {
-                reports: allReports.filter(r => {
-                    const date = extractDate(r.createdAt);
-                    return date && date >= prevStart && date <= prevEnd;
-                }),
-                sos: allSOSCalls.filter(s => {
-                    const date = extractDate(s.createdAt || s.timestamp);
-                    return date && date >= prevStart && date <= prevEnd;
-                })
-            };
-        }
-
         function setupFilterListeners() {
             document.getElementById('applyFilter').addEventListener('click', () => {
                 saveFiltersToMemory();
@@ -1040,18 +991,52 @@
                 window.analyticsFilters = {};
                 applyDateFilter();
             });
+
+            // Add validation for date inputs
+            document.getElementById('startDate').addEventListener('change', validateDates);
+            document.getElementById('endDate').addEventListener('change', validateDates);
+        }
+
+        function validateDates() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Check if start date is in the future
+            if (startDate && startDate > today) {
+                alert('Start date cannot be in the future');
+                document.getElementById('startDate').value = '';
+                return false;
+            }
+            
+            // Check if end date is in the future
+            if (endDate && endDate > today) {
+                alert('End date cannot be in the future');
+                document.getElementById('endDate').value = '';
+                return false;
+            }
+            
+            // Check if start date is after end date
+            if (startDate && endDate && startDate > endDate) {
+                alert('Start date cannot be after end date');
+                document.getElementById('startDate').value = '';
+                document.getElementById('endDate').value = '';
+                return false;
+            }
+            
+            return true;
         }
 
         function applyDateFilter() {
+            if (!validateDates()) return;
+            
             const filtered = getFilteredReports();
             const filteredSOS = getFilteredSOSCalls();
             
             updateReportCharts(filtered);
             updateSOSCharts(filteredSOS);
             updateMetrics();
-            updateInsights();
-            updateAlerts();
-            updateRankings(filtered);
+            updateGenderStats();
         }
 
         function getFilteredReports() {
@@ -1098,6 +1083,7 @@
         }
 
         function loadAnalytics() {
+            // Load incident reports
             onSnapshot(collection(db, "incident_reports"), snap => {
                 allReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 const filtered = getFilteredReports();
@@ -1105,50 +1091,93 @@
                 updateStatCard('totalReports', filtered.length);
                 updateMetrics();
                 updateReportCharts(filtered);
-                updateInsights();
-                updateAlerts();
-                calculateTrends();
-                updateRankings(filtered);
-                populateFilterDropdowns();
+                populateIncidentTypeDropdown();
             });
 
+            // Load SOS calls
             onSnapshot(collection(db, "sos_calls"), snap => {
                 allSOSCalls = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 const filtered = getFilteredSOSCalls();
                 
                 updateStatCard('totalSOS', filtered.length);
                 updateSOSCharts(filtered);
-                updateInsights();
-                updateAlerts();
             });
 
+            // Load users
             onSnapshot(collection(db, "users"), snap => {
                 allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 const active = allUsers.filter(u => u.status === 'active');
                 updateStatCard('totalUsers', active.length);
-                calculateTrends();
+            });
+
+            // Load patient forms for gender data
+            onSnapshot(collection(db, "patient_forms"), snap => {
+                allPatientForms = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                updateGenderStats();
             });
         }
 
         function updateStatCard(id, value) {
             const el = document.getElementById(id);
             if (el) {
-                el.classList.add('updated');
                 el.innerText = value;
-                setTimeout(() => el.classList.remove('updated'), 500);
             }
         }
 
-        function populateFilterDropdowns() {
+        function updateGenderStats() {
+            let totalPatients = 0;
+            let maleCount = 0;
+            let femaleCount = 0;
+
+            allPatientForms.forEach(form => {
+                if (form.patients && Array.isArray(form.patients)) {
+                    form.patients.forEach(patient => {
+                        totalPatients++;
+                        if (patient.sex === 'Male') {
+                            maleCount++;
+                        } else if (patient.sex === 'Female') {
+                            femaleCount++;
+                        }
+                    });
+                }
+            });
+
+            updateStatCard('totalPatients', totalPatients);
+            updateStatCard('maleCount', maleCount);
+            updateStatCard('femaleCount', femaleCount);
+
+            // Update gender chart
+            updateChart('genderChart', {
+                type: 'doughnut',
+                data: {
+                    labels: ['Male', 'Female'],
+                    datasets: [{
+                        data: [maleCount, femaleCount],
+                        backgroundColor: ['#007bff', '#e83e8c'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12
+                        }
+                    }
+                }
+            });
+        }
+
+        function populateIncidentTypeDropdown() {
             const incidentTypes = new Set();
-            const barangays = new Set();
             
             allReports.forEach(r => {
                 const type = r.emergencyType || r.incidentType;
                 if (type) incidentTypes.add(type);
-                
-                const brgy = r.barangay || r.location?.barangay;
-                if (brgy && brgy !== 'Unknown') barangays.add(brgy);
             });
             
             const incidentFilter = document.getElementById('incidentFilter');
@@ -1161,17 +1190,6 @@
                 incidentFilter.appendChild(opt);
             });
             incidentFilter.value = currentIncident;
-            
-            const barangayFilter = document.getElementById('barangayFilter');
-            const currentBrgy = barangayFilter.value;
-            barangayFilter.innerHTML = '<option value="">All Barangays</option>';
-            Array.from(barangays).sort().forEach(brgy => {
-                const opt = document.createElement('option');
-                opt.value = brgy;
-                opt.textContent = brgy;
-                barangayFilter.appendChild(opt);
-            });
-            barangayFilter.value = currentBrgy;
         }
 
         function updateMetrics() {
@@ -1183,213 +1201,6 @@
             
             const resolvedRate = filtered.length > 0 ? ((resolved / filtered.length) * 100).toFixed(0) : 0;
             updateStatCard('resolvedRate', resolvedRate + '%');
-            
-            const avgHours = 2.5;
-            updateStatCard('avgResponse', avgHours + 'h');
-        }
-
-        function calculateTrends() {
-            const now = new Date();
-            const lastWeek = new Date(now);
-            lastWeek.setDate(lastWeek.getDate() - 7);
-            const twoWeeksAgo = new Date(now);
-            twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-            
-            const lastWeekReports = allReports.filter(r => {
-                const date = extractDate(r.createdAt);
-                return date && date >= lastWeek;
-            }).length;
-            
-            const prevWeekReports = allReports.filter(r => {
-                const date = extractDate(r.createdAt);
-                return date && date >= twoWeeksAgo && date < lastWeek;
-            }).length;
-            
-            const lastWeekSOS = allSOSCalls.filter(s => {
-                const date = extractDate(s.createdAt || s.timestamp);
-                return date && date >= lastWeek;
-            }).length;
-            
-            const prevWeekSOS = allSOSCalls.filter(s => {
-                const date = extractDate(s.createdAt || s.timestamp);
-                return date && date >= twoWeeksAgo && date < lastWeek;
-            }).length;
-            
-            updateTrendIndicator('trendReports', prevWeekReports, lastWeekReports);
-            updateTrendIndicator('trendSOS', prevWeekSOS, lastWeekSOS);
-            
-            const lastMonthUsers = allUsers.length;
-            updateTrendIndicator('trendUsers', Math.floor(lastMonthUsers * 0.9), lastMonthUsers);
-        }
-
-        function updateTrendIndicator(elementId, oldValue, newValue) {
-            const element = document.getElementById(elementId);
-            if (!element) return;
-            
-            if (oldValue === 0 && newValue === 0) {
-                element.innerHTML = '';
-                return;
-            }
-            
-            const percentChange = oldValue === 0 ? 100 : ((newValue - oldValue) / oldValue * 100);
-            const isPositive = percentChange > 0;
-            const arrow = isPositive ? '▲' : '▼';
-            const colorClass = isPositive ? 'text-success' : 'text-danger';
-            
-            element.innerHTML = `<span class="${colorClass}">${arrow} ${Math.abs(percentChange).toFixed(0)}%</span>`;
-        }
-
-        function updateInsights() {
-            const filtered = getFilteredReports();
-            const container = document.getElementById('insightsContent');
-            
-            if (filtered.length === 0) {
-                container.innerHTML = '<p>No data available for the selected period.</p>';
-                return;
-            }
-            
-            const suggestions = [];
-            
-            const typeCounts = {};
-            filtered.forEach(r => {
-                const type = r.emergencyType || r.incidentType || 'Unknown';
-                typeCounts[type] = (typeCounts[type] || 0) + 1;
-            });
-            const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
-            const topType = sortedTypes[0];
-            
-            if (topType) {
-                suggestions.push(`Most common: <strong>${topType[0]}</strong> with <strong>${topType[1]} reports</strong>`);
-            }
-            
-            const barangayCounts = {};
-            filtered.forEach(r => {
-                const brgy = r.barangay || r.location?.barangay || 'Unknown';
-                barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
-            });
-            const sortedBrgys = Object.entries(barangayCounts).sort((a, b) => b[1] - a[1]);
-            const topBarangay = sortedBrgys[0];
-            
-            if (topBarangay && topBarangay[0] !== 'Unknown') {
-                suggestions.push(`Focus on <strong>${topBarangay[0]}</strong> - highest activity area`);
-            }
-            
-            const hourCounts = Array(24).fill(0);
-            filtered.forEach(r => {
-                const date = extractDate(r.createdAt);
-                if (date) hourCounts[date.getHours()]++;
-            });
-            const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
-            
-            if (hourCounts[peakHour] > 0) {
-                const time = peakHour === 0 ? '12 AM' : peakHour < 12 ? `${peakHour} AM` : peakHour === 12 ? '12 PM' : `${peakHour - 12} PM`;
-                suggestions.push(`Peak time: <strong>${time}</strong> - prepare resources accordingly`);
-            }
-            
-            const unresolved = filtered.filter(r => r.status !== 'resolved').length;
-            if (unresolved > 0) {
-                suggestions.push(`<strong>${unresolved} pending reports</strong> - review and assign responders`);
-            }
-            
-            const lastWeek = new Date();
-            lastWeek.setDate(lastWeek.getDate() - 7);
-            const recentReports = filtered.filter(r => {
-                const date = extractDate(r.createdAt);
-                return date && date >= lastWeek;
-            }).length;
-            
-            if (recentReports > filtered.length * 0.4) {
-                suggestions.push(`Recent surge: <strong>${recentReports} reports</strong> in last 7 days - monitor closely`);
-            }
-            
-            container.innerHTML = suggestions.map(s => `<p>• ${s}</p>`).join('');
-        }
-
-        function updateAlerts() {
-            const container = document.getElementById('alertContainer');
-            const filtered = getFilteredReports();
-            const alerts = [];
-            
-            const today = new Date();
-            const yesterday = new Date(today);
-            yesterday.setDate(yesterday.getDate() - 1);
-            
-            const todayReports = filtered.filter(r => {
-                const date = extractDate(r.createdAt);
-                return date && date.toDateString() === today.toDateString();
-            }).length;
-            
-            const yesterdayReports = filtered.filter(r => {
-                const date = extractDate(r.createdAt);
-                return date && date.toDateString() === yesterday.toDateString();
-            }).length;
-            
-            if (yesterdayReports > 0 && todayReports > yesterdayReports * 1.35) {
-                const increase = ((todayReports - yesterdayReports) / yesterdayReports * 100).toFixed(0);
-                alerts.push({
-                    type: 'danger',
-                    message: `🚨 Spike Detected: Reports increased by ${increase}% today (${todayReports} vs ${yesterdayReports} yesterday)`
-                });
-            } else if (todayReports < yesterdayReports * 0.7 && yesterdayReports > 5) {
-                const decrease = ((yesterdayReports - todayReports) / yesterdayReports * 100).toFixed(0);
-                alerts.push({
-                    type: 'success',
-                    message: `✅ Reports decreased by ${decrease}% today — positive trend`
-                });
-            }
-            
-            if (alerts.length === 0) {
-                container.innerHTML = '';
-                return;
-            }
-            
-            container.innerHTML = alerts.map(a => `
-                <div class="alert-badge ${a.type}">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>${a.message}</span>
-                </div>
-            `).join('');
-        }
-
-        function updateRankings(reports) {
-            const barangayCounts = {};
-            const barangayTypes = {};
-            
-            reports.forEach(r => {
-                const brgy = r.barangay || r.location?.barangay || 'Unknown';
-                const type = r.emergencyType || r.incidentType || 'Unknown';
-                
-                barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
-                
-                if (!barangayTypes[brgy]) barangayTypes[brgy] = {};
-                barangayTypes[brgy][type] = (barangayTypes[brgy][type] || 0) + 1;
-            });
-            
-            const sorted = Object.entries(barangayCounts)
-                .filter(([name]) => name !== 'Unknown')
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5);
-            
-            const container = document.getElementById('rankingList');
-            
-            if (sorted.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #999;">No barangay data available</div>';
-                return;
-            }
-            
-            container.innerHTML = sorted.map(([name, count]) => {
-                const types = barangayTypes[name];
-                const topType = Object.entries(types).sort((a, b) => b[1] - a[1])[0];
-                
-                return `
-                    <div class="ranking-item">
-                        <div class="ranking-info">
-                            <div class="ranking-name">${name}</div>
-                            <div class="ranking-count">${count} reports · Most common: ${topType[0]}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
         }
 
         function extractDate(timestamp) {
@@ -1412,6 +1223,7 @@
         }
 
         function updateReportCharts(reports) {
+            // Timeline Chart
             const dailyCounts = {};
             reports.forEach(r => {
                 const date = extractDate(r.createdAt);
@@ -1424,76 +1236,34 @@
             const sortedDates = Object.keys(dailyCounts).sort().slice(-30);
             const timelineData = sortedDates.map(d => dailyCounts[d]);
             
-            const datasets = [{
-                label: 'This Period',
-                data: timelineData,
-                borderColor: '#d73527',
-                backgroundColor: 'rgba(215, 53, 39, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }];
-            
-            if (showComparison && previousWeekData) {
-                const prevDaily = {};
-                previousWeekData.reports.forEach(r => {
-                    const date = extractDate(r.createdAt);
-                    if (date) {
-                        const key = date.toISOString().split('T')[0];
-                        prevDaily[key] = (prevDaily[key] || 0) + 1;
-                    }
-                });
-                
-                const prevSorted = Object.keys(prevDaily).sort().slice(-30);
-                const prevData = prevSorted.map(d => prevDaily[d]);
-                
-                datasets.push({
-                    label: 'Previous Week',
-                    data: prevData,
-                    borderColor: '#6c757d',
-                    backgroundColor: 'rgba(108, 117, 125, 0.1)',
-                    tension: 0.4,
-                    fill: false,
-                    pointRadius: 3,
-                    borderDash: [5, 5]
-                });
-            }
-            
             updateChart('timelineChart', {
                 type: 'line',
                 data: {
                     labels: sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
-                    datasets: datasets
+                    datasets: [{
+                        label: 'Reports',
+                        data: timelineData,
+                        borderColor: '#d73527',
+                        backgroundColor: 'rgba(215, 53, 39, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false
-                    },
                     scales: { 
                         y: { 
                             beginAtZero: true,
                             ticks: { precision: 0 }
                         } 
-                    },
-                    plugins: { 
-                        legend: { 
-                            display: showComparison,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12,
-                            titleColor: '#fff',
-                            bodyColor: '#fff'
-                        }
                     }
                 }
             });
             
+            // Status Distribution
             const statusCounts = { pending: 0, assigned: 0, resolved: 0 };
             reports.forEach(r => {
                 const status = r.status || 'pending';
@@ -1517,15 +1287,12 @@
                     responsive: true, 
                     maintainAspectRatio: false,
                     plugins: { 
-                        legend: { position: 'bottom' },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12
-                        }
+                        legend: { position: 'bottom' }
                     }
                 }
             });
 
+            // Incident Types
             const typeCounts = {};
             reports.forEach(r => {
                 const type = r.emergencyType || r.incidentType || 'Unknown';
@@ -1541,7 +1308,7 @@
                     datasets: [{
                         label: 'Reports',
                         data: sortedTypes.map(t => t[1]),
-                        backgroundColor: ['#d73527', '#dc3545', '#e74c3c', '#f08080', '#ff6b6b'],
+                        backgroundColor: '#d73527',
                         borderRadius: 6
                     }]
                 },
@@ -1555,53 +1322,12 @@
                         } 
                     },
                     plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12
-                        }
+                        legend: { display: false }
                     }
                 }
             });
 
-            const hourCounts = Array(24).fill(0);
-            reports.forEach(r => {
-                const date = extractDate(r.createdAt);
-                if (date) hourCounts[date.getHours()]++;
-            });
-
-            updateChart('reportTimeChart', {
-                type: 'line',
-                data: {
-                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
-                    datasets: [{
-                        data: hourCounts,
-                        borderColor: '#d73527',
-                        backgroundColor: 'rgba(215, 53, 39, 0.2)',
-                        tension: 0.4,
-                        fill: true,
-                        pointRadius: 3
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    scales: { 
-                        y: { 
-                            beginAtZero: true,
-                            ticks: { precision: 0 }
-                        } 
-                    },
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12
-                        }
-                    }
-                }
-            });
-
+            // Barangay Chart
             const barangayCounts = {};
             reports.forEach(r => {
                 const brgy = r.barangay || r.location?.barangay || 'Unknown';
@@ -1634,108 +1360,13 @@
                         } 
                     },
                     plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12
-                        }
-                    }
-                }
-            });
-
-            const topBrgys = sortedBrgys.slice(0, 5);
-            const radarLabels = topBrgys.map(b => b[0]);
-            const radarData = topBrgys.map(b => b[1]);
-
-            updateChart('responseRadar', {
-                type: 'radar',
-                data: {
-                    labels: radarLabels.length > 0 ? radarLabels : ['No Data'],
-                    datasets: [{
-                        label: 'Reports',
-                        data: radarData.length > 0 ? radarData : [0],
-                        backgroundColor: 'rgba(215, 53, 39, 0.2)',
-                        borderColor: '#d73527',
-                        pointBackgroundColor: '#d73527',
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: '#d73527'
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    scales: {
-                        r: {
-                            beginAtZero: true,
-                            ticks: { precision: 0 }
-                        }
-                    },
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12
-                        }
+                        legend: { display: false }
                     }
                 }
             });
         }
 
         function updateSOSCharts(sosCalls) {
-            const last7Days = {};
-            const today = new Date();
-            
-            for (let i = 6; i >= 0; i--) {
-                const date = new Date(today);
-                date.setDate(date.getDate() - i);
-                const key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                last7Days[key] = 0;
-            }
-
-            sosCalls.forEach(call => {
-                const date = extractDate(call.createdAt || call.timestamp);
-                if (!date) return;
-
-                const key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                if (last7Days.hasOwnProperty(key)) {
-                    last7Days[key]++;
-                }
-            });
-
-            updateChart('sosTrendChart', {
-                type: 'line',
-                data: {
-                    labels: Object.keys(last7Days),
-                    datasets: [{
-                        data: Object.values(last7Days),
-                        borderColor: '#dc3545',
-                        backgroundColor: 'rgba(220, 53, 69, 0.2)',
-                        tension: 0.4,
-                        fill: true,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    scales: { 
-                        y: { 
-                            beginAtZero: true,
-                            ticks: { precision: 0 }
-                        } 
-                    },
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12
-                        }
-                    }
-                }
-            });
-
             const agencyCounts = {
                 'PNP': 0,
                 'BFP': 0,
@@ -1774,12 +1405,7 @@
                     maintainAspectRatio: false,
                     plugins: { 
                         legend: { 
-                            position: 'bottom',
-                            labels: { padding: 10 }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12
+                            position: 'bottom'
                         }
                     }
                 }
@@ -1796,9 +1422,10 @@
             }
         }
 
+        // FIXED PDF GENERATION
         window.generatePDF = async function() {
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
+            const pdf = new jsPDF('p', 'mm', 'a4');
             
             const now = new Date();
             const dateStr = now.toLocaleDateString('en-US', { 
@@ -1807,125 +1434,109 @@
                 day: 'numeric' 
             });
             
-            doc.setFontSize(20);
-            doc.setTextColor(215, 53, 39);
-            doc.text('LipaAlertHub Analytics Report', 105, 20, { align: 'center' });
+            // Header
+            pdf.setFontSize(20);
+            pdf.setTextColor(215, 53, 39);
+            pdf.text('LipaAlertHub Analytics Report', 105, 20, { align: 'center' });
             
-            doc.setFontSize(12);
-            doc.setTextColor(100, 100, 100);
-            doc.text(`Generated: ${dateStr}`, 105, 28, { align: 'center' });
+            pdf.setFontSize(12);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`Generated: ${dateStr}`, 105, 28, { align: 'center' });
             
-            doc.setDrawColor(215, 53, 39);
-            doc.setLineWidth(0.5);
-            doc.line(20, 32, 190, 32);
+            pdf.setDrawColor(215, 53, 39);
+            pdf.setLineWidth(0.5);
+            pdf.line(20, 32, 190, 32);
             
+            let yPos = 42;
+
+            // Key Metrics
+            pdf.setFontSize(14);
+            pdf.setTextColor(0, 0, 0);
+            pdf.text('Key Metrics', 20, yPos);
+            yPos += 10;
+
             const filtered = getFilteredReports();
             const filteredSOS = getFilteredSOSCalls();
             
-            doc.setFontSize(14);
-            doc.setTextColor(0, 0, 0);
-            doc.text('Key Metrics', 20, 42);
-            
-            doc.setFontSize(11);
+            let maleCount = parseInt(document.getElementById('maleCount').textContent) || 0;
+            let femaleCount = parseInt(document.getElementById('femaleCount').textContent) || 0;
+
             const metrics = [
                 `Total Reports: ${filtered.length}`,
                 `SOS Calls: ${filteredSOS.length}`,
                 `Unresolved Reports: ${filtered.filter(r => r.status !== 'resolved').length}`,
                 `Active Users: ${allUsers.filter(u => u.status === 'active').length}`,
+                `Total Patients: ${maleCount + femaleCount}`,
+                `Male Patients: ${maleCount}`,
+                `Female Patients: ${femaleCount}`,
                 `Resolution Rate: ${filtered.length > 0 ? ((filtered.filter(r => r.status === 'resolved').length / filtered.length) * 100).toFixed(0) : 0}%`
             ];
             
-            let yPos = 50;
+            pdf.setFontSize(10);
             metrics.forEach(metric => {
-                doc.text(`• ${metric}`, 25, yPos);
-                yPos += 7;
+                pdf.text(`• ${metric}`, 25, yPos);
+                yPos += 6;
             });
-            
-            doc.setFontSize(14);
-            doc.text('Top Insights', 20, yPos + 5);
-            yPos += 13;
-            
-            const typeCounts = {};
-            filtered.forEach(r => {
-                const type = r.emergencyType || r.incidentType || 'Unknown';
-                typeCounts[type] = (typeCounts[type] || 0) + 1;
-            });
-            const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
-            
-            const barangayCounts = {};
-            filtered.forEach(r => {
-                const brgy = r.barangay || r.location?.barangay || 'Unknown';
-                barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
-            });
-            const topBarangay = Object.entries(barangayCounts).sort((a, b) => b[1] - a[1])[0];
-            
-            doc.setFontSize(10);
-            const insights = [
-                topType ? `Most Common Incident: ${topType[0]} (${topType[1]} cases)` : '',
-                topBarangay ? `Most Active Barangay: ${topBarangay[0]} (${topBarangay[1]} reports)` : ''
-            ].filter(i => i);
-            
-            insights.forEach(insight => {
-                doc.text(`• ${insight}`, 25, yPos);
-                yPos += 7;
-            });
-            
+
             yPos += 10;
-            
-            if (yPos < 250) {
-                try {
-                    const timelineCanvas = document.getElementById('timelineChart');
-                    if (timelineCanvas) {
-                        const imgData = timelineCanvas.toDataURL('image/png');
-                        doc.addImage(imgData, 'PNG', 20, yPos, 170, 80);
+
+            // Add charts as images
+            try {
+                const chartsToCapture = ['timelineChart', 'reportsChart', 'genderChart', 'incidentTypeChart'];
+                
+                for (const chartId of chartsToCapture) {
+                    if (yPos > 250) {
+                        pdf.addPage();
+                        yPos = 20;
                     }
-                } catch (e) {
-                    console.error('Error adding chart to PDF:', e);
+
+                    const canvas = document.getElementById(chartId);
+                    if (canvas) {
+                        const chartTitle = canvas.closest('.chart-card').querySelector('.chart-header').textContent;
+                        
+                        pdf.setFontSize(12);
+                        pdf.setTextColor(215, 53, 39);
+                        pdf.text(chartTitle, 20, yPos);
+                        yPos += 8;
+
+                        const imgData = canvas.toDataURL('image/png', 1.0);
+                        pdf.addImage(imgData, 'PNG', 20, yPos, 170, 80);
+                        yPos += 90;
+                    }
                 }
+            } catch (e) {
+                console.error('Error adding charts to PDF:', e);
+                pdf.text('Charts could not be generated in PDF', 20, yPos);
+                yPos += 10;
             }
-            
-            const filename = `Weekly_Analytics_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.pdf`;
-            doc.save(filename);
+
+            // Footer
+            pdf.setFontSize(8);
+            pdf.setTextColor(128, 128, 128);
+            const footerText = `LipaAlertHub Analytics - Page ${pdf.internal.getNumberOfPages()}`;
+            pdf.text(footerText, 105, 290, { align: 'center' });
+
+            // Download the PDF
+            const filename = `Analytics_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.pdf`;
+            pdf.save(filename);
         };
 
         window.exportToExcel = function() {
             const filtered = getFilteredReports();
             const sosFiltered = getFilteredSOSCalls();
             
+            let maleCount = parseInt(document.getElementById('maleCount').textContent) || 0;
+            let femaleCount = parseInt(document.getElementById('femaleCount').textContent) || 0;
+
             const summaryData = [
                 { Metric: 'Total Reports', Value: filtered.length },
                 { Metric: 'Unresolved Reports', Value: filtered.filter(r => r.status !== 'resolved').length },
                 { Metric: 'SOS Calls', Value: sosFiltered.length },
                 { Metric: 'Active Users', Value: allUsers.filter(u => u.status === 'active').length },
+                { Metric: 'Total Patients', Value: maleCount + femaleCount },
+                { Metric: 'Male Patients', Value: maleCount },
+                { Metric: 'Female Patients', Value: femaleCount },
                 { Metric: 'Resolution Rate', Value: filtered.length > 0 ? `${((filtered.filter(r => r.status === 'resolved').length / filtered.length) * 100).toFixed(0)}%` : '0%' }
-            ];
-            
-            const typeCounts = {};
-            filtered.forEach(r => {
-                const type = r.emergencyType || r.incidentType || 'Unknown';
-                typeCounts[type] = (typeCounts[type] || 0) + 1;
-            });
-            const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
-            
-            const barangayCounts = {};
-            filtered.forEach(r => {
-                const brgy = r.barangay || r.location?.barangay || 'Unknown';
-                barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
-            });
-            const topBarangay = Object.entries(barangayCounts).sort((a, b) => b[1] - a[1])[0];
-            
-            const hourCounts = Array(24).fill(0);
-            filtered.forEach(r => {
-                const date = extractDate(r.createdAt);
-                if (date) hourCounts[date.getHours()]++;
-            });
-            const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
-            
-            const insightsData = [
-                { Insight: 'Top Incident Type', Details: topType ? `${topType[0]} (${topType[1]} cases)` : 'N/A' },
-                { Insight: 'Most Active Barangay', Details: topBarangay ? `${topBarangay[0]} (${topBarangay[1]} reports)` : 'N/A' },
-                { Insight: 'Peak Hour', Details: `${peakHour}:00 (${hourCounts[peakHour]} reports)` },
-                { Insight: 'Unresolved Cases', Details: `${filtered.filter(r => r.status !== 'resolved').length} require attention` }
             ];
             
             const reportsData = filtered.map(r => ({
@@ -1934,41 +1545,15 @@
                 Barangay: r.barangay || r.location?.barangay || 'Unknown',
                 Status: r.status || 'pending',
                 Reporter: r.reporterName || r.name || 'Anonymous',
-                Date: extractDate(r.createdAt)?.toLocaleString() || 'Unknown',
-                Description: r.description || r.details || ''
+                Date: extractDate(r.createdAt)?.toLocaleString() || 'Unknown'
             }));
-            
-            const monthlyData = {};
-            filtered.forEach(r => {
-                const date = extractDate(r.createdAt);
-                if (date) {
-                    const key = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-                    monthlyData[key] = (monthlyData[key] || 0) + 1;
-                }
-            });
-            
-            const trendsData = Object.entries(monthlyData).map(([month, count]) => ({
-                Month: month,
-                'Total Reports': count
-            }));
-            
-            const barangayData = Object.entries(barangayCounts)
-                .filter(([name]) => name !== 'Unknown')
-                .sort((a, b) => b[1] - a[1])
-                .map(([name, count]) => ({
-                    Barangay: name,
-                    Reports: count
-                }));
             
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Summary');
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(insightsData), 'AI Insights');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportsData), 'Detailed Reports');
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trendsData), 'Monthly Trends');
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(barangayData), 'Barangay Rankings');
             
             const now = new Date();
-            const filename = `Analytics_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+            const filename = `Analytics_Data_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.xlsx`;
             
             XLSX.writeFile(wb, filename);
         };

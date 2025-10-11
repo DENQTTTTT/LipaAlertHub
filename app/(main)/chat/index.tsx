@@ -1,6 +1,6 @@
-// app/(main)/chat/index.tsx - Fixed Chat Modal Component
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,12 +24,15 @@ const { width } = Dimensions.get('window');
 
 interface ChatModalProps {
   isVisible: boolean;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
+  const hasMarkedAsReadRef = useRef(false);
+  const isMountedRef = useRef(true);
+  
   const { user } = useAuth();
   const {
     messages,
@@ -40,23 +43,83 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
     markMessagesAsRead,
   } = useChat();
 
-  // Mark messages as read when modal opens (only once)
-  useEffect(() => {
-    if (isVisible && connected && messages.length > 0) {
-      markMessagesAsRead();
+  // Safe onClose handler with proper navigation fallback
+  const handleCloseChat = useCallback(() => {
+    // Clear input immediately
+    setInputText('');
+    hasMarkedAsReadRef.current = false;
+    
+    // First try the provided onClose function
+    if (typeof onClose === 'function') {
+      onClose();
+    } else {
+      // Fallback navigation
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(main)');
+      }
     }
-  }, [isVisible, connected]); // Removed messages dependency to prevent constant calls
+  }, [onClose]);
+
+  // Safe close with confirmation
+  const handleCloseWithConfirmation = useCallback(() => {
+    Alert.alert(
+      'Close Chat',
+      'Are you sure you want to close this chat?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Close',
+          style: 'destructive',
+          onPress: handleCloseChat,
+        },
+      ]
+    );
+  }, [handleCloseChat]);
+
+  // Safe modal request close handler
+  const handleRequestClose = useCallback(() => {
+    if (inputText.trim().length > 0) {
+      handleCloseWithConfirmation();
+    } else {
+      handleCloseChat();
+    }
+  }, [inputText, handleCloseWithConfirmation, handleCloseChat]);
+
+  // Track component mount state
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Mark messages as read when modal opens (only once per open)
+  useEffect(() => {
+    if (isVisible && connected && !hasMarkedAsReadRef.current) {
+      markMessagesAsRead();
+      hasMarkedAsReadRef.current = true;
+    }
+    
+    // Reset flag when modal closes
+    if (!isVisible) {
+      hasMarkedAsReadRef.current = false;
+    }
+  }, [isVisible, connected, markMessagesAsRead]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (messages.length > 0 && isVisible) {
+    if (messages.length > 0 && isVisible && isMountedRef.current) {
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        if (isMountedRef.current) {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }
       }, 100);
     }
-  }, [messages, isVisible]);
+  }, [messages.length, isVisible]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!inputText.trim() || sending || !connected) return;
 
     const messageToSend = inputText.trim();
@@ -67,61 +130,58 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
       
       // Auto-scroll to bottom after sending
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        if (isMountedRef.current) {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }
       }, 100);
     } catch (error) {
       console.error('Error sending message:', error);
-      Alert.alert(
-        'Message Failed', 
-        'Failed to send message. Please try again.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Retry', 
-            onPress: () => setInputText(messageToSend) 
-          },
-        ]
-      );
+      
+      // Only show alert if component is still mounted
+      if (isMountedRef.current) {
+        Alert.alert(
+          'Message Failed', 
+          'Failed to send message. Please try again.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Retry', 
+              onPress: () => {
+                if (isMountedRef.current) {
+                  setInputText(messageToSend);
+                }
+              }
+            },
+          ]
+        );
+      }
     }
-  };
+  }, [inputText, sending, connected, sendMessage]);
 
-  const handleCloseChat = () => {
-    Alert.alert(
-      'Close Chat',
-      'Are you sure you want to close this chat?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Close',
-          style: 'destructive',
-          onPress: () => {
-            onClose();
-            setInputText('');
-          },
-        },
-      ]
-    );
-  };
-
-  const formatTime = (timestamp: any) => {
+  const formatTime = useCallback((timestamp: any) => {
     if (!timestamp) return '';
     
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / (1000 * 60));
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const minutes = Math.floor(diff / (1000 * 60));
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    
-    return date.toLocaleDateString();
-  };
+      if (minutes < 1) return 'Just now';
+      if (minutes < 60) return `${minutes}m ago`;
+      if (hours < 24) return `${hours}h ago`;
+      if (days < 7) return `${days}d ago`;
+      
+      return date.toLocaleDateString();
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return '';
+    }
+  }, []);
 
-  const renderMessage = ({ item }: { item: ChatMessage }) => {
+  const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
     const isUserMessage = item.senderRole === 'user';
     const isSystemMessage = item.senderId === 'system';
 
@@ -161,9 +221,9 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
         </View>
       </View>
     );
-  };
+  }, [formatTime]);
 
-  const renderEmptyState = () => (
+  const renderEmptyState = useCallback(() => (
     <View style={styles.emptyState}>
       <View style={styles.emptyIcon}>
         <Ionicons name="chatbubbles-outline" size={60} color="#ccc" />
@@ -173,7 +233,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
         Send a message to begin chatting with our support team
       </Text>
     </View>
-  );
+  ), []);
 
   const renderContent = () => {
     if (loading && messages.length === 0) {
@@ -194,7 +254,11 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
         style={styles.messagesList}
         contentContainerStyle={styles.messagesContent}
         ListEmptyComponent={renderEmptyState}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        onContentSizeChange={() => {
+          if (isMountedRef.current) {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }
+        }}
         showsVerticalScrollIndicator={false}
       />
     );
@@ -205,7 +269,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isVisible, onClose }) => {
       visible={isVisible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={handleCloseChat}
+      onRequestClose={handleRequestClose}
     >
       <SafeAreaView style={styles.container}>
         {/* Header */}

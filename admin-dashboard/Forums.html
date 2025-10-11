@@ -16,7 +16,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
             overflow-x: hidden;
         }
 
@@ -56,6 +56,28 @@
             min-height: 100vh;
         }
 
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: #d53b2c;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            width: 45px;
+            height: 45px;
+            font-size: 20px;
+            box-shadow: 0 4px 15px rgba(213, 59, 44, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .mobile-menu-toggle:active {
+            transform: scale(0.95);
+        }
+
         .sidebar {
             position: fixed;
             left: 0;
@@ -66,6 +88,7 @@
             z-index: 1000;
             overflow-y: auto;
             box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
         }
 
         .sidebar-header {
@@ -133,7 +156,7 @@
         .main-content {
             margin-left: 250px;
             min-height: 100vh;
-            background: #f8f9fa;
+            transition: margin-left 0.3s ease;
         }
 
         .header {
@@ -144,6 +167,9 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 999;
         }
 
         .page-title {
@@ -194,6 +220,197 @@
             padding: 30px;
         }
 
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            opacity: 0.1;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card.pending::before {
+            background: #ffc107;
+        }
+
+        .stat-card.approved::before {
+            background: #28a745;
+        }
+
+        .stat-card.rejected::before {
+            background: #dc3545;
+        }
+
+        .stat-card.total::before {
+            background: #007bff;
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover .stat-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .stat-card.pending .stat-icon {
+            background: linear-gradient(135deg, #ffc107, #ff9800);
+            color: white;
+        }
+
+        .stat-card.approved .stat-icon {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .stat-card.rejected .stat-icon {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+        }
+
+        .stat-card.total .stat-icon {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .stat-change {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .stat-change.positive {
+            color: #28a745;
+        }
+
+        .stat-change.negative {
+            color: #dc3545;
+        }
+
+        /* Search and Actions Bar */
+        .actions-bar {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .search-container {
+            position: relative;
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 45px 12px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #d53b2c;
+            box-shadow: 0 0 0 3px rgba(213, 59, 44, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-button.primary {
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            color: white;
+        }
+
+        .action-button.secondary {
+            background: white;
+            color: #d53b2c;
+            border: 2px solid #d53b2c;
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
         .content-card {
             background: white;
             border-radius: 15px;
@@ -228,27 +445,31 @@
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .tab-btn {
-            padding: 8px 16px;
+            padding: 10px 18px;
             border: 2px solid #d53b2c;
             background: white;
             color: #d53b2c;
-            border-radius: 20px;
+            border-radius: 25px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             font-size: 14px;
+            position: relative;
         }
 
         .tab-btn.active {
-            background: #d53b2c;
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
             color: white;
+            box-shadow: 0 5px 15px rgba(213, 59, 44, 0.3);
         }
 
-        .tab-btn:hover {
+        .tab-btn:hover:not(.active) {
             transform: translateY(-2px);
+            background: rgba(213, 59, 44, 0.1);
         }
 
         .posts-table {
@@ -262,7 +483,7 @@
         }
 
         .table thead th {
-            background: #f8f9fa;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
             border-bottom: 2px solid #dee2e6;
             font-weight: 600;
             color: #495057;
@@ -270,21 +491,32 @@
             text-transform: uppercase;
             font-size: 13px;
             letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .table tbody tr {
             transition: all 0.3s ease;
+            border-bottom: 1px solid #e9ecef;
         }
 
         .table tbody tr:hover {
-            background: #f8f9fa;
+            background: linear-gradient(90deg, rgba(213, 59, 44, 0.05) 0%, transparent 100%);
             transform: translateX(5px);
         }
 
         .table tbody td {
             padding: 15px;
             vertical-align: middle;
-            border-bottom: 1px solid #dee2e6;
+        }
+
+        /* Checkbox for bulk actions */
+        .bulk-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #d53b2c;
         }
 
         .status-badge {
@@ -293,24 +525,25 @@
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
+            display: inline-block;
         }
 
         .status-badge.pending {
-            background: #fff3cd;
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
             color: #856404;
-            border: 1px solid #ffeaa7;
+            border: 1px solid #ffd700;
         }
 
         .status-badge.approved {
-            background: #d4edda;
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
             color: #155724;
-            border: 1px solid #c3e6cb;
+            border: 1px solid #28a745;
         }
 
         .status-badge.rejected {
-            background: #f8d7da;
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
             color: #721c24;
-            border: 1px solid #f5c6cb;
+            border: 1px solid #dc3545;
         }
 
         .action-btn {
@@ -344,9 +577,14 @@
             color: white;
         }
 
+        .btn-pin {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+
         .action-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
         .loading-content {
@@ -367,24 +605,30 @@
 
         .no-data {
             text-align: center;
-            padding: 40px 20px;
+            padding: 60px 20px;
             color: #666;
-            background: #f8f9fa;
-            border-radius: 10px;
-            border: 1px dashed #dee2e6;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            border: 2px dashed #dee2e6;
+        }
+
+        .no-data i {
+            font-size: 64px;
+            color: #dee2e6;
+            margin-bottom: 20px;
         }
 
         /* Modal Styles */
         .modal-content {
-            border-radius: 15px;
+            border-radius: 20px;
             border: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
         }
 
         .modal-header {
             background: linear-gradient(135deg, #d53b2c, #b92e20);
             color: white;
-            border-radius: 15px 15px 0 0;
+            border-radius: 20px 20px 0 0;
             padding: 20px 25px;
         }
 
@@ -408,56 +652,174 @@
         }
 
         .post-meta {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 15px;
             margin-bottom: 20px;
+            border: 1px solid #dee2e6;
         }
 
         .post-image {
             max-width: 100%;
-            border-radius: 10px;
+            border-radius: 15px;
             margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         }
 
         .replies-section {
-            border-top: 1px solid #dee2e6;
+            border-top: 2px solid #dee2e6;
             padding-top: 20px;
             margin-top: 20px;
         }
 
-        .reply-item {
-            background: #f8f9fa;
+        .replies-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
             padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
             border-radius: 10px;
+        }
+
+        .reply-item {
+            background: linear-gradient(135deg, #ffffff, #f8f9fa);
+            padding: 20px;
+            border-radius: 15px;
             margin-bottom: 15px;
             position: relative;
+            border-left: 4px solid #d53b2c;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        .reply-item:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateX(5px);
+            border-left-color: #b92e20;
+        }
+
+        .reply-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+
+        .reply-author {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .reply-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
         }
 
         .reply-meta {
-            font-size: 12px;
+            font-size: 13px;
             color: #666;
-            margin-bottom: 8px;
+        }
+
+        .reply-content {
+            margin-top: 10px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .reply-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e9ecef;
         }
 
         .reply-delete-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: #dc3545;
+            background: linear-gradient(135deg, #dc3545, #c82333);
             color: white;
             border: none;
-            border-radius: 15px;
-            padding: 4px 8px;
-            font-size: 10px;
+            border-radius: 20px;
+            padding: 6px 15px;
+            font-size: 12px;
             cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .reply-delete-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        .reply-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .no-replies {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            border: 2px dashed #dee2e6;
+        }
+
+        .no-replies i {
+            font-size: 48px;
+            color: #dee2e6;
+            margin-bottom: 15px;
+        }
+
+        /* Notification Badge */
+        .notification-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
         }
 
         .notification-container {
             position: fixed;
             top: 20px;
             right: 20px;
-            z-index: 1000;
+            z-index: 10000;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -465,7 +827,7 @@
 
         .notification {
             padding: 15px 25px;
-            border-radius: 12px;
+            border-radius: 15px;
             color: white;
             font-weight: 600;
             cursor: pointer;
@@ -473,6 +835,9 @@
             box-shadow: 0 8px 20px rgba(0,0,0,0.2);
             min-width: 320px;
             animation: slideIn 0.4s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .notification.success {
@@ -502,10 +867,107 @@
             }
         }
 
+        /* Pinned Post Badge */
+        .pinned-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(243, 156, 18, 0.4);
+        }
+
+        /* Sort Dropdown */
+        .sort-container {
+            position: relative;
+        }
+
+        .sort-dropdown {
+            padding: 10px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .sort-dropdown:hover {
+            border-color: #d53b2c;
+        }
+
+        /* Mobile Card View */
+        .mobile-post-card {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-post-card:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+            transform: translateY(-3px);
+        }
+
+        .mobile-post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .mobile-post-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .mobile-post-meta {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .mobile-post-stats {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .mobile-post-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
         @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+
             .sidebar {
                 transform: translateX(-100%);
-                transition: transform 0.3s ease;
             }
 
             .sidebar.show {
@@ -522,14 +984,92 @@
 
             .header {
                 padding: 15px 20px;
+                flex-wrap: wrap;
             }
 
             .page-title {
+                font-size: 20px;
+                margin-left: 50px;
+            }
+
+            .user-details {
+                display: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .actions-bar {
+                padding: 15px;
+            }
+
+            .search-container {
+                max-width: 100%;
+                margin-bottom: 15px;
+            }
+
+            .action-buttons {
+                width: 100%;
+            }
+
+            .action-button {
+                flex: 1;
+                justify-content: center;
+            }
+
+            .filter-tabs {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                padding-bottom: 10px;
+            }
+
+            .tab-btn {
+                white-space: nowrap;
+            }
+
+            /* Hide table on mobile, show cards */
+            .table-responsive {
+                display: none;
+            }
+
+            .mobile-post-card {
+                display: block;
+            }
+
+            .notification {
+                min-width: 280px;
+                font-size: 14px;
+            }
+
+            .notification-container {
+                right: 10px;
+                left: 10px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .stat-card {
+                padding: 20px;
+            }
+
+            .stat-value {
+                font-size: 28px;
+            }
+
+            .stat-icon {
+                width: 50px;
+                height: 50px;
                 font-size: 24px;
             }
 
-            .table-responsive {
-                font-size: 14px;
+            .modal-dialog {
+                margin: 10px;
+            }
+
+            .action-btn {
+                padding: 8px;
+                margin: 2px;
             }
         }
     </style>
@@ -547,23 +1087,27 @@
         </div>
     </div>
 
+    <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
     <div id="forumsContainer" class="forums-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
                 <div class="brand-title">LipaAlertHub</div>
-                <div class="brand-subtitle">Disaster Management System</div>
+                <div class="brand-subtitle">Report Management System</div>
             </div>
             
             <nav class="sidebar-nav">
-                       <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="Dashboard.html" class="nav-link">
                         <i class="fas fa-tachometer-alt"></i>
                         Dashboard
                     </a>
                 </div>
                 
-                            <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="IncidentReportList.html" class="nav-link">
                         <i class="fas fa-exclamation-triangle"></i>
                         Reports
@@ -584,59 +1128,67 @@
                     </a>
                 </div>
 
-                     <div class="nav-item" data-role="admin">
+                <div class="nav-item" data-role="admin">
                     <a href="evacuation-centers.html" class="nav-link">
                         <i class="fa-solid fa-tents"></i>
                         Evacuation Centers
                     </a>
                 </div>
 
-               <div class="nav-item" data-role="admin,monitor">
+                <div class="nav-item" data-role="admin,monitor">
                     <a href="Forums.html" class="nav-link active">
                         <i class="fas fa-comments"></i>
                         Forums
+                        <span class="notification-badge" id="pendingBadge" style="display: none;">0</span>
                     </a>
                 </div>
                 
-                  <div class="nav-item" data-role="admin">
+                <div class="nav-item" data-role="admin">
                     <a href="Maps.html" class="nav-link">
                         <i class="fas fa-map"></i>
                         Hazard Map
                     </a>
                 </div>
                 
-                      <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="Chats.html" class="nav-link">
                         <i class="fas fa-comment-dots"></i>  
-                          Chats
+                        Chats
                     </a>
                 </div>
                 
-     <div class="nav-item" data-role="admin,monitor">
+                <div class="nav-item" data-role="admin,monitor">
                     <a href="Accounts.html" class="nav-link">
                         <i class="fas fa-users"></i>
                         Accounts
                     </a>
                 </div>
                 
-          <div class="nav-item" data-role="admin">
+                <div class="nav-item" data-role="admin">
                     <a href="Analytics.html" class="nav-link">
                         <i class="fas fa-chart-bar"></i>
                         Analytics
                     </a>
                 </div>
 
-           <div class="nav-item" data-role="admin">
+                <div class="nav-item" data-role="admin">
                     <a href="WeatherDisasters.html" class="nav-link">
-                       <i class="fa-solid fa-cloud"></i>
+                        <i class="fa-solid fa-cloud"></i>
                         Weather & Disasters
                     </a>
                 </div>
                 
-               <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="Contacts.html" class="nav-link">
                         <i class="fas fa-phone"></i>
                         Contacts
+                    </a>
+                </div>
+                
+                   <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="changepassword.html" class="nav-link">
+                        <i class="fas fa-key"></i>
+                        Change Password
                     </a>
                 </div>
             </nav>
@@ -644,7 +1196,9 @@
 
         <div class="main-content">
             <div class="header">
-                <h1 class="page-title">Forum Management</h1>
+                <h1 class="page-title">
+                    <i class="fas fa-comments" style="color: #d53b2c;"></i> Forum Management
+                </h1>
                 
                 <div class="user-info">
                     <div class="user-details">
@@ -666,13 +1220,110 @@
             </div>
 
             <div class="content">
+                <!-- Statistics Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card total">
+                        <div class="stat-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <div class="stat-label">Total Posts</div>
+                        <div class="stat-value" id="totalPostsStat">0</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> Active community
+                        </div>
+                    </div>
+
+                    <div class="stat-card pending">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-label">Pending Review</div>
+                        <div class="stat-value" id="pendingPostsStat">0</div>
+                        <div class="stat-change" id="pendingChange">
+                            Awaiting action
+                        </div>
+                    </div>
+
+                    <div class="stat-card approved">
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-label">Approved</div>
+                        <div class="stat-value" id="approvedPostsStat">0</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-thumbs-up"></i> Published
+                        </div>
+                    </div>
+
+                    <div class="stat-card rejected">
+                        <div class="stat-icon">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="stat-label">Rejected</div>
+                        <div class="stat-value" id="rejectedPostsStat">0</div>
+                        <div class="stat-change negative">
+                            <i class="fas fa-ban"></i> Filtered
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions Bar -->
+                <div class="actions-bar">
+                    <div class="d-flex flex-wrap gap-3 align-items-center">
+                        <div class="search-container">
+                            <input type="text" class="search-input" id="searchInput" placeholder="Search posts by title, author, or content...">
+                            <i class="fas fa-search search-icon"></i>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <select class="sort-dropdown" id="sortSelect" onchange="sortPosts()">
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                                <option value="mostLiked">Most Liked</option>
+                                <option value="mostReplies">Most Replies</option>
+                            </select>
+                            
+                            <button class="action-button secondary" onclick="toggleBulkMode()" id="bulkModeBtn">
+                                <i class="fas fa-check-square"></i>
+                                <span class="d-none d-sm-inline">Bulk Actions</span>
+                            </button>
+                            
+                            <button class="action-button primary" onclick="exportToCSV()" style="display: none;" id="exportBtn">
+                                <i class="fas fa-download"></i>
+                                <span class="d-none d-sm-inline">Export</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Bulk Actions Bar (Hidden by default) -->
+                    <div id="bulkActionsBar" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 2px solid #e9ecef;">
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-success" onclick="bulkApprove()">
+                                <i class="fas fa-check"></i> Approve Selected
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="bulkReject()">
+                                <i class="fas fa-times"></i> Reject Selected
+                            </button>
+                            <button class="btn btn-sm btn-warning" onclick="bulkDelete()">
+                                <i class="fas fa-trash"></i> Delete Selected
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="cancelBulkMode()">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                            <span class="ms-auto align-self-center">
+                                <strong id="selectedCount">0</strong> selected
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="content-card">
                     <div class="card-header">
                         <h3 class="card-title">
-                            <i class="fas fa-comments"></i>
-                            Forum Posts Management
+                            <i class="fas fa-list"></i>
+                            Forum Posts
                         </h3>
-                        <div class="badge bg-warning" id="statsDisplay">
+                        <div class="badge bg-primary" id="statsDisplay">
                             Loading...
                         </div>
                     </div>
@@ -680,24 +1331,27 @@
                     <!-- Filter Tabs -->
                     <div class="filter-tabs">
                         <button class="tab-btn active" onclick="filterPosts('all')">
-                            All Posts (<span id="allCount">0</span>)
+                            <i class="fas fa-globe"></i> All Posts (<span id="allCount">0</span>)
                         </button>
                         <button class="tab-btn" onclick="filterPosts('pending')">
-                            Pending (<span id="pendingCount">0</span>)
+                            <i class="fas fa-clock"></i> Pending (<span id="pendingCount">0</span>)
                         </button>
                         <button class="tab-btn" onclick="filterPosts('approved')">
-                            Approved (<span id="approvedCount">0</span>)
+                            <i class="fas fa-check"></i> Approved (<span id="approvedCount">0</span>)
                         </button>
                         <button class="tab-btn" onclick="filterPosts('rejected')">
-                            Rejected (<span id="rejectedCount">0</span>)
+                            <i class="fas fa-times"></i> Rejected (<span id="rejectedCount">0</span>)
                         </button>
                     </div>
 
-                    <!-- Posts Table -->
+                    <!-- Desktop Table View -->
                     <div class="table-responsive posts-table">
                         <table class="table" id="postsTable">
                             <thead>
                                 <tr>
+                                    <th style="width: 40px;" id="bulkCheckboxHeader" class="d-none">
+                                        <input type="checkbox" class="bulk-checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                                    </th>
                                     <th>Title</th>
                                     <th>Author</th>
                                     <th>Created</th>
@@ -709,7 +1363,7 @@
                             </thead>
                             <tbody id="postsTableBody">
                                 <tr>
-                                    <td colspan="7" class="loading-content">
+                                    <td colspan="8" class="loading-content">
                                         <div class="loading-spinner-small"></div>
                                         <p>Loading forum posts...</p>
                                     </td>
@@ -717,6 +1371,9 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Mobile Card View -->
+                    <div id="mobilePostsContainer"></div>
                 </div>
             </div>
         </div>
@@ -819,14 +1476,40 @@
 
         let currentUserInfo = null;
         let allPosts = [];
+        let filteredPosts = [];
         let currentFilter = 'all';
+        let currentSort = 'newest';
         let postsListener = null;
         let currentPostIdForAction = null;
+        let bulkMode = false;
+        let selectedPosts = new Set();
+
+        // Make functions globally accessible
+        window.toggleSidebar = toggleSidebar;
+        window.filterPosts = filterPosts;
+        window.sortPosts = sortPosts;
+        window.viewPost = viewPost;
+        window.approvePost = approvePost;
+        window.showRejectModal = showRejectModal;
+        window.confirmRejectPost = confirmRejectPost;
+        window.deletePost = deletePost;
+        window.deleteReply = deleteReply;
+        window.pinPost = pinPost;
+        window.toggleBulkMode = toggleBulkMode;
+        window.toggleSelectAll = toggleSelectAll;
+        window.togglePostSelection = togglePostSelection;
+        window.bulkApprove = bulkApprove;
+        window.bulkReject = bulkReject;
+        window.bulkDelete = bulkDelete;
+        window.cancelBulkMode = cancelBulkMode;
+        window.exportToCSV = exportToCSV;
+        window.logoutUser = logoutUser;
 
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 console.log('🚀 Initializing Forums Management...');
                 await checkAuthentication();
+                setupSearchListener();
             } catch (error) {
                 console.error('❌ Forums initialization failed:', error);
                 showNotification('Failed to load forums. Please try again.', 'error');
@@ -835,6 +1518,51 @@
                 }, 3000);
             }
         });
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            
+            if (window.innerWidth <= 768 && sidebar.classList.contains('show')) {
+                if (!sidebar.contains(e.target) && !toggle.contains(e.target)) {
+                    sidebar.classList.remove('show');
+                }
+            }
+        });
+
+        function setupSearchListener() {
+            const searchInput = document.getElementById('searchInput');
+            let searchTimeout;
+            
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    performSearch(e.target.value);
+                }, 300);
+            });
+        }
+
+        function performSearch(searchTerm) {
+            const term = searchTerm.toLowerCase().trim();
+            
+            if (!term) {
+                filteredPosts = allPosts;
+            } else {
+                filteredPosts = allPosts.filter(post => {
+                    return (post.title || '').toLowerCase().includes(term) ||
+                           (post.content || '').toLowerCase().includes(term) ||
+                           (post.userName || '').toLowerCase().includes(term);
+                });
+            }
+            
+            updatePostsDisplay();
+        }
 
         async function checkAuthentication() {
             return new Promise((resolve, reject) => {
@@ -861,13 +1589,6 @@
                         const userRole = userData.role;
                         const userStatus = userData.status || USER_STATUS.ACTIVE;
 
-                        console.log('User auth check:', {
-                            uid: user.uid,
-                            email: user.email,
-                            role: userRole,
-                            status: userStatus
-                        });
-
                         if (userStatus === USER_STATUS.PENDING) {
                             alert("Your account is pending approval. Please contact administrator.");
                             await signOut(auth);
@@ -884,9 +1605,8 @@
                             return;
                         }
 
-                        // RBAC: Only Admin and Monitor can access Forums management
                         if (userRole !== USER_ROLES.ADMIN && userRole !== USER_ROLES.MONITOR) {
-                            alert(`Access denied. Forums management requires Admin or Monitor role. Your role: ${userRole}`);
+                            alert(`Access denied. Forums management requires Admin or Monitor role.`);
                             await signOut(auth);
                             window.location.href = "Dashboard.html?error=insufficient-permissions";
                             reject(new Error('Insufficient permissions'));
@@ -899,11 +1619,6 @@
                             status: userStatus,
                             userData
                         };
-
-                        console.log('✅ Forums access granted:', {
-                            email: user.email,
-                            role: userRole
-                        });
 
                         await initializeForums();
                         resolve(currentUserInfo);
@@ -961,7 +1676,7 @@
             if (roleElement) {
                 const roleDisplayName = {
                     [USER_ROLES.ADMIN]: 'Administrator',
-                    [USER_ROLES.MONITOR]: 'Monitor'
+                    [USER_ROLES.MONITOR]: 'Moderator'
                 }[currentUserInfo.role] || currentUserInfo.role.toUpperCase();
                 
                 roleElement.textContent = roleDisplayName;
@@ -973,7 +1688,6 @@
             const tableBody = document.getElementById('postsTableBody');
             
             try {
-                // Get all forum posts for admin/monitor
                 const q = query(
                     collection(db, "forumPosts"),
                     orderBy("createdAt", "desc")
@@ -995,14 +1709,16 @@
                         });
                     }
                     
+                    filteredPosts = allPosts;
                     console.log(`📋 Loaded ${allPosts.length} forum posts`);
                     updatePostsDisplay();
                     updateStats();
+                    updatePendingBadge();
                 }, (error) => {
                     console.error('Error loading forum posts:', error);
                     tableBody.innerHTML = `
                         <tr>
-                            <td colspan="7" class="text-center text-danger">
+                            <td colspan="8" class="text-center text-danger">
                                 <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
                                 <p>Error loading forum posts</p>
                             </td>
@@ -1012,31 +1728,73 @@
 
             } catch (error) {
                 console.error('Error setting up posts listener:', error);
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center text-danger">
-                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                            <p>Error loading forum posts</p>
-                        </td>
-                    </tr>
-                `;
+            }
+        }
+
+        function updatePendingBadge() {
+            const pendingCount = allPosts.filter(p => p.status === 'pending' || !p.status).length;
+            const badge = document.getElementById('pendingBadge');
+            
+            if (pendingCount > 0) {
+                badge.textContent = pendingCount;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
             }
         }
 
         function updatePostsDisplay() {
-            const tableBody = document.getElementById('postsTableBody');
+            let postsToDisplay = filteredPosts;
             
-            let filteredPosts = allPosts;
+            // Apply filter
             if (currentFilter !== 'all') {
-                filteredPosts = allPosts.filter(post => post.status === currentFilter);
+                postsToDisplay = filteredPosts.filter(post => post.status === currentFilter);
             }
             
-            if (filteredPosts.length === 0) {
+            // Apply sort
+            postsToDisplay = sortPostsArray(postsToDisplay, currentSort);
+            
+            // Update desktop table
+            updateTableView(postsToDisplay);
+            
+            // Update mobile cards
+            updateMobileView(postsToDisplay);
+        }
+
+        function sortPostsArray(posts, sortType) {
+            const sorted = [...posts];
+            
+            switch(sortType) {
+                case 'newest':
+                    return sorted.sort((a, b) => {
+                        const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(0);
+                        const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(0);
+                        return dateB - dateA;
+                    });
+                case 'oldest':
+                    return sorted.sort((a, b) => {
+                        const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(0);
+                        const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(0);
+                        return dateA - dateB;
+                    });
+                case 'mostLiked':
+                    return sorted.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
+                case 'mostReplies':
+                    return sorted.sort((a, b) => (b.repliesCount || 0) - (a.repliesCount || 0));
+                default:
+                    return sorted;
+            }
+        }
+
+        function updateTableView(posts) {
+            const tableBody = document.getElementById('postsTableBody');
+            
+            if (posts.length === 0) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="7" class="no-data">
-                            <i class="fas fa-inbox fa-2x mb-3"></i>
-                            <p>No ${currentFilter === 'all' ? '' : currentFilter} posts found</p>
+                        <td colspan="${bulkMode ? 8 : 7}" class="no-data">
+                            <i class="fas fa-inbox fa-3x"></i>
+                            <p class="mt-3">No ${currentFilter === 'all' ? '' : currentFilter} posts found</p>
                         </td>
                     </tr>
                 `;
@@ -1044,36 +1802,71 @@
             }
 
             tableBody.innerHTML = '';
-            filteredPosts.forEach(post => {
+            posts.forEach(post => {
                 const row = createPostRow(post);
                 tableBody.appendChild(row);
             });
         }
 
+        function updateMobileView(posts) {
+            const container = document.getElementById('mobilePostsContainer');
+            
+            if (posts.length === 0) {
+                container.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-inbox fa-3x"></i>
+                        <p class="mt-3">No ${currentFilter === 'all' ? '' : currentFilter} posts found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            posts.forEach(post => {
+                const card = createMobilePostCard(post);
+                container.appendChild(card);
+            });
+        }
+
         function createPostRow(post) {
             const row = document.createElement('tr');
-            
             const statusClass = post.status || 'pending';
             const statusText = (post.status || 'pending').toUpperCase();
             
-            row.innerHTML = `
+            const bulkCheckbox = bulkMode ? `
                 <td>
-                    <div style="max-width: 250px;">
-                        <strong>${escapeHtml(post.title || 'Untitled')}</strong>
+                    <input type="checkbox" class="bulk-checkbox" 
+                           onchange="togglePostSelection('${post.id}')" 
+                           ${selectedPosts.has(post.id) ? 'checked' : ''}>
+                </td>
+            ` : '';
+            
+            const pinnedIcon = post.pinned ? '<i class="fas fa-thumbtack text-warning ms-2" title="Pinned"></i>' : '';
+            
+            row.innerHTML = `
+                ${bulkCheckbox}
+                <td>
+                    <div style="max-width: 300px; position: relative;">
+                        <strong>${escapeHtml(post.title || 'Untitled')}${pinnedIcon}</strong>
                         <div style="font-size: 12px; color: #666; margin-top: 5px;">
                             ${escapeHtml((post.content || '').substring(0, 100))}${post.content?.length > 100 ? '...' : ''}
                         </div>
                     </div>
                 </td>
                 <td>${escapeHtml(post.userName || 'Anonymous')}</td>
-                <td>${formatTimestamp(post.createdAt)}</td>
+                <td style="white-space: nowrap;">${formatTimestamp(post.createdAt)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td><span class="badge bg-secondary">${post.repliesCount || 0}</span></td>
                 <td><span class="badge bg-primary">${post.likesCount || 0}</span></td>
-                <td>
+                <td style="white-space: nowrap;">
                     <button class="action-btn btn-view" onclick="viewPost('${post.id}')" title="View Post">
                         <i class="fas fa-eye"></i>
                     </button>
+                    ${!post.pinned ? `
+                        <button class="action-btn btn-pin" onclick="pinPost('${post.id}')" title="Pin Post">
+                            <i class="fas fa-thumbtack"></i>
+                        </button>
+                    ` : ''}
                     ${(post.status === 'pending' || !post.status) ? `
                         <button class="action-btn btn-approve" onclick="approvePost('${post.id}')" title="Approve">
                             <i class="fas fa-check"></i>
@@ -1091,31 +1884,332 @@
             return row;
         }
 
+        function createMobilePostCard(post) {
+            const card = document.createElement('div');
+            card.className = 'mobile-post-card';
+            
+            const statusClass = post.status || 'pending';
+            const statusText = (post.status || 'pending').toUpperCase();
+            const pinnedIcon = post.pinned ? '<i class="fas fa-thumbtack text-warning ms-2"></i>' : '';
+            
+            const bulkCheckbox = bulkMode ? `
+                <div class="form-check mb-2">
+                    <input type="checkbox" class="bulk-checkbox form-check-input" 
+                           onchange="togglePostSelection('${post.id}')" 
+                           ${selectedPosts.has(post.id) ? 'checked' : ''}>
+                    <label class="form-check-label fw-bold">Select</label>
+                </div>
+            ` : '';
+            
+            card.innerHTML = `
+                ${bulkCheckbox}
+                <div class="mobile-post-header">
+                    <div style="flex: 1;">
+                        <div class="mobile-post-title">
+                            ${escapeHtml(post.title || 'Untitled')}${pinnedIcon}
+                        </div>
+                        <div class="mobile-post-meta">
+                            <i class="fas fa-user"></i> ${escapeHtml(post.userName || 'Anonymous')} • 
+                            <i class="fas fa-clock"></i> ${formatTimestamp(post.createdAt)}
+                        </div>
+                    </div>
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                </div>
+                
+                <div class="mobile-post-content">
+                    ${escapeHtml((post.content || '').substring(0, 150))}${post.content?.length > 150 ? '...' : ''}
+                </div>
+                
+                <div class="mobile-post-stats">
+                    <span><i class="fas fa-comments text-secondary"></i> ${post.repliesCount || 0} Replies</span>
+                    <span><i class="fas fa-heart text-danger"></i> ${post.likesCount || 0} Likes</span>
+                </div>
+                
+                <div class="mobile-post-actions">
+                    <button class="action-btn btn-view" onclick="viewPost('${post.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${!post.pinned ? `
+                        <button class="action-btn btn-pin" onclick="pinPost('${post.id}')">
+                            <i class="fas fa-thumbtack"></i>
+                        </button>
+                    ` : ''}
+                    ${(post.status === 'pending' || !post.status) ? `
+                        <button class="action-btn btn-approve" onclick="approvePost('${post.id}')">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="action-btn btn-reject" onclick="showRejectModal('${post.id}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    ` : ''}
+                    <button class="action-btn btn-delete" onclick="deletePost('${post.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            
+            return card;
+        }
+
         function updateStats() {
             const allCount = allPosts.length;
             const pendingCount = allPosts.filter(p => p.status === 'pending' || !p.status).length;
             const approvedCount = allPosts.filter(p => p.status === 'approved').length;
             const rejectedCount = allPosts.filter(p => p.status === 'rejected').length;
             
+            // Update tab counts
             document.getElementById('allCount').textContent = allCount;
             document.getElementById('pendingCount').textContent = pendingCount;
             document.getElementById('approvedCount').textContent = approvedCount;
             document.getElementById('rejectedCount').textContent = rejectedCount;
             
+            // Update stats cards with animation
+            animateValue('totalPostsStat', 0, allCount, 1000);
+            animateValue('pendingPostsStat', 0, pendingCount, 1000);
+            animateValue('approvedPostsStat', 0, approvedCount, 1000);
+            animateValue('rejectedPostsStat', 0, rejectedCount, 1000);
+            
             document.getElementById('statsDisplay').textContent = 
                 `${pendingCount} pending • ${approvedCount} approved • ${rejectedCount} rejected`;
         }
 
-        window.filterPosts = function(filter) {
+        function animateValue(elementId, start, end, duration) {
+            const element = document.getElementById(elementId);
+            const range = end - start;
+            const increment = range / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                    current = end;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current);
+            }, 16);
+        }
+
+        function filterPosts(filter) {
             currentFilter = filter;
             updatePostsDisplay();
             
             // Update active tab
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-        };
+            event.target.closest('.tab-btn').classList.add('active');
+        }
 
-        window.viewPost = async function(postId) {
+        function sortPosts() {
+            currentSort = document.getElementById('sortSelect').value;
+            updatePostsDisplay();
+        }
+
+        function toggleBulkMode() {
+            bulkMode = !bulkMode;
+            selectedPosts.clear();
+            
+            const bulkModeBtn = document.getElementById('bulkModeBtn');
+            const bulkActionsBar = document.getElementById('bulkActionsBar');
+            const bulkCheckboxHeader = document.getElementById('bulkCheckboxHeader');
+            const exportBtn = document.getElementById('exportBtn');
+            
+            if (bulkMode) {
+                bulkModeBtn.classList.remove('secondary');
+                bulkModeBtn.classList.add('primary');
+                bulkActionsBar.style.display = 'block';
+                bulkCheckboxHeader.classList.remove('d-none');
+                exportBtn.style.display = 'inline-flex';
+            } else {
+                bulkModeBtn.classList.remove('primary');
+                bulkModeBtn.classList.add('secondary');
+                bulkActionsBar.style.display = 'none';
+                bulkCheckboxHeader.classList.add('d-none');
+                exportBtn.style.display = 'none';
+            }
+            
+            updatePostsDisplay();
+            updateSelectedCount();
+        }
+
+        function toggleSelectAll() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            const checkboxes = document.querySelectorAll('.bulk-checkbox:not(#selectAllCheckbox)');
+            
+            if (selectAllCheckbox.checked) {
+                filteredPosts.forEach(post => selectedPosts.add(post.id));
+            } else {
+                selectedPosts.clear();
+            }
+            
+            checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+            updateSelectedCount();
+        }
+
+        function togglePostSelection(postId) {
+            if (selectedPosts.has(postId)) {
+                selectedPosts.delete(postId);
+            } else {
+                selectedPosts.add(postId);
+            }
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            document.getElementById('selectedCount').textContent = selectedPosts.size;
+        }
+
+        async function bulkApprove() {
+            if (selectedPosts.size === 0) {
+                showNotification('Please select posts to approve', 'warning');
+                return;
+            }
+
+            if (!confirm(`Approve ${selectedPosts.size} selected post(s)?`)) {
+                return;
+            }
+
+            try {
+                const batch = writeBatch(db);
+                
+                selectedPosts.forEach(postId => {
+                    const postRef = doc(db, "forumPosts", postId);
+                    batch.update(postRef, {
+                        status: "approved",
+                        reviewedBy: currentUserInfo.user.email,
+                        reviewedAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    });
+                });
+                
+                await batch.commit();
+                showNotification(`${selectedPosts.size} post(s) approved successfully!`, 'success');
+                cancelBulkMode();
+                
+            } catch (error) {
+                console.error('Error bulk approving:', error);
+                showNotification('Error approving posts: ' + error.message, 'error');
+            }
+        }
+
+        async function bulkReject() {
+            if (selectedPosts.size === 0) {
+                showNotification('Please select posts to reject', 'warning');
+                return;
+            }
+
+            const reason = prompt(`Reject ${selectedPosts.size} selected post(s)?\n\nEnter rejection reason:`);
+            if (!reason) return;
+
+            try {
+                const batch = writeBatch(db);
+                
+                selectedPosts.forEach(postId => {
+                    const postRef = doc(db, "forumPosts", postId);
+                    batch.update(postRef, {
+                        status: "rejected",
+                        rejectionReason: reason,
+                        reviewedBy: currentUserInfo.user.email,
+                        reviewedAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    });
+                });
+                
+                await batch.commit();
+                showNotification(`${selectedPosts.size} post(s) rejected`, 'warning');
+                cancelBulkMode();
+                
+            } catch (error) {
+                console.error('Error bulk rejecting:', error);
+                showNotification('Error rejecting posts: ' + error.message, 'error');
+            }
+        }
+
+        async function bulkDelete() {
+            if (selectedPosts.size === 0) {
+                showNotification('Please select posts to delete', 'warning');
+                return;
+            }
+
+            if (!confirm(`Permanently delete ${selectedPosts.size} selected post(s)?\n\nThis action cannot be undone and will also delete all replies and likes.`)) {
+                return;
+            }
+
+            try {
+                const batch = writeBatch(db);
+                
+                for (const postId of selectedPosts) {
+                    batch.delete(doc(db, "forumPosts", postId));
+                    
+                    // Delete replies
+                    const repliesQuery = query(collection(db, "forumReplies"), where("postId", "==", postId));
+                    const repliesSnapshot = await getDocs(repliesQuery);
+                    repliesSnapshot.forEach(doc => batch.delete(doc.ref));
+                    
+                    // Delete likes
+                    const likesQuery = query(collection(db, "postLikes"), where("postId", "==", postId));
+                    const likesSnapshot = await getDocs(likesQuery);
+                    likesSnapshot.forEach(doc => batch.delete(doc.ref));
+                }
+                
+                await batch.commit();
+                showNotification(`${selectedPosts.size} post(s) deleted successfully`, 'success');
+                cancelBulkMode();
+                
+            } catch (error) {
+                console.error('Error bulk deleting:', error);
+                showNotification('Error deleting posts: ' + error.message, 'error');
+            }
+        }
+
+        function cancelBulkMode() {
+            bulkMode = false;
+            selectedPosts.clear();
+            
+            document.getElementById('bulkModeBtn').classList.remove('primary');
+            document.getElementById('bulkModeBtn').classList.add('secondary');
+            document.getElementById('bulkActionsBar').style.display = 'none';
+            document.getElementById('bulkCheckboxHeader').classList.add('d-none');
+            document.getElementById('exportBtn').style.display = 'none';
+            document.getElementById('selectAllCheckbox').checked = false;
+            
+            updatePostsDisplay();
+        }
+
+        function exportToCSV() {
+            const postsToExport = selectedPosts.size > 0 
+                ? allPosts.filter(p => selectedPosts.has(p.id))
+                : filteredPosts;
+
+            if (postsToExport.length === 0) {
+                showNotification('No posts to export', 'warning');
+                return;
+            }
+
+            const csvContent = [
+                ['Title', 'Author', 'Content', 'Status', 'Created', 'Replies', 'Likes', 'Pinned'].join(','),
+                ...postsToExport.map(post => [
+                    `"${(post.title || '').replace(/"/g, '""')}"`,
+                    `"${(post.userName || '').replace(/"/g, '""')}"`,
+                    `"${(post.content || '').replace(/"/g, '""')}"`,
+                    post.status || 'pending',
+                    formatTimestamp(post.createdAt),
+                    post.repliesCount || 0,
+                    post.likesCount || 0,
+                    post.pinned ? 'Yes' : 'No'
+                ].join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `forum-posts-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            showNotification(`Exported ${postsToExport.length} post(s) to CSV`, 'success');
+        }
+
+        async function viewPost(postId) {
             try {
                 const post = allPosts.find(p => p.id === postId);
                 if (!post) {
@@ -1123,7 +2217,6 @@
                     return;
                 }
 
-                // Load replies
                 const repliesQuery = query(
                     collection(db, "forumReplies"),
                     where("postId", "==", postId),
@@ -1141,7 +2234,6 @@
                     });
                 });
 
-                // Populate modal
                 const modalBody = document.getElementById('postModalBody');
                 const modalFooter = document.getElementById('postModalFooter');
                 
@@ -1149,45 +2241,91 @@
                     <div class="post-meta">
                         <div class="row">
                             <div class="col-md-6">
-                                <strong>Author:</strong> ${escapeHtml(post.userName || 'Anonymous')}<br>
-                                <strong>Created:</strong> ${formatTimestamp(post.createdAt)}<br>
-                                <strong>Status:</strong> <span class="status-badge ${post.status || 'pending'}">${(post.status || 'pending').toUpperCase()}</span>
+                                <strong><i class="fas fa-user"></i> Author:</strong> ${escapeHtml(post.userName || 'Anonymous')}<br>
+                                <strong><i class="fas fa-clock"></i> Created:</strong> ${formatTimestamp(post.createdAt)}<br>
+                                <strong><i class="fas fa-flag"></i> Status:</strong> <span class="status-badge ${post.status || 'pending'}">${(post.status || 'pending').toUpperCase()}</span>
+                                ${post.pinned ? '<br><strong><i class="fas fa-thumbtack text-warning"></i> Pinned Post</strong>' : ''}
                             </div>
                             <div class="col-md-6 text-end">
-                                <strong>Likes:</strong> <span class="badge bg-primary">${post.likesCount || 0}</span><br>
-                                <strong>Replies:</strong> <span class="badge bg-secondary">${post.repliesCount || 0}</span><br>
+                                <strong><i class="fas fa-heart text-danger"></i> Likes:</strong> <span class="badge bg-primary">${post.likesCount || 0}</span><br>
+                                <strong><i class="fas fa-comments"></i> Replies:</strong> <span class="badge bg-secondary">${post.repliesCount || 0}</span><br>
                                 ${post.reviewedBy ? `<strong>Reviewed by:</strong> ${escapeHtml(post.reviewedBy)}` : ''}
                             </div>
                         </div>
-                        ${post.rejectionReason ? `<div class="mt-2"><strong>Rejection Reason:</strong> ${escapeHtml(post.rejectionReason)}</div>` : ''}
+                        ${post.rejectionReason ? `<div class="mt-3 alert alert-danger"><strong>Rejection Reason:</strong> ${escapeHtml(post.rejectionReason)}</div>` : ''}
                     </div>
                     
                     <div class="post-content">
-                        <h5>${escapeHtml(post.title || 'Untitled Post')}</h5>
-                        <p>${escapeHtml(post.content || 'No content')}</p>
+                        <h5><i class="fas fa-file-alt"></i> ${escapeHtml(post.title || 'Untitled Post')}</h5>
+                        <p style="white-space: pre-wrap;">${escapeHtml(post.content || 'No content')}</p>
                         ${post.imageUrl ? `<img src="${post.imageUrl}" class="post-image" alt="Post image">` : ''}
                     </div>
                     
                     ${replies.length > 0 ? `
                         <div class="replies-section">
-                            <h6><i class="fas fa-comments me-2"></i>Replies (${replies.length})</h6>
-                            ${replies.map(reply => `
+                            <div class="replies-header">
+                                <h6 style="margin: 0;">
+                                    <i class="fas fa-comments me-2"></i>
+                                    <strong>${replies.length}</strong> ${replies.length === 1 ? 'Reply' : 'Replies'}
+                                </h6>
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-clock"></i> Latest activity: ${formatTimestamp(replies[replies.length - 1].createdAt)}
+                                </span>
+                            </div>
+                            ${replies.map((reply, index) => `
                                 <div class="reply-item">
-                                    <button class="reply-delete-btn" onclick="deleteReply('${reply.id}')" title="Delete Reply">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    <div class="reply-meta">
-                                        <strong>${escapeHtml(reply.userName || 'Anonymous')}</strong> • ${formatTimestamp(reply.createdAt)}
+                                    <div class="reply-header">
+                                        <div class="reply-author">
+                                            <div class="reply-avatar">
+                                                ${(reply.userName || 'A').charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <div style="font-weight: 600; color: #333;">
+                                                    ${escapeHtml(reply.userName || 'Anonymous')}
+                                                </div>
+                                                <div class="reply-meta">
+                                                    <i class="fas fa-clock"></i> ${formatTimestamp(reply.createdAt)}
+                                                    ${reply.updatedAt ? ' • <i class="fas fa-edit"></i> Edited' : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <span class="badge bg-light text-dark">
+                                            #${index + 1}
+                                        </span>
                                     </div>
-                                    <div>${escapeHtml(reply.content || '')}</div>
+                                    <div class="reply-content">
+                                        ${escapeHtml(reply.content || 'No content')}
+                                    </div>
+                                    <div class="reply-actions">
+                                        <button class="reply-delete-btn" onclick="deleteReply('${reply.id}')">
+                                            <i class="fas fa-trash"></i>
+                                            Delete Reply
+                                        </button>
+                                        <div class="reply-stats ms-auto">
+                                            <span><i class="fas fa-heart text-danger"></i> ${reply.likesCount || 0} likes</span>
+                                        </div>
+                                    </div>
                                 </div>
                             `).join('')}
                         </div>
-                    ` : ''}
+                    ` : `
+                        <div class="no-replies">
+                            <i class="fas fa-comment-slash"></i>
+                            <h6>No replies yet</h6>
+                            <p class="text-muted mb-0">Be the first to respond to this post</p>
+                        </div>
+                    `}
                 `;
                 
                 modalFooter.innerHTML = `
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Close
+                    </button>
+                    ${!post.pinned ? `
+                        <button type="button" class="btn btn-warning" onclick="pinPost('${postId}')">
+                            <i class="fas fa-thumbtack me-2"></i>Pin Post
+                        </button>
+                    ` : ''}
                     ${(post.status === 'pending' || !post.status) ? `
                         <button type="button" class="btn btn-success" onclick="approvePost('${postId}')">
                             <i class="fas fa-check me-2"></i>Approve
@@ -1207,9 +2345,9 @@
                 console.error('Error viewing post:', error);
                 showNotification('Error loading post details', 'error');
             }
-        };
+        }
 
-        window.approvePost = async function(postId) {
+        async function approvePost(postId) {
             try {
                 await updateDoc(doc(db, "forumPosts", postId), {
                     status: "approved",
@@ -1220,7 +2358,6 @@
 
                 showNotification("Post approved successfully!", "success");
                 
-                // Close modal if open
                 const modal = bootstrap.Modal.getInstance(document.getElementById('viewPostModal'));
                 if (modal) modal.hide();
                 
@@ -1228,15 +2365,15 @@
                 console.error("Error approving post:", error);
                 showNotification("Failed to approve post: " + error.message, "error");
             }
-        };
+        }
 
-        window.showRejectModal = function(postId) {
+        function showRejectModal(postId) {
             currentPostIdForAction = postId;
             document.getElementById('rejectionReason').value = '';
             new bootstrap.Modal(document.getElementById('rejectModal')).show();
-        };
+        }
 
-        window.confirmRejectPost = async function() {
+        async function confirmRejectPost() {
             const reason = document.getElementById('rejectionReason').value.trim();
             if (!reason) {
                 showNotification('Please provide a rejection reason', 'warning');
@@ -1254,7 +2391,6 @@
 
                 showNotification("Post rejected successfully", "warning");
                 
-                // Close modals
                 bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
                 const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewPostModal'));
                 if (viewModal) viewModal.hide();
@@ -1263,9 +2399,28 @@
                 console.error("Error rejecting post:", error);
                 showNotification("Failed to reject post: " + error.message, "error");
             }
-        };
+        }
 
-        window.deletePost = async function(postId) {
+        async function pinPost(postId) {
+            try {
+                await updateDoc(doc(db, "forumPosts", postId), {
+                    pinned: true,
+                    pinnedAt: serverTimestamp(),
+                    pinnedBy: currentUserInfo.user.email
+                });
+
+                showNotification("Post pinned successfully!", "success");
+                
+                const modal = bootstrap.Modal.getInstance(document.getElementById('viewPostModal'));
+                if (modal) modal.hide();
+                
+            } catch (error) {
+                console.error("Error pinning post:", error);
+                showNotification("Failed to pin post: " + error.message, "error");
+            }
+        }
+
+        async function deletePost(postId) {
             if (!confirm('Are you sure you want to permanently delete this post? This action cannot be undone.')) {
                 return;
             }
@@ -1273,34 +2428,20 @@
             try {
                 const batch = writeBatch(db);
                 
-                // Delete the post
                 batch.delete(doc(db, "forumPosts", postId));
                 
-                // Delete associated replies
-                const repliesQuery = query(
-                    collection(db, "forumReplies"),
-                    where("postId", "==", postId)
-                );
+                const repliesQuery = query(collection(db, "forumReplies"), where("postId", "==", postId));
                 const repliesSnapshot = await getDocs(repliesQuery);
-                repliesSnapshot.forEach(doc => {
-                    batch.delete(doc.ref);
-                });
+                repliesSnapshot.forEach(doc => batch.delete(doc.ref));
                 
-                // Delete associated likes
-                const likesQuery = query(
-                    collection(db, "postLikes"),
-                    where("postId", "==", postId)
-                );
+                const likesQuery = query(collection(db, "postLikes"), where("postId", "==", postId));
                 const likesSnapshot = await getDocs(likesQuery);
-                likesSnapshot.forEach(doc => {
-                    batch.delete(doc.ref);
-                });
+                likesSnapshot.forEach(doc => batch.delete(doc.ref));
                 
                 await batch.commit();
                 
                 showNotification("Post deleted successfully", "success");
                 
-                // Close modal if open
                 const modal = bootstrap.Modal.getInstance(document.getElementById('viewPostModal'));
                 if (modal) modal.hide();
                 
@@ -1308,15 +2449,14 @@
                 console.error("Error deleting post:", error);
                 showNotification("Failed to delete post: " + error.message, "error");
             }
-        };
+        }
 
-        window.deleteReply = async function(replyId) {
+        async function deleteReply(replyId) {
             if (!confirm('Are you sure you want to delete this reply?')) {
                 return;
             }
 
             try {
-                // Get reply data first to update post reply count
                 const replyDoc = await getDoc(doc(db, "forumReplies", replyId));
                 if (!replyDoc.exists()) {
                     showNotification('Reply not found', 'error');
@@ -1326,31 +2466,25 @@
                 const replyData = replyDoc.data();
                 const batch = writeBatch(db);
                 
-                // Delete reply
                 batch.delete(doc(db, "forumReplies", replyId));
                 
-                // Decrement reply count on post
                 const postRef = doc(db, "forumPosts", replyData.postId);
                 batch.update(postRef, {
                     repliesCount: Math.max(0, (replyData.repliesCount || 1) - 1)
                 });
                 
-                // Delete associated likes for this reply
                 const likesQuery = query(
                     collection(db, "postLikes"),
                     where("targetId", "==", replyId),
                     where("type", "==", "reply")
                 );
                 const likesSnapshot = await getDocs(likesQuery);
-                likesSnapshot.forEach(doc => {
-                    batch.delete(doc.ref);
-                });
+                likesSnapshot.forEach(doc => batch.delete(doc.ref));
                 
                 await batch.commit();
                 
                 showNotification("Reply deleted successfully", "success");
                 
-                // Refresh the post view
                 setTimeout(() => {
                     viewPost(replyData.postId);
                 }, 1000);
@@ -1359,9 +2493,9 @@
                 console.error("Error deleting reply:", error);
                 showNotification("Failed to delete reply: " + error.message, "error");
             }
-        };
+        }
 
-        window.logoutUser = async function() {
+        async function logoutUser() {
             if (confirm("Are you sure you want to logout?")) {
                 try {
                     await signOut(auth);
@@ -1372,7 +2506,7 @@
                     showNotification("Error logging out", "error");
                 }
             }
-        };
+        }
 
         function formatTimestamp(timestamp) {
             if (!timestamp) return 'Unknown time';
@@ -1436,7 +2570,18 @@
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
-            notification.textContent = message;
+            
+            const icon = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            }[type] || 'fa-info-circle';
+            
+            notification.innerHTML = `
+                <i class="fas ${icon}"></i>
+                <span>${message}</span>
+            `;
             
             let container = document.getElementById('notificationContainer');
             if (!container) {
@@ -1450,7 +2595,12 @@
             
             setTimeout(() => {
                 if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
+                    notification.style.opacity = '0';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 300);
                 }
             }, 5000);
             

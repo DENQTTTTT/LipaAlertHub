@@ -16,74 +16,40 @@ export interface UseNotificationsReturn {
 }
 
 export const useNotifications = (limit: number = 50): UseNotificationsReturn => {
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Use refs to store unsubscribe functions and prevent duplicate initialization
-  const notificationUnsubscribe = useRef<(() => void) | null>(null);
-  const foregroundSubscription = useRef<Notifications.Subscription | null>(null);
-  const responseSubscription = useRef<Notifications.Subscription | null>(null);
-  const isInitialized = useRef(false);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // Initialize notifications when user is available
   useEffect(() => {
-    if (user?.uid && !isInitialized.current) {
+    if (user?.uid) {
       initializeNotifications();
-      isInitialized.current = true;
-    } else if (!user?.uid) {
+    } else {
       setLoading(false);
+      setNotifications([]);
+      setUnreadCount(0);
     }
 
     return () => {
-      cleanup();
-    };
-  }, [user?.uid, userProfile]);
-
-  // Setup foreground notification listeners
-  useEffect(() => {
-    // Listen for foreground notifications
-    foregroundSubscription.current = Notifications.addNotificationReceivedListener(notification => {
-      // Handle received notification in foreground
-      console.log('Notification received in foreground:', notification);
-    });
-
-    responseSubscription.current = Notifications.addNotificationResponseReceivedListener(response => {
-      // Handle notification tap
-      const data = response.notification.request.content.data;
-      if (data?.type === 'report_update' && data?.reportId) {
-        // Navigate to report status screen
-        // This would need to be handled by the navigation context
-        console.log('Navigate to report:', data.reportId);
-      }
-    });
-
-    return () => {
-      if (foregroundSubscription.current) {
-        foregroundSubscription.current.remove();
-      }
-      if (responseSubscription.current) {
-        responseSubscription.current.remove();
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
       }
     };
-  }, []);
+  }, [user?.uid]);
 
-  // Initialize push notifications and listeners
   const initializeNotifications = async () => {
     try {
       setLoading(true);
       setError(null);
 
       // Initialize push notifications
-      const pushToken = await notificationService.initializePushNotifications();
-      if (pushToken && user) {
-        await notificationService.storePushToken(user.uid);
-      }
+      await notificationService.initializePushNotifications();
 
       // Subscribe to user notifications
-      if (user) {
+      if (user?.uid) {
         subscribeToNotifications(user.uid);
         await updateUnreadCount(user.uid);
       }
@@ -95,17 +61,16 @@ export const useNotifications = (limit: number = 50): UseNotificationsReturn => 
     }
   };
 
-  // Subscribe to real-time notifications
   const subscribeToNotifications = (userId: string) => {
     // Clean up existing subscription
-    if (notificationUnsubscribe.current) {
-      notificationUnsubscribe.current();
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
     }
 
-    // Create new subscription
-    notificationUnsubscribe.current = notificationService.getUserNotifications(
+    // Create new subscription with proper typing
+    unsubscribeRef.current = notificationService.getUserNotifications(
       userId,
-      (newNotifications) => {
+      (newNotifications: NotificationData[]) => {
         setNotifications(newNotifications);
         const unread = newNotifications.filter(n => n.status === 'unread').length;
         setUnreadCount(unread);
@@ -114,7 +79,6 @@ export const useNotifications = (limit: number = 50): UseNotificationsReturn => 
     );
   };
 
-  // Update unread count
   const updateUnreadCount = async (userId: string) => {
     try {
       const count = await notificationService.getUnreadCount(userId);
@@ -124,7 +88,6 @@ export const useNotifications = (limit: number = 50): UseNotificationsReturn => 
     }
   };
 
-  // Mark single notification as read
   const markAsRead = async (notificationId: string) => {
     try {
       await notificationService.markAsRead(notificationId);
@@ -132,7 +95,7 @@ export const useNotifications = (limit: number = 50): UseNotificationsReturn => 
       setNotifications(prev => 
         prev.map(n => 
           n.id === notificationId 
-            ? { ...n, status: 'read' as const, readAt: new Date() as any }
+            ? { ...n, status: 'read' as const }
             : n
         )
       );
@@ -143,7 +106,6 @@ export const useNotifications = (limit: number = 50): UseNotificationsReturn => 
     }
   };
 
-  // Mark all notifications as read
   const markAllAsRead = async () => {
     if (!user) return;
 
@@ -154,12 +116,7 @@ export const useNotifications = (limit: number = 50): UseNotificationsReturn => 
         .filter(Boolean);
 
       if (unreadIds.length > 0) {
-        // Use batch operation if available, otherwise fall back to individual operations
-        if (notificationService.markMultipleAsRead) {
-          await notificationService.markMultipleAsRead(unreadIds);
-        } else {
-          await Promise.all(unreadIds.map(id => notificationService.markAsRead(id)));
-        }
+        await notificationService.markMultipleAsRead(unreadIds);
         
         // Update local state immediately
         setNotifications(prev => 
@@ -173,7 +130,6 @@ export const useNotifications = (limit: number = 50): UseNotificationsReturn => 
     }
   };
 
-  // Delete notification
   const deleteNotification = async (notificationId: string) => {
     try {
       await notificationService.deleteNotification(notificationId);
@@ -192,7 +148,6 @@ export const useNotifications = (limit: number = 50): UseNotificationsReturn => 
     }
   };
 
-  // Refresh notifications
   const refreshNotifications = async () => {
     if (!user) return;
 
@@ -208,20 +163,6 @@ export const useNotifications = (limit: number = 50): UseNotificationsReturn => 
     }
   };
 
-  // Cleanup function
-  const cleanup = () => {
-    if (notificationUnsubscribe.current) {
-      notificationUnsubscribe.current();
-      notificationUnsubscribe.current = null;
-    }
-    
-    // Clean up notification service listeners
-    if (notificationService.cleanup) {
-      notificationService.cleanup();
-    }
-    isInitialized.current = false;
-  };
-
   return {
     notifications,
     unreadCount,
@@ -234,10 +175,13 @@ export const useNotifications = (limit: number = 50): UseNotificationsReturn => 
   };
 };
 
-// Additional hook for managing notification permissions
+// Enhanced hook for managing notification permissions with better error handling
 export const useNotificationPermissions = () => {
-  const [permissionStatus, setPermissionStatus] = useState<string>('undetermined');
+  const [permissionStatus, setPermissionStatus] = useState<Notifications.PermissionStatus>(
+    Notifications.PermissionStatus.UNDETERMINED
+  );
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     checkPermissions();
@@ -247,19 +191,25 @@ export const useNotificationPermissions = () => {
     try {
       const { status } = await Notifications.getPermissionsAsync();
       setPermissionStatus(status);
-    } catch (error) {
-      console.error('Error checking notification permissions:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Error checking notification permissions:', err);
+      setError('Failed to check notification permissions');
     }
   };
 
-  const requestPermissions = async () => {
+  const requestPermissions = async (): Promise<boolean> => {
     try {
       setLoading(true);
+      setError(null);
+      
       const { status } = await Notifications.requestPermissionsAsync();
       setPermissionStatus(status);
-      return status === 'granted';
-    } catch (error) {
-      console.error('Error requesting notification permissions:', error);
+      
+      return status === Notifications.PermissionStatus.GRANTED;
+    } catch (err) {
+      console.error('Error requesting notification permissions:', err);
+      setError('Failed to request notification permissions');
       return false;
     } finally {
       setLoading(false);
@@ -269,8 +219,149 @@ export const useNotificationPermissions = () => {
   return {
     permissionStatus,
     loading,
-    isGranted: permissionStatus === 'granted',
+    error,
+    isGranted: permissionStatus === Notifications.PermissionStatus.GRANTED,
     requestPermissions,
     checkPermissions,
+  };
+};
+// Hook for handling notification responses and navigation
+export const useNotificationHandler = () => {
+  const responseListener = useRef<Notifications.Subscription | null>(null);
+
+  useEffect(() => {
+    // Setup notification response handler
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      handleNotificationTap(data);
+    });
+
+    return () => {
+      if (responseListener.current) {
+        responseListener.current.remove();
+      }
+    };
+  }, []);
+
+  const handleNotificationTap = (data: any) => {
+    const type = data?.type;
+    console.log('Notification tapped:', type, data);
+
+    // Handle different notification types
+    switch (type) {
+      case 'report_submitted':
+      case 'report_accepted':
+      case 'report_verified':
+      case 'report_resolved':
+        if (data?.reportId) {
+          // Navigate to report details
+          console.log('Navigate to report:', data.reportId);
+          // You would integrate with your navigation here
+          // navigation.navigate('ReportDetails', { reportId: data.reportId });
+        }
+        break;
+
+      case 'forum_reply':
+      case 'forum_like_post':
+      case 'forum_activity':
+        if (data?.postId) {
+          // Navigate to forum post
+          console.log('Navigate to forum post:', data.postId);
+          // navigation.navigate('ForumPost', { postId: data.postId });
+        }
+        break;
+
+      case 'chat_message':
+        if (data?.chatRoomId) {
+          // Navigate to chat
+          console.log('Navigate to chat:', data.chatRoomId);
+          // navigation.navigate('Chat', { chatRoomId: data.chatRoomId });
+        }
+        break;
+
+      case 'sos_call_pending':
+      case 'sos_call_reviewed':
+      case 'sos_call_assigned':
+        if (data?.sosCallId) {
+          // Navigate to SOS status
+          console.log('Navigate to SOS status:', data.sosCallId);
+          // navigation.navigate('SOSStatus', { sosId: data.sosCallId });
+        }
+        break;
+
+      case 'violation':
+      case 'violation_warning':
+      case 'violation_strike':
+      case 'violation_suspension':
+      case 'violation_ban':
+        // Navigate to account status or strikes page
+        console.log('Navigate to account violations');
+        // navigation.navigate('AccountStatus');
+        break;
+
+      case 'weather_alert':
+      case 'emergency_broadcast':
+        if (data?.alertId) {
+          // Navigate to alerts page
+          console.log('Navigate to alerts:', data.alertId);
+          // navigation.navigate('Alerts');
+        }
+        break;
+
+      default:
+        console.log('No specific handler for notification type:', type);
+    }
+  };
+
+  return {
+    handleNotificationTap
+  };
+};
+
+// Hook for managing push token registration
+export const usePushToken = () => {
+  const { user } = useAuth();
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const registerPushToken = async (): Promise<string | null> => {
+    if (!user) {
+      setError('User not authenticated');
+      return null;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const pushToken = await notificationService.initializePushNotifications();
+      
+      if (pushToken) {
+        await notificationService.storePushToken(user.uid);
+        setToken(pushToken);
+        return pushToken;
+      }
+      
+      return null;
+    } catch (err) {
+      console.error('Error registering push token:', err);
+      setError('Failed to register push token');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshPushToken = async (): Promise<string | null> => {
+    return registerPushToken();
+  };
+
+  return {
+    token,
+    loading,
+    error,
+    registerPushToken,
+    refreshPushToken,
   };
 };

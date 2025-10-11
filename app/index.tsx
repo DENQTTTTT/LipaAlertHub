@@ -9,7 +9,7 @@ export default function Index() {
   useEffect(() => {
     const timer = setTimeout(async () => {
       await SplashScreen.hideAsync();
-      router.replace("/(auth)/login" as const); // 👈 force correct type
+      router.replace("/(auth)/login" as const); 
     }, 2000);
 
     return () => clearTimeout(timer);

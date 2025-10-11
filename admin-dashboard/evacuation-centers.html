@@ -880,9 +880,6 @@
             <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
                 Loading Evacuation Centers...
             </div>
-            <small style="opacity: 0.8;">
-                Initializing Google Places API and map services
-            </small>
         </div>
     </div>
 
@@ -900,7 +897,7 @@
             <div class="sidebar-header">
                 <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
                 <div class="brand-title">LipaAlertHub</div>
-                <div class="brand-subtitle">Disaster Management System</div>
+                <div class="brand-subtitle">Report Management System</div>
             </div>
             
             <nav class="sidebar-nav">
@@ -987,6 +984,13 @@
                         Contacts
                     </a>
                 </div>
+                
+                   <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="changepassword.html" class="nav-link">
+                        <i class="fas fa-key"></i>
+                        Change Password
+                    </a>
+                </div>
             </nav>
         </div>
 
@@ -1026,8 +1030,8 @@
                         <i class="fas fa-plus"></i>
                         <span id="addBtnText">Add Evacuation Center</span>
                     </button>
-                    
-
+                
+                    </div>
                     
                     <div class="filter-controls">
                         <div class="filter-title">Filter Centers</div>
@@ -1035,7 +1039,6 @@
                             <button class="filter-btn active" data-filter="all">All</button>
                             <button class="filter-btn" data-filter="active">Active</button>
                             <button class="filter-btn" data-filter="inactive">Inactive</button>
-                            <button class="filter-btn" data-filter="google">Google Found</button>
                         </div>
                     </div>
                 </div>
@@ -1112,7 +1115,85 @@
                         
                         <div class="mb-3">
                             <label for="centerBarangay" class="form-label">Barangay</label>
-                            <input type="text" class="form-control" id="centerBarangay" required placeholder="e.g. Poblacion">
+                            <select class="form-control" id="centerBarangay" required>
+                                <option value="">Select Barangay</option>
+                                <!-- Poblacion Barangays -->
+                                <option value="Barangay 1">Barangay 1</option>
+                                <option value="Barangay 2">Barangay 2</option>
+                                <option value="Barangay 3">Barangay 3</option>
+                                <option value="Barangay 4">Barangay 4</option>
+                                <option value="Barangay 5">Barangay 5</option>
+                                <option value="Barangay 6">Barangay 6</option>
+                                <option value="Barangay 7">Barangay 7</option>
+                                <option value="Barangay 8">Barangay 8</option>
+                                <option value="Barangay 9">Barangay 9</option>
+                                <option value="Barangay 9-A">Barangay 9-A</option>
+                                <option value="Barangay 10">Barangay 10</option>
+                                <option value="Barangay 11">Barangay 11</option>
+                                
+                                <!-- Rural Barangays -->
+                                <option value="Adya">Adya</option>
+                                <option value="Anilao">Anilao</option>
+                                <option value="Anilao-Labac">Anilao-Labac</option>
+                                <option value="Antipolo Del Norte">Antipolo Del Norte</option>
+                                <option value="Antipolo Del Sur">Antipolo Del Sur</option>
+                                <option value="Bagong Pook">Bagong Pook</option>
+                                <option value="Balintawak">Balintawak</option>
+                                <option value="Banay-banay">Banay-banay</option>
+                                <option value="Bolbok">Bolbok</option>
+                                <option value="Bugtong na Pulo">Bugtong na Pulo</option>
+                                <option value="Bulacnin">Bulacnin</option>
+                                <option value="Bulaklakan">Bulaklakan</option>
+                                <option value="Calamias">Calamias</option>
+                                <option value="Cumba">Cumba</option>
+                                <option value="Dagatan">Dagatan</option>
+                                <option value="Duhatan">Duhatan</option>
+                                <option value="Fernando Air Base">Fernando Air Base</option>
+                                <option value="Halang">Halang</option>
+                                <option value="Inosluban">Inosluban</option>
+                                <option value="Kayumanggi">Kayumanggi</option>
+                                <option value="Latag">Latag</option>
+                                <option value="Lodlod">Lodlod</option>
+                                <option value="Lumbang">Lumbang</option>
+                                <option value="Mabini">Mabini</option>
+                                <option value="Malagonlong">Malagonlong</option>
+                                <option value="Malitlit">Malitlit</option>
+                                <option value="Marawoy">Marawoy</option>
+                                <option value="Mataas na Lupa">Mataas na Lupa</option>
+                                <option value="Munting Pulo">Munting Pulo</option>
+                                <option value="Pag-olingin Bata">Pag-olingin Bata</option>
+                                <option value="Pag-olingin East">Pag-olingin East</option>
+                                <option value="Pag-olingin West">Pag-olingin West</option>
+                                <option value="Pangao">Pangao</option>
+                                <option value="Pinagkawitan">Pinagkawitan</option>
+                                <option value="Pinagtongulan">Pinagtongulan</option>
+                                <option value="Plaridel">Plaridel</option>
+                                <option value="Pusil">Pusil</option>
+                                <option value="Quezon">Quezon</option>
+                                <option value="Rizal">Rizal</option>
+                                <option value="Sabang">Sabang</option>
+                                <option value="Sala">Sala</option>
+                                <option value="Sampaguita">Sampaguita</option>
+                                <option value="San Benito">San Benito</option>
+                                <option value="San Carlos">San Carlos</option>
+                                <option value="San Celestino">San Celestino</option>
+                                <option value="San Francisco">San Francisco</option>
+                                <option value="San Guillermo">San Guillermo</option>
+                                <option value="San Isidro">San Isidro</option>
+                                <option value="San Jose">San Jose</option>
+                                <option value="San Lucas">San Lucas</option>
+                                <option value="San Salvador">San Salvador</option>
+                                <option value="San Sebastian">San Sebastian</option>
+                                <option value="Sico">Sico</option>
+                                <option value="Sto. Niño">Sto. Niño</option>
+                                <option value="Sto. Toribio">Sto. Toribio</option>
+                                <option value="Talisay">Talisay</option>
+                                <option value="Tambo">Tambo</option>
+                                <option value="Tangob">Tangob</option>
+                                <option value="Tangway">Tangway</option>
+                                <option value="Tibig">Tibig</option>
+                                <option value="Tipacan">Tipacan</option>
+                            </select>
                         </div>
                         
                         <div class="mb-3">
@@ -1216,27 +1297,27 @@
         const db = getFirestore(app);
         const storage = getStorage(app);
 
-        // Google Places API Configuration
-        let map;
-        let placesService;
-        let geocoder;
-        let markers = [];
-        let evacuationCenters = [];
-        let currentFilter = 'all';
-        let currentUser = null;
-        let centersListener = null;
-        let autocomplete;
+        // Global variables accessible to all functions
+        window.map = null;
+        window.placesService = null;
+        window.geocoder = null;
+        window.markers = [];
+        window.evacuationCenters = [];
+        window.currentFilter = 'all';
+        window.currentUser = null;
+        window.centersListener = null;
+        window.autocomplete = null;
 
         // Lipa City boundaries for restricting searches
-        const LIPA_CITY_BOUNDS = new google.maps.LatLngBounds(
+        window.LIPA_CITY_BOUNDS = new google.maps.LatLngBounds(
             new google.maps.LatLng(13.8, 121.0), // SW
             new google.maps.LatLng(14.1, 121.3)  // NE
         );
 
-        const LIPA_CITY_CENTER = new google.maps.LatLng(13.9411, 121.1624);
+        window.LIPA_CITY_CENTER = new google.maps.LatLng(13.9411, 121.1624);
 
         // Evacuation center specific place types
-        const EVACUATION_CENTER_TYPES = [
+        window.EVACUATION_CENTER_TYPES = [
             'school', 'primary_school', 'secondary_school', 'university', 
             'establishment', 'point_of_interest',
             'local_government_office', 'city_hall', 'courthouse', 'fire_station',
@@ -1247,7 +1328,7 @@
         ];
 
         // Emergency-specific search presets
-        const EMERGENCY_SEARCH_PRESETS = {
+        window.EMERGENCY_SEARCH_PRESETS = {
             'flood': ['school', 'church', 'community_center', 'gym'],
             'earthquake': ['park', 'stadium', 'gym', 'school'],
             'fire': ['school', 'church', 'community_center'],
@@ -1261,7 +1342,7 @@
 
         // Wait for Google Maps to load
         window.addEventListener('googleMapsLoaded', function() {
-            if (currentUser && window.googleMapsReady) {
+            if (window.currentUser && window.googleMapsReady) {
                 initializeMap().then(() => {
                     setupEvacuationCentersListener();
                     setupEventListeners();
@@ -1299,7 +1380,7 @@
                         return;
                     }
 
-                    currentUser = { user, userData };
+                    window.currentUser = { user, userData };
                     updateUserInfo(userData, user);
                     
                     // Check if Google Maps is already loaded
@@ -1329,14 +1410,14 @@
                 throw new Error('Google Maps API not loaded');
             }
 
-            const defaultCenter = LIPA_CITY_CENTER;
+            const defaultCenter = window.LIPA_CITY_CENTER;
             
-            map = new google.maps.Map(document.getElementById("evacuationMap"), {
+            window.map = new google.maps.Map(document.getElementById("evacuationMap"), {
                 zoom: 13,
                 center: defaultCenter,
                 mapTypeId: google.maps.MapTypeId.ROADMAP,
                 restriction: {
-                    latLngBounds: LIPA_CITY_BOUNDS,
+                    latLngBounds: window.LIPA_CITY_BOUNDS,
                     strictBounds: false,
                 },
                 styles: [
@@ -1349,10 +1430,10 @@
             });
 
             // Initialize Places Service
-            placesService = new google.maps.places.PlacesService(map);
+            window.placesService = new google.maps.places.PlacesService(window.map);
             
             // Initialize Geocoder
-            geocoder = new google.maps.Geocoder();
+            window.geocoder = new google.maps.Geocoder();
 
             // Initialize Autocomplete for the search input
             initializeEvacuationAutocomplete();
@@ -1366,20 +1447,20 @@
             if (!searchInput || typeof google === 'undefined') return;
 
             try {
-                autocomplete = new google.maps.places.Autocomplete(searchInput, {
-                    bounds: LIPA_CITY_BOUNDS,
+                window.autocomplete = new google.maps.places.Autocomplete(searchInput, {
+                    bounds: window.LIPA_CITY_BOUNDS,
                     componentRestrictions: { country: 'PH' },
                     fields: ['place_id', 'geometry', 'name', 'formatted_address', 'address_components', 'types', 'rating', 'photos'],
                     types: ['establishment']
                 });
 
-                autocomplete.setOptions({
+                window.autocomplete.setOptions({
                     strictBounds: true,
                     types: ['establishment', 'geocode']
                 });
 
-                autocomplete.addListener('place_changed', () => {
-                    const place = autocomplete.getPlace();
+                window.autocomplete.addListener('place_changed', () => {
+                    const place = window.autocomplete.getPlace();
                     if (place.geometry) {
                         processSelectedEvacuationCenter(place);
                     }
@@ -1412,16 +1493,16 @@
             document.getElementById('evacuationCapacity').value = capacity;
 
             // Update map
-            if (map) {
-                map.setCenter({ lat: lat, lng: lng });
-                map.setZoom(16);
+            if (window.map) {
+                window.map.setCenter({ lat: lat, lng: lng });
+                window.map.setZoom(16);
                 
                 if (window.tempMarker) {
                     window.tempMarker.setMap(null);
                 }
                 window.tempMarker = new google.maps.Marker({
                     position: { lat: lat, lng: lng },
-                    map: map,
+                    map: window.map,
                     title: name,
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
@@ -1439,7 +1520,7 @@
 
         // Enhanced evacuation center search using Google Places
         window.searchEvacuationCenters = async function() {
-            if (typeof google === 'undefined' || !placesService) {
+            if (typeof google === 'undefined' || !window.placesService) {
                 showNotification('Google Maps API not ready yet', 'warning');
                 return;
             }
@@ -1482,19 +1563,19 @@
             return new Promise((resolve, reject) => {
                 const request = {
                     query: enhancedQuery,
-                    bounds: LIPA_CITY_BOUNDS,
-                    location: LIPA_CITY_CENTER,
+                    bounds: window.LIPA_CITY_BOUNDS,
+                    location: window.LIPA_CITY_CENTER,
                     radius: 15000,
                     fields: ['place_id', 'name', 'geometry', 'formatted_address', 'address_components', 'types', 'rating', 'photos']
                 };
                 
-                placesService.textSearch(request, (results, status) => {
+                window.placesService.textSearch(request, (results, status) => {
                     if (status === google.maps.places.PlacesServiceStatus.OK) {
                         // Filter results to ensure they're in Lipa City
                         const filteredResults = results.filter(result => {
                             const lat = result.geometry.location.lat();
                             const lng = result.geometry.location.lng();
-                            return LIPA_CITY_BOUNDS.contains(new google.maps.LatLng(lat, lng));
+                            return window.LIPA_CITY_BOUNDS.contains(new google.maps.LatLng(lat, lng));
                         });
                         resolve(filteredResults);
                     } else {
@@ -1508,13 +1589,13 @@
         async function level2_NearbySearch(types) {
             return new Promise((resolve, reject) => {
                 const request = {
-                    location: LIPA_CITY_CENTER,
+                    location: window.LIPA_CITY_CENTER,
                     radius: 10000,
                     type: types,
-                    bounds: LIPA_CITY_BOUNDS
+                    bounds: window.LIPA_CITY_BOUNDS
                 };
                 
-                placesService.nearbySearch(request, (results, status) => {
+                window.placesService.nearbySearch(request, (results, status) => {
                     if (status === google.maps.places.PlacesServiceStatus.OK) {
                         resolve(results);
                     } else {
@@ -1689,16 +1770,16 @@
             document.getElementById('searchResults').style.display = 'none';
             document.getElementById('locationSearch').value = name;
             
-            if (map) {
-                map.setCenter({ lat: lat, lng: lng });
-                map.setZoom(16);
+            if (window.map) {
+                window.map.setCenter({ lat: lat, lng: lng });
+                window.map.setZoom(16);
                 
                 if (window.tempMarker) {
                     window.tempMarker.setMap(null);
                 }
                 window.tempMarker = new google.maps.Marker({
                     position: { lat: lat, lng: lng },
-                    map: map,
+                    map: window.map,
                     title: name,
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
@@ -1714,51 +1795,7 @@
             showNotification(`Selected: ${name} from Google Places`, 'success');
         };
 
-        // Quick evacuation search for emergency scenarios - make globally accessible
-        window.quickEvacuationSearch = async function(emergencyType) {
-            if (typeof google === 'undefined' || !placesService) {
-                showNotification('Google Maps API not ready yet', 'warning');
-                return;
-            }
-
-            const btn = event.target;
-            const originalText = btn.textContent;
-            
-            btn.classList.add('loading');
-            btn.textContent = 'Searching...';
-            
-            try {
-                const types = EMERGENCY_SEARCH_PRESETS[emergencyType] || EVACUATION_CENTER_TYPES;
-                const results = [];
-                
-                // Search for each type
-                for (const type of types) {
-                    try {
-                        const typeResults = await level2_NearbySearch(type);
-                        results.push(...typeResults);
-                    } catch (error) {
-                        console.log(`No results for type: ${type}`);
-                    }
-                }
-                
-                // Remove duplicates and display on map
-                const uniqueResults = results.filter((result, index, self) => 
-                    index === self.findIndex(r => r.place_id === result.place_id)
-                );
-                
-                displayEmergencyResults(uniqueResults, emergencyType);
-                
-                showNotification(`Found ${uniqueResults.length} ${emergencyType} evacuation centers`, 'success');
-                
-            } catch (error) {
-                console.error('Quick search error:', error);
-                showNotification(`Error searching for ${emergencyType} centers`, 'error');
-            } finally {
-                btn.classList.remove('loading');
-                btn.textContent = originalText;
-            }
-        };
-
+       
         // Display emergency search results on map
         function displayEmergencyResults(results, emergencyType) {
             // Clear existing emergency markers
@@ -1777,7 +1814,7 @@
             results.forEach(place => {
                 const marker = new google.maps.Marker({
                     position: place.geometry.location,
-                    map: map,
+                    map: window.map,
                     title: `${place.name} (${emergencyType} evacuation center)`,
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
@@ -1797,7 +1834,7 @@
                     if (window.activeEmergencyInfoWindow) {
                         window.activeEmergencyInfoWindow.close();
                     }
-                    infoWindow.open(map, marker);
+                    infoWindow.open(window.map, marker);
                     window.activeEmergencyInfoWindow = infoWindow;
                 });
                 
@@ -1912,7 +1949,7 @@
                     if (retryCount < maxRetries) {
                         container.innerHTML = `<div class="search-result-item">⏳ Rate limit hit, retrying in ${retryCount + 1} seconds...</div>`;
                         await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-                        return searchEvacuationCenters();
+                        return window.searchEvacuationCenters();
                     }
                     container.innerHTML = '<div class="search-result-item" style="color: #dc3545;">Rate limit exceeded. Please try again later.</div>';
                     break;
@@ -1930,7 +1967,7 @@
                     if (retryCount < maxRetries) {
                         container.innerHTML = `<div class="search-result-item">🔄 Search failed, retrying (${retryCount + 1}/${maxRetries})...</div>`;
                         await new Promise(resolve => setTimeout(resolve, 1000));
-                        return searchEvacuationCenters();
+                        return window.searchEvacuationCenters();
                     }
                     container.innerHTML = '<div class="search-result-item" style="color: #dc3545;">Search failed. Please try again.</div>';
             }
@@ -1954,12 +1991,12 @@
         function setupEvacuationCentersListener() {
             const q = query(collection(db, "evacuation_centers"), orderBy("createdAt", "desc"));
             
-            if (centersListener) centersListener();
+            if (window.centersListener) window.centersListener();
             
-            centersListener = onSnapshot(q, (snapshot) => {
-                evacuationCenters = [];
+            window.centersListener = onSnapshot(q, (snapshot) => {
+                window.evacuationCenters = [];
                 snapshot.forEach((doc) => {
-                    evacuationCenters.push({
+                    window.evacuationCenters.push({
                         id: doc.id,
                         ...doc.data()
                     });
@@ -1985,7 +2022,7 @@
                     <div class="empty-state">
                         <i class="fas fa-home fa-2x mb-3" style="color: #d53b2c;"></i>
                         <p>No evacuation centers found</p>
-                        ${currentFilter !== 'all' ? '<small>Try changing the filter</small>' : ''}
+                        ${window.currentFilter !== 'all' ? '<small>Try changing the filter</small>' : ''}
                     </div>
                 `;
                 return;
@@ -2029,22 +2066,22 @@
 
         // Get filtered centers
         function getFilteredCenters() {
-            switch (currentFilter) {
+            switch (window.currentFilter) {
                 case 'active':
-                    return evacuationCenters.filter(center => center.isActive);
+                    return window.evacuationCenters.filter(center => center.isActive);
                 case 'inactive':
-                    return evacuationCenters.filter(center => !center.isActive);
+                    return window.evacuationCenters.filter(center => !center.isActive);
                 case 'google':
-                    return evacuationCenters.filter(center => center.source === 'google_places');
+                    return window.evacuationCenters.filter(center => center.source === 'google_places');
                 default:
-                    return evacuationCenters;
+                    return window.evacuationCenters;
             }
         }
 
         // Update map markers
         function updateMapMarkers() {
-            markers.forEach(marker => marker.setMap(null));
-            markers = [];
+            window.markers.forEach(marker => marker.setMap(null));
+            window.markers = [];
             
             const filteredCenters = getFilteredCenters();
             
@@ -2053,7 +2090,7 @@
                 
                 const marker = new google.maps.Marker({
                     position: { lat: center.latitude, lng: center.longitude },
-                    map: map,
+                    map: window.map,
                     title: center.name,
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
@@ -2072,15 +2109,15 @@
                 });
                 
                 marker.addListener('click', () => {
-                    markers.forEach(m => {
+                    window.markers.forEach(m => {
                         if (m.infoWindow) m.infoWindow.close();
                     });
                     
-                    infoWindow.open(map, marker);
+                    infoWindow.open(window.map, marker);
                 });
                 
                 marker.infoWindow = infoWindow;
-                markers.push(marker);
+                window.markers.push(marker);
             });
         }
 
@@ -2126,9 +2163,9 @@
 
         // Update centers count
         function updateCentersCount() {
-            const total = evacuationCenters.length;
-            const active = evacuationCenters.filter(c => c.isActive).length;
-            const googleSourced = evacuationCenters.filter(c => c.source === 'google_places').length;
+            const total = window.evacuationCenters.length;
+            const active = window.evacuationCenters.filter(c => c.isActive).length;
+            const googleSourced = window.evacuationCenters.filter(c => c.source === 'google_places').length;
             document.getElementById('centersCount').textContent = `${total} total • ${active} active • ${googleSourced} from Google Places`;
         }
 
@@ -2138,7 +2175,7 @@
                 btn.addEventListener('click', (e) => {
                     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                     e.target.classList.add('active');
-                    currentFilter = e.target.getAttribute('data-filter');
+                    window.currentFilter = e.target.getAttribute('data-filter');
                     updateCentersList();
                     updateMapMarkers();
                 });
@@ -2174,7 +2211,7 @@
             searchInput.addEventListener('input', function() {
                 clearTimeout(searchTimeout);
                 if (this.value.trim()) {
-                    searchTimeout = setTimeout(() => searchEvacuationCenters(), 800);
+                    searchTimeout = setTimeout(() => window.searchEvacuationCenters(), 800);
                 } else {
                     document.getElementById('searchResults').style.display = 'none';
                 }
@@ -2183,7 +2220,7 @@
             searchInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    searchEvacuationCenters();
+                    window.searchEvacuationCenters();
                 }
             });
 
@@ -2216,7 +2253,7 @@
             }
             
             if (centerId) {
-                const center = evacuationCenters.find(c => c.id === centerId);
+                const center = window.evacuationCenters.find(c => c.id === centerId);
                 if (center) {
                     document.getElementById('modalTitle').textContent = 'Edit Evacuation Center';
                     document.getElementById('centerId').value = centerId;
@@ -2249,12 +2286,12 @@
 
         // Focus on center - make globally accessible
         window.focusOnCenter = function(centerId) {
-            const center = evacuationCenters.find(c => c.id === centerId);
-            if (center && map) {
-                map.setCenter({ lat: center.latitude, lng: center.longitude });
-                map.setZoom(16);
+            const center = window.evacuationCenters.find(c => c.id === centerId);
+            if (center && window.map) {
+                window.map.setCenter({ lat: center.latitude, lng: center.longitude });
+                window.map.setZoom(16);
                 
-                const marker = markers.find(m => 
+                const marker = window.markers.find(m => 
                     Math.abs(m.getPosition().lat() - center.latitude) < 0.0001 &&
                     Math.abs(m.getPosition().lng() - center.longitude) < 0.0001
                 );
@@ -2314,7 +2351,7 @@
                 return;
             }
             
-            if (typeof google !== 'undefined' && !LIPA_CITY_BOUNDS.contains(new google.maps.LatLng(lat, lng))) {
+            if (typeof google !== 'undefined' && !window.LIPA_CITY_BOUNDS.contains(new google.maps.LatLng(lat, lng))) {
                 showNotification('Location must be within Lipa City bounds', 'error');
                 return;
             }
@@ -2377,7 +2414,7 @@
             }
             
             try {
-                const center = evacuationCenters.find(c => c.id === centerId);
+                const center = window.evacuationCenters.find(c => c.id === centerId);
                 
                 if (center && center.photoUrl) {
                     try {
@@ -2472,7 +2509,7 @@
 
         // Cleanup listeners on page unload
         window.addEventListener('beforeunload', () => {
-            if (centersListener) centersListener();
+            if (window.centersListener) window.centersListener();
             if (window.emergencyMarkers) {
                 window.emergencyMarkers.forEach(marker => marker.setMap(null));
             }
@@ -2481,7 +2518,7 @@
     </script>
 
     <!-- Enhanced Google Maps API with ALL required libraries -->
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo&libraries=places,geometry,geocoding&callback=initializeGoogleMapsCallback"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo&libraries=places,geometry&callback=initializeGoogleMapsCallback"></script>
     
     <script>
         // Additional validation and utility functions

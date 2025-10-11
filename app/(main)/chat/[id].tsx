@@ -1,4 +1,4 @@
-// app/(main)/chat/[id].tsx - Chat Conversation Screen
+// app/(main)/chat/[id].tsx - Fixed Chat Conversation Screen
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -16,8 +16,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-// Fixed import paths based on your project structure
 import { useAuth } from '../../../hooks/useAuth';
 import { useChat } from '../../../hooks/useChat';
 import { ChatMessage } from '../../../services/chat';
@@ -38,6 +36,7 @@ export default function ChatConversationScreen() {
 
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
+  const hasMarkedAsReadRef = useRef(false);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -46,12 +45,15 @@ export default function ChatConversationScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages]);
+  }, [messages.length]); // Only depend on message count
 
-  // Mark messages as read when screen loads
+  // Mark messages as read when screen loads (only once)
   useEffect(() => {
-    markMessagesAsRead();
-  }, [markMessagesAsRead]);
+    if (connected && !hasMarkedAsReadRef.current) {
+      markMessagesAsRead();
+      hasMarkedAsReadRef.current = true;
+    }
+  }, [connected]); // Only when connected changes
 
   const handleSendMessage = useCallback(async () => {
     const messageText = inputText.trim();

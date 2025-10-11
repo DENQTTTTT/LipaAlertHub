@@ -547,7 +547,7 @@
             <div class="sidebar-header">
                 <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
                 <div class="brand-title">LipaAlertHub</div>
-                <div class="brand-subtitle">Disaster Management System</div>
+                <div class="brand-subtitle">Report Management System</div>
             </div>
             
             <nav class="sidebar-nav">
@@ -558,7 +558,7 @@
                     </a>
                 </div>
                 
-                      <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="IncidentReportList.html" class="nav-link">
                         <i class="fas fa-exclamation-triangle"></i>
                         Reports
@@ -572,28 +572,28 @@
                     </a>
                 </div>
                 
-               <div class="nav-item" data-role="admin">
-                <a href="EmergencyTips.html" class="nav-link">
+                <div class="nav-item" data-role="admin">
+                    <a href="EmergencyTips.html" class="nav-link">
                         <i class="fas fa-lightbulb"></i>
                         Emergency Tips
                     </a>
                 </div>
 
-             <div class="nav-item" data-role="admin">
-                   <a href="evacuation-centers.html" class="nav-link">
-                   <i class="fa-solid fa-tents"></i>
-                       evacuation-centers
+                <div class="nav-item" data-role="admin">
+                    <a href="evacuation-centers.html" class="nav-link">
+                    <i class="fa-solid fa-tents"></i>
+                        Evacuation Centers
                     </a>
                 </div>
 
-                               <div class="nav-item" data-role="admin,monitor">
+                <div class="nav-item" data-role="admin,monitor">
                     <a href="Forums.html" class="nav-link">
                         <i class="fas fa-comments"></i>
                         Forums
                     </a>
                 </div>
                 
-                 <div class="nav-item">
+                <div class="nav-item">
                     <a href="Maps.html" class="nav-link">
                         <i class="fas fa-map"></i>
                         Hazard Map
@@ -603,18 +603,18 @@
                 <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="Chats.html" class="nav-link">
                         <i class="fas fa-comment-dots"></i>
-                   Chats
+                    Chats
                     </a>
                 </div>
                 
-                    <div class="nav-item" data-role="admin,monitor">
-                    <a href="AccountVerification.html" class="nav-link">
+                <div class="nav-item" data-role="admin,monitor">
+                    <a href="Accounts.html" class="nav-link">
                         <i class="fas fa-users"></i>
                         Accounts
                     </a>
                 </div>
                 
-          <div class="nav-item" data-role="admin">
+                <div class="nav-item" data-role="admin">
                     <a href="Analytics.html" class="nav-link">
                         <i class="fas fa-chart-bar"></i>
                         Analytics
@@ -622,16 +622,23 @@
                 </div>
 
                 <div class="nav-item" data-role="admin">
-                      <a href="WeatherDisasters.html" class="nav-link">
-                         <i class="fa-solid fa-cloud"></i>
+                    <a href="WeatherDisasters.html" class="nav-link">
+                        <i class="fa-solid fa-cloud"></i>
                     Weather & Disasters
-                </a>
-            </div>
+                    </a>
+                </div>
                 
-                 <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="Contacts.html" class="nav-link">
                         <i class="fas fa-phone"></i>
                         Contacts
+                    </a>
+                </div>
+
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="changepassword.html" class="nav-link">
+                        <i class="fas fa-key"></i>
+                        Change Password
                     </a>
                 </div>
             </nav>
@@ -1032,11 +1039,29 @@
                 
                 // Upload image if provided
                 if (imageFile) {
-                    // Generate a unique announcement ID for the path
-                    const announcementId = currentEditingId || `new_${Date.now()}`;
-                    const imageRef = ref(storage, `announcements/${announcementId}/${Date.now()}_${imageFile.name}`);
-                    const snapshot = await uploadBytes(imageRef, imageFile);
-                    imageUrl = await getDownloadURL(snapshot.ref);
+                    try {
+                        // Use a simpler path that matches storage rules
+                        const imageRef = ref(storage, `announcements/${Date.now()}_${imageFile.name}`);
+                        console.log('Uploading image to:', imageRef.fullPath);
+                        
+                        // Validate file type and size
+                        if (!imageFile.type.startsWith('image/')) {
+                            throw new Error('Please upload a valid image file');
+                        }
+                        if (imageFile.size > 5 * 1024 * 1024) { // 5MB limit
+                            throw new Error('Image size must be less than 5MB');
+                        }
+                        
+                        const snapshot = await uploadBytes(imageRef, imageFile);
+                        console.log('Image uploaded successfully');
+                        
+                        imageUrl = await getDownloadURL(snapshot.ref);
+                        console.log('Image URL:', imageUrl);
+                    } catch (uploadError) {
+                        console.error('Image upload failed:', uploadError);
+                        showNotification("Image upload failed: " + uploadError.message, "error");
+                        // Continue without image - don't return here
+                    }
                 }
 
                 const announcementData = {
@@ -1045,15 +1070,13 @@
                     content: content, // For compatibility
                     createdAt: serverTimestamp(),
                     createdBy: currentUser.uid,
+                    updatedAt: serverTimestamp(),
                     ...(imageUrl && { imageUrl: imageUrl })
                 };
 
                 if (currentEditingId) {
                     // Update existing announcement
-                    await updateDoc(doc(db, "announcements", currentEditingId), {
-                        ...announcementData,
-                        updatedAt: serverTimestamp()
-                    });
+                    await updateDoc(doc(db, "announcements", currentEditingId), announcementData);
                     showNotification("Announcement updated successfully!", "success");
                 } else {
                     // Create new announcement
@@ -1178,10 +1201,17 @@
                     // Delete image from storage if exists
                     if (data.imageUrl) {
                         try {
-                            const imageRef = ref(storage, data.imageUrl);
-                            await deleteObject(imageRef);
+                            // Extract the path from the full URL or use the stored path
+                            const imagePath = data.imageUrl.split('/o/')[1]?.split('?')[0];
+                            if (imagePath) {
+                                const decodedPath = decodeURIComponent(imagePath);
+                                const imageRef = ref(storage, decodedPath);
+                                await deleteObject(imageRef);
+                                console.log('Image deleted successfully');
+                            }
                         } catch (imageError) {
                             console.warn('Could not delete image:', imageError);
+                            // Continue with document deletion even if image deletion fails
                         }
                     }
                 }
@@ -1253,4 +1283,4 @@
 
     </script>
 </body>
-</html>
+</html> 

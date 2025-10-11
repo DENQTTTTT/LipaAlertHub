@@ -3,11 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>LipaAlertHub - Chats</title>
+    <title>LipaAlertHub - Secure Chats</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
+        :root {
+            --primary-color: #d73527;
+            --primary-dark: #b92e20;
+            --secondary-color: #17a2b8;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --dark-color: #343a40;
+            --light-color: #f8f9fa;
+            --border-color: #e1e8ed;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+            --radius: 12px;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -16,8 +30,9 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
+            background-color: var(--light-color);
             overflow-x: hidden;
+            line-height: 1.6;
         }
 
         .loading-overlay {
@@ -26,7 +41,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -62,7 +77,7 @@
             top: 0;
             width: 250px;
             height: 100vh;
-            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             z-index: 1000;
             overflow-y: auto;
             box-shadow: 4px 0 20px rgba(0,0,0,0.1);
@@ -80,6 +95,7 @@
             border-radius: 50%;
             margin-bottom: 15px;
             border: 3px solid white;
+            object-fit: cover;
         }
 
         .brand-title {
@@ -112,16 +128,11 @@
             border-left: 4px solid transparent;
         }
 
-        .nav-link:hover {
+        .nav-link:hover,
+        .nav-link.active {
             background: rgba(255,255,255,0.1);
             color: white;
-            border-left-color: #fff;
-        }
-
-        .nav-link.active {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border-left-color: #fff;
+            border-left-color: white;
         }
 
         .nav-link i {
@@ -135,24 +146,24 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            background: #f8f9fa;
+            background: var(--light-color);
         }
 
         .header {
             background: white;
             padding: 20px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #dee2e6;
+            border-bottom: 1px solid var(--border-color);
             flex-shrink: 0;
         }
 
         .page-title {
             font-size: 28px;
             font-weight: 600;
-            color: #333;
+            color: var(--dark-color);
         }
 
         .user-info {
@@ -167,7 +178,7 @@
 
         .user-name {
             font-weight: 600;
-            color: #333;
+            color: var(--dark-color);
         }
 
         .user-role {
@@ -185,25 +196,11 @@
             color: white;
         }
 
-        .role-badge.admin {
-            background: linear-gradient(135deg, #dc3545, #c82333);
-        }
-
-        .role-badge.monitor {
-            background: linear-gradient(135deg, #17a2b8, #138496);
-        }
-
-        .role-badge.rescuer {
-            background: linear-gradient(135deg, #fd7e14, #e85d04);
-        }
-
-        .role-badge.agency {
-            background: linear-gradient(135deg, #6f42c1, #5a3ba7);
-        }
-
-        .role-badge.resident {
-            background: linear-gradient(135deg, #28a745, #218838);
-        }
+        .role-badge.admin { background: linear-gradient(135deg, var(--danger-color), #c82333); }
+        .role-badge.monitor { background: linear-gradient(135deg, var(--secondary-color), #138496); }
+        .role-badge.rescuer { background: linear-gradient(135deg, #fd7e14, #e85d04); }
+        .role-badge.agency { background: linear-gradient(135deg, #6f42c1, #5a3ba7); }
+        .role-badge.resident { background: linear-gradient(135deg, var(--success-color), #218838); }
 
         .chat-wrapper {
             display: flex;
@@ -215,7 +212,7 @@
         .chat-list {
             width: 350px;
             background: white;
-            border-right: 1px solid #e1e8ed;
+            border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -223,8 +220,8 @@
 
         .chat-list-header {
             padding: 20px;
-            border-bottom: 1px solid #e1e8ed;
-            background: #f8f9fa;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--light-color);
         }
 
         .chat-search {
@@ -235,7 +232,7 @@
         .chat-search input {
             width: 100%;
             padding: 12px 15px 12px 45px;
-            border: 1px solid #e1e8ed;
+            border: 1px solid var(--border-color);
             border-radius: 25px;
             font-size: 14px;
             outline: none;
@@ -243,7 +240,7 @@
         }
 
         .chat-search input:focus {
-            border-color: #d73527;
+            border-color: var(--primary-color);
             box-shadow: 0 0 0 2px rgba(215, 53, 39, 0.1);
         }
 
@@ -258,10 +255,10 @@
         .btn-new-conversation {
             width: 100%;
             padding: 12px;
-            background: linear-gradient(135deg, #d73527, #b92e20);
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: var(--radius);
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -273,7 +270,7 @@
         }
 
         .btn-new-conversation:hover {
-            background: linear-gradient(135deg, #b92e20, #a02419);
+            background: linear-gradient(135deg, var(--primary-dark), #a02419);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(215, 53, 39, 0.3);
         }
@@ -301,12 +298,12 @@
         }
 
         .chat-room-item:hover {
-            background: #f8f9fa;
+            background: var(--light-color);
         }
 
         .chat-room-item.active {
             background: #e3f2fd;
-            border-left: 4px solid #d73527;
+            border-left: 4px solid var(--primary-color);
         }
 
         .chat-room-header {
@@ -334,29 +331,15 @@
             color: white;
         }
 
-        .participant-avatar.resident {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-        }
-
-        .participant-avatar.rescuer {
-            background: linear-gradient(135deg, #e67e22, #d35400);
-        }
-
-        .participant-avatar.agency {
-            background: linear-gradient(135deg, #9b59b6, #8e44ad);
-        }
-
-        .participant-avatar.admin {
-            background: linear-gradient(135deg, #dc3545, #c82333);
-        }
-
-        .participant-avatar.monitor {
-            background: linear-gradient(135deg, #17a2b8, #138496);
-        }
+        .participant-avatar.resident { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .participant-avatar.rescuer { background: linear-gradient(135deg, #e67e22, #d35400); }
+        .participant-avatar.agency { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        .participant-avatar.admin { background: linear-gradient(135deg, var(--danger-color), #c82333); }
+        .participant-avatar.monitor { background: linear-gradient(135deg, var(--secondary-color), #138496); }
 
         .participant-name {
             font-weight: 600;
-            color: #333;
+            color: var(--dark-color);
         }
 
         .participant-role {
@@ -387,7 +370,7 @@
         }
 
         .unread-badge {
-            background: #d73527;
+            background: var(--primary-color);
             color: white;
             border-radius: 50%;
             width: 22px;
@@ -425,7 +408,7 @@
         .chat-main.empty {
             justify-content: center;
             align-items: center;
-            background: #f8f9fa;
+            background: var(--light-color);
         }
 
         .empty-state {
@@ -442,12 +425,12 @@
 
         .empty-state h3 {
             margin-bottom: 10px;
-            color: #333;
+            color: var(--dark-color);
         }
 
         .chat-header {
             padding: 20px 30px;
-            border-bottom: 1px solid #e1e8ed;
+            border-bottom: 1px solid var(--border-color);
             background: white;
             display: flex;
             justify-content: space-between;
@@ -474,7 +457,7 @@
 
         .btn-chat-action {
             padding: 8px 12px;
-            border: 1px solid #e1e8ed;
+            border: 1px solid var(--border-color);
             background: white;
             border-radius: 6px;
             color: #666;
@@ -483,7 +466,7 @@
         }
 
         .btn-chat-action:hover {
-            background: #f8f9fa;
+            background: var(--light-color);
             color: #333;
         }
 
@@ -491,7 +474,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 20px;
-            background: #f8f9fa;
+            background: var(--light-color);
             scroll-behavior: smooth;
         }
 
@@ -518,25 +501,11 @@
             flex-shrink: 0;
         }
 
-        .message-avatar.admin {
-            background: linear-gradient(135deg, #d73527, #b92e20);
-        }
-
-        .message-avatar.monitor {
-            background: linear-gradient(135deg, #17a2b8, #138496);
-        }
-
-        .message-avatar.resident {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-        }
-
-        .message-avatar.rescuer {
-            background: linear-gradient(135deg, #e67e22, #d35400);
-        }
-
-        .message-avatar.agency {
-            background: linear-gradient(135deg, #9b59b6, #8e44ad);
-        }
+        .message-avatar.admin { background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); }
+        .message-avatar.monitor { background: linear-gradient(135deg, var(--secondary-color), #138496); }
+        .message-avatar.resident { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .message-avatar.rescuer { background: linear-gradient(135deg, #e67e22, #d35400); }
+        .message-avatar.agency { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
 
         .message-content {
             flex: 1;
@@ -553,14 +522,14 @@
             background: white;
             border-radius: 18px;
             padding: 12px 18px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border: 1px solid #e1e8ed;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
             position: relative;
             word-wrap: break-word;
         }
 
         .message.own .message-bubble {
-            background: #d73527;
+            background: var(--primary-color);
             color: white;
             border: none;
         }
@@ -585,7 +554,7 @@
         .message-sender {
             font-size: 12px;
             font-weight: 600;
-            color: #d73527;
+            color: var(--primary-color);
             margin-bottom: 4px;
         }
 
@@ -610,7 +579,7 @@
         .chat-input {
             padding: 20px 30px;
             background: white;
-            border-top: 1px solid #e1e8ed;
+            border-top: 1px solid var(--border-color);
             display: flex;
             gap: 15px;
             align-items: flex-end;
@@ -626,7 +595,7 @@
             min-height: 44px;
             max-height: 120px;
             padding: 12px 50px 12px 15px;
-            border: 2px solid #e1e8ed;
+            border: 2px solid var(--border-color);
             border-radius: 25px;
             font-size: 15px;
             resize: none;
@@ -636,7 +605,7 @@
         }
 
         #chatMessage:focus {
-            border-color: #d73527;
+            border-color: var(--primary-color);
             box-shadow: 0 0 0 3px rgba(215, 53, 39, 0.1);
         }
 
@@ -645,7 +614,7 @@
             right: 8px;
             top: 50%;
             transform: translateY(-50%);
-            background: #d73527;
+            background: var(--primary-color);
             border: none;
             border-radius: 50%;
             width: 36px;
@@ -658,8 +627,8 @@
             justify-content: center;
         }
 
-        #sendMessageBtn:hover {
-            background: #b92e20;
+        #sendMessageBtn:hover:not(:disabled) {
+            background: var(--primary-dark);
             transform: translateY(-50%) scale(1.05);
         }
 
@@ -690,7 +659,7 @@
             width: 30px;
             height: 30px;
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #d73527;
+            border-top: 3px solid var(--primary-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-bottom: 15px;
@@ -699,7 +668,7 @@
         .error-state {
             text-align: center;
             padding: 40px 20px;
-            color: #dc3545;
+            color: var(--danger-color);
         }
 
         .notification-container {
@@ -714,7 +683,7 @@
 
         .notification {
             padding: 15px 25px;
-            border-radius: 12px;
+            border-radius: var(--radius);
             color: white;
             font-weight: 600;
             cursor: pointer;
@@ -724,27 +693,14 @@
             animation: slideIn 0.4s ease;
         }
 
-        .notification.success {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-        }
-
-        .notification.error {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-        }
-
-        .notification.info {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-        }
+        .notification.success { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+        .notification.error { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .notification.info { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .notification.warning { background: linear-gradient(135deg, #f39c12, #e67e22); }
 
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(100%);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
         .modal {
@@ -768,7 +724,7 @@
             background-color: white;
             margin: 5% auto;
             padding: 0;
-            border-radius: 12px;
+            border-radius: var(--radius);
             width: 90%;
             max-width: 600px;
             max-height: 80vh;
@@ -778,19 +734,13 @@
         }
 
         @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-50px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .modal-header {
             padding: 20px 30px;
-            background: linear-gradient(135deg, #d73527, #b92e20);
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             color: white;
             display: flex;
             justify-content: space-between;
@@ -830,20 +780,20 @@
             justify-content: space-between;
             align-items: center;
             padding: 15px;
-            border: 1px solid #e1e8ed;
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             margin-bottom: 10px;
             transition: all 0.3s ease;
         }
 
         .rescuer-item:hover {
-            background: #f8f9fa;
-            border-color: #d73527;
+            background: var(--light-color);
+            border-color: var(--primary-color);
         }
 
         .rescuer-info h6 {
             margin: 0 0 5px 0;
-            color: #333;
+            color: var(--dark-color);
             font-size: 16px;
         }
 
@@ -862,29 +812,15 @@
             color: white;
         }
 
-        .rescuer-status-badge.admin {
-            background: #dc3545;
-        }
-
-        .rescuer-status-badge.monitor {
-            background: #17a2b8;
-        }
-
-        .rescuer-status-badge.rescuer {
-            background: #fd7e14;
-        }
-
-        .rescuer-status-badge.agency {
-            background: #6f42c1;
-        }
-
-        .rescuer-status-badge.resident {
-            background: #28a745;
-        }
+        .rescuer-status-badge.admin { background: var(--danger-color); }
+        .rescuer-status-badge.monitor { background: var(--secondary-color); }
+        .rescuer-status-badge.rescuer { background: #fd7e14; }
+        .rescuer-status-badge.agency { background: #6f42c1; }
+        .rescuer-status-badge.resident { background: var(--success-color); }
 
         .assign-rescuer-btn {
             padding: 8px 16px;
-            background: #d73527;
+            background: var(--primary-color);
             color: white;
             border: none;
             border-radius: 6px;
@@ -898,7 +834,7 @@
         }
 
         .assign-rescuer-btn:hover {
-            background: #b92e20;
+            background: var(--primary-dark);
             transform: translateY(-2px);
         }
 
@@ -916,7 +852,7 @@
 
         .filter-btn {
             padding: 6px 14px;
-            border: 1px solid #e1e8ed;
+            border: 1px solid var(--border-color);
             background: white;
             border-radius: 20px;
             font-size: 12px;
@@ -927,14 +863,14 @@
         }
 
         .filter-btn:hover {
-            border-color: #d73527;
-            color: #d73527;
+            border-color: var(--primary-color);
+            color: var(--primary-color);
         }
 
         .filter-btn.active {
-            background: #d73527;
+            background: var(--primary-color);
             color: white;
-            border-color: #d73527;
+            border-color: var(--primary-color);
         }
 
         .assigned-badge {
@@ -956,9 +892,9 @@
 
         .section-header {
             padding: 15px 20px;
-            background: #f8f9fa;
-            border-top: 1px solid #e1e8ed;
-            border-bottom: 1px solid #e1e8ed;
+            background: var(--light-color);
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
             font-size: 13px;
             font-weight: 600;
             color: #666;
@@ -968,14 +904,14 @@
         }
 
         .section-header i {
-            color: #d73527;
+            color: var(--primary-color);
         }
 
         .permission-notice {
-            background: linear-gradient(135deg, #17a2b8, #138496);
+            background: linear-gradient(135deg, var(--secondary-color), #138496);
             color: white;
             padding: 15px 20px;
-            border-radius: 8px;
+            border-radius: var(--radius);
             margin: 20px;
             text-align: center;
             font-size: 14px;
@@ -991,7 +927,7 @@
             top: 20px;
             left: 20px;
             z-index: 2000;
-            background: #d73527;
+            background: var(--primary-color);
             color: white;
             border: none;
             border-radius: 50%;
@@ -1003,7 +939,7 @@
         }
 
         .mobile-toggle:hover {
-            background: #b92e20;
+            background: var(--primary-dark);
             transform: scale(1.1);
         }
 
@@ -1016,6 +952,122 @@
             height: 100vh;
             background: rgba(0,0,0,0.5);
             z-index: 999;
+        }
+
+        /* File Upload Styles */
+        .file-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary-color);
+            background: var(--light-color);
+        }
+
+        .file-upload-area.dragover {
+            border-color: var(--primary-color);
+            background: #e3f2fd;
+        }
+
+        .file-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .file-preview-item {
+            position: relative;
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .file-preview-item img {
+            max-width: 150px;
+            max-height: 150px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .file-preview-item .file-info {
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .remove-file-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .file-message {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .file-attachment {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: var(--light-color);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            max-width: 300px;
+        }
+
+        .file-icon {
+            font-size: 24px;
+            color: var(--primary-color);
+        }
+
+        .file-details {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .download-btn {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 16px;
         }
 
         @media (max-width: 991px) {
@@ -1063,7 +1115,7 @@
                 width: 100%;
                 height: 250px;
                 border-right: none;
-                border-bottom: 2px solid #e1e8ed;
+                border-bottom: 2px solid var(--border-color);
             }
 
             .chat-main {
@@ -1102,14 +1154,14 @@
 
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
+                <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMzAiIGZpbGw9IiNENzM1MjciLz4KPHN2ZyB4PSIxNSIgeT0iMTUiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPgo8cGF0aCBkPSJNMTIgMjJDNi40NzcgMjIgMiAxNy41MjMgMiAxMlM2LjQ3NyAyIDEyIDJzMTAgNC40NzcgMTAgMTAtNC40NzcgMTAtMTAgMTB6TTEyIDZ2Nk0xMiAxNmguMDEiLz4KPC9zdmc+Cjwvc3ZnPgo='">
                 <div class="brand-title">LipaAlertHub</div>
-                <div class="brand-subtitle">Disaster Management System</div>
+                <div class="brand-subtitle">Report Management System</div>
             </div>
             
             <nav class="sidebar-nav">
                 <div class="nav-item" data-role="admin,monitor,rescuer,agency">
-                    <a href="dashboard.html" class="nav-link">
+                    <a href="Dashboard.html" class="nav-link">
                         <i class="fas fa-tachometer-alt"></i>
                         Dashboard
                     </a>
@@ -1191,12 +1243,18 @@
                         Contacts
                     </a>
                 </div>
+                   <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="changepassword.html" class="nav-link">
+                        <i class="fas fa-key"></i>
+                        Change Password
+                    </a>
+                </div>
             </nav>
         </div>
 
         <div class="main-content">
             <div class="header">
-                <h1 class="page-title">Chats</h1>
+                <h1 class="page-title">Secure Chats</h1>
                 
                 <div class="user-info">
                     <div class="user-details">
@@ -1206,7 +1264,7 @@
                     <div class="role-badge" data-user-info="role">Loading...</div>
                     <div class="dropdown">
                         <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle fa-2x" style="color: #d53b2c;"></i>
+                            <i class="fas fa-user-circle fa-2x" style="color: var(--primary-color);"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#" onclick="logoutUser()">
@@ -1259,20 +1317,21 @@
         </div>
     </div>
 
+    <!-- New Conversation Modal -->
     <div id="newConversationModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3><i class="fas fa-comment-dots"></i> Start New Conversation</h3>
                 <button class="close" onclick="closeNewConversationModal()">&times;</button>
             </div>
-            <div style="padding: 15px 20px; border-bottom: 1px solid #e1e8ed; background: #f8f9fa;">
+            <div style="padding: 15px 20px; border-bottom: 1px solid var(--border-color); background: var(--light-color);">
                 <div style="position: relative; margin-bottom: 12px;">
                     <i class="fas fa-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #999;"></i>
                     <input 
                         type="text" 
                         id="userSearchInput" 
                         placeholder="Search by name or email..."
-                        style="width: 100%; padding: 10px 15px 10px 45px; border: 1px solid #e1e8ed; border-radius: 25px; font-size: 14px; outline: none;"
+                        style="width: 100%; padding: 10px 15px 10px 45px; border: 1px solid var(--border-color); border-radius: 25px; font-size: 14px; outline: none;"
                     >
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -1288,6 +1347,36 @@
                 <div class="loading-content">
                     <div class="loading-spinner-small"></div>
                     <p>Loading available users...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload Modal -->
+    <div id="fileUploadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-upload"></i> Upload File</h3>
+                <button class="close" onclick="closeFileUploadModal()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <div class="file-upload-area" id="fileUploadArea">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: #ddd; margin-bottom: 15px;"></i>
+                    <h4>Drop files here or click to upload</h4>
+                    <p style="color: #666; margin-bottom: 15px;">Supports images, documents, and other files</p>
+                    <button class="btn-new-conversation" style="width: auto; padding: 10px 20px;">
+                        <i class="fas fa-folder-open"></i> Browse Files
+                    </button>
+                </div>
+                <input type="file" id="fileInput" multiple style="display: none;">
+                
+                <div id="filePreview" class="file-preview" style="margin-top: 20px;"></div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                    <button class="btn-chat-action" onclick="closeFileUploadModal()">Cancel</button>
+                    <button class="assign-rescuer-btn" onclick="uploadFiles()" id="uploadFilesBtn">
+                        <i class="fas fa-upload"></i> Upload Files
+                    </button>
                 </div>
             </div>
         </div>
@@ -1313,6 +1402,7 @@
             serverTimestamp,
             setDoc
         } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
@@ -1326,9 +1416,11 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
 
+        // FIXED: Updated chat permissions to allow admin-to-admin chats
         const CHAT_PERMISSIONS = {
-            'admin': ['resident', 'monitor', 'rescuer', 'agency'],
+            'admin': ['resident', 'monitor', 'rescuer', 'agency', 'admin'], // Added 'admin' to allow admin-to-admin chats
             'monitor': ['resident', 'admin', 'rescuer', 'agency'],
             'rescuer': ['admin', 'monitor'],
             'agency': ['admin'],
@@ -1343,20 +1435,32 @@
             RESIDENT: 'resident'
         };
 
+        // Application State
         let currentUserInfo = null;
         let chatRoomsListener = null;
         let messagesListener = null;
         let selectedChatRoom = null;
         let allAvailableUsers = [];
         let currentFilter = 'all';
-        let assignedRescuerIds = [];
+        let isInitialLoad = true;
+        let selectedFiles = [];
+
+        // Error Handling Class
+        class ChatError extends Error {
+            constructor(message, code = 'CHAT_ERROR') {
+                super(message);
+                this.name = 'ChatError';
+                this.code = code;
+                this.timestamp = new Date().toISOString();
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                console.log('Initializing Privacy-Protected Chat System...');
+                console.log('🚀 Initializing Privacy-Protected Chat System...');
                 await checkAuthentication();
             } catch (error) {
-                console.error('Chat system initialization failed:', error);
+                console.error('❌ Chat system initialization failed:', error);
                 showNotification('Failed to load chat system. Please try again.', 'error');
                 setTimeout(() => {
                     window.location.href = 'index.html';
@@ -1364,20 +1468,12 @@
             }
         });
 
-        function parseURLParameters() {
-            const urlParams = new URLSearchParams(window.location.search);
-            return {
-                userId: urlParams.get('userId'),
-                userName: urlParams.get('userName')
-            };
-        }
- 
         async function checkAuthentication() {
             return new Promise((resolve, reject) => {
                 onAuthStateChanged(auth, async (user) => {
                     if (!user) {
                         window.location.href = "index.html";
-                        reject(new Error('User not authenticated'));
+                        reject(new ChatError('User not authenticated'));
                         return;
                     }
 
@@ -1389,36 +1485,37 @@
                             alert("User profile not found. Please contact administrator.");
                             await signOut(auth);
                             window.location.href = "index.html?error=no-profile";
-                            reject(new Error('User profile not found'));
+                            reject(new ChatError('User profile not found'));
                             return;
                         }
 
                         const userData = userDoc.data();
-                        const userRole = userData.role;
+                        const userRole = userData.role?.toLowerCase();
 
                         if (!Object.values(USER_ROLES).includes(userRole)) {
                             alert(`Access denied. Invalid role: ${userRole}`);
                             await signOut(auth);
                             window.location.href = "index.html?error=invalid-role";
-                            reject(new Error('Invalid role'));
+                            reject(new ChatError('Invalid role'));
                             return;
                         }
 
                         if (!CHAT_PERMISSIONS[userRole]) {
                             alert(`Chat access not available for role: ${userRole}`);
                             await signOut(auth);
-                            window.location.href = "dashboard.html?error=no-chat-access";
-                            reject(new Error('No chat access'));
+                            window.location.href = "Dashboard.html?error=no-chat-access";
+                            reject(new ChatError('No chat access'));
                             return;
                         }
 
                         currentUserInfo = {
                             user,
                             role: userRole,
-                            userData
+                            userData,
+                            uid: user.uid
                         };
 
-                        console.log('Privacy-protected chat access granted');
+                        console.log('✅ Privacy-protected chat access granted');
 
                         await initializeChatSystem();
                         resolve(currentUserInfo);
@@ -1451,15 +1548,25 @@
                 }
                 
                 setupChatSearch();
+                setupFileUploadDragDrop();
+                setupEventListeners();
                 
                 document.getElementById('loadingOverlay').style.display = 'none';
                 document.getElementById('chatContainer').style.display = 'block';
                 
-                showNotification('Secure chat loaded', 'success');
+                showNotification('Secure chat loaded successfully', 'success');
             } catch (error) {
                 console.error('Error initializing chat system:', error);
                 showNotification('Error loading chat system', 'error');
             }
+        }
+
+        function parseURLParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                userId: urlParams.get('userId'),
+                userName: urlParams.get('userName')
+            };
         }
 
         async function openDirectChat(userId, userName) {
@@ -1483,26 +1590,21 @@
                 
                 const roomId = await createOrFindChatRoom(userId, userRole);
                 
-                await new Promise(resolve => setTimeout(resolve, 500));
-                await loadChatRooms();
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                setTimeout(() => {
-                    const roomElement = document.querySelector(`[data-room-id="${roomId}"]`);
-                    if (roomElement) {
-                        roomElement.click();
-                        showNotification(`Chat opened with ${userName || userData.name || 'user'}`, 'success');
-                    } else {
-                        setTimeout(() => {
-                            const retryElement = document.querySelector(`[data-room-id="${roomId}"]`);
-                            if (retryElement) {
-                                retryElement.click();
-                                showNotification(`Chat opened with ${userName || userData.name || 'user'}`, 'success');
-                            } else {
-                                showNotification('Chat created. Please refresh and select from list.', 'warning');
-                            }
-                        }, 1000);
-                    }
-                }, 500);
+                const roomElement = document.querySelector(`[data-room-id="${roomId}"]`);
+                if (roomElement) {
+                    roomElement.click();
+                    showNotification(`Chat opened with ${userName || userData.name || 'user'}`, 'success');
+                } else {
+                    showNotification('Chat created successfully! Selecting it now...', 'success');
+                    setTimeout(() => {
+                        const retryElement = document.querySelector(`[data-room-id="${roomId}"]`);
+                        if (retryElement) {
+                            retryElement.click();
+                        }
+                    }, 500);
+                }
                 
             } catch (error) {
                 console.error('Error opening direct chat:', error);
@@ -1510,210 +1612,99 @@
             }
         }
 
-        window.showNewConversationModal = async function() {
+        // FIXED: Enhanced createOrFindChatRoom function with proper error handling and admin-to-admin support
+        async function createOrFindChatRoom(targetUserId, targetUserRole) {
             try {
-                const modal = document.getElementById('newConversationModal');
-                const usersList = document.getElementById('availableUsersList');
-                
-                modal.style.display = 'block';
-                usersList.innerHTML = '<div class="loading-content"><div class="loading-spinner-small"></div><p>Loading available users...</p></div>';
-                
-                currentFilter = 'all';
-                document.querySelectorAll('.filter-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.filter === 'all');
-                });
-                document.getElementById('userSearchInput').value = '';
+                console.log('=== START createOrFindChatRoom ===');
+                console.log('Target User ID:', targetUserId);
+                console.log('Target User Role:', targetUserRole);
+                console.log('Current User ID:', currentUserInfo.uid);
+                console.log('Current User Role:', currentUserInfo.role);
                 
                 const allowedRoles = CHAT_PERMISSIONS[currentUserInfo.role] || [];
+                console.log('Allowed roles for', currentUserInfo.role, ':', allowedRoles);
                 
-                if (allowedRoles.length === 0) {
-                    usersList.innerHTML = '<div class="no-data"><p>You cannot start new conversations</p></div>';
-                    return;
+                // FIXED: Allow admin-to-admin chats explicitly
+                if (currentUserInfo.role === 'admin' && targetUserRole === 'admin') {
+                    console.log('✅ Admin-to-admin chat allowed');
+                } else if (!allowedRoles.includes(targetUserRole)) {
+                    throw new ChatError(`As ${currentUserInfo.role}, you cannot start a chat with ${targetUserRole}`);
                 }
-                
-                assignedRescuerIds = [];
-                if (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor') {
-                    try {
-                        const reportsQuery = query(
-                            collection(db, "incident_reports"),
-                            where("status", "in", ["pending", "in-progress"]),
-                            where("assignedRescuer", "!=", null)
-                        );
-                        const reportsSnapshot = await getDocs(reportsQuery);
-                        assignedRescuerIds = [...new Set(reportsSnapshot.docs.map(doc => doc.data().assignedRescuer))];
-                    } catch (error) {
-                        console.error('Error fetching assigned rescuers:', error);
-                    }
-                }
-                
-                const usersQuery = query(
-                    collection(db, "users"),
-                    where("role", "in", allowedRoles),
-                    where("status", "==", "active")
-                );
-                
-                const snapshot = await getDocs(usersQuery);
-                
-                if (snapshot.empty) {
-                    usersList.innerHTML = '<div class="no-data"><p>No available users to chat with</p></div>';
-                    return;
-                }
-                
-                allAvailableUsers = [];
-                snapshot.forEach((doc) => {
-                    if (doc.id !== currentUserInfo.user.uid) {
-                        const userData = doc.data();
-                        allAvailableUsers.push({
-                            id: doc.id,
-                            name: userData.name || userData.displayName || userData.email,
-                            email: userData.email,
-                            role: userData.role,
-                            isAssigned: assignedRescuerIds.includes(doc.id)
-                        });
-                    }
-                });
-                
-                allAvailableUsers.sort((a, b) => {
-                    if (a.isAssigned && !b.isAssigned) return -1;
-                    if (!a.isAssigned && b.isAssigned) return 1;
-                    return a.name.localeCompare(b.name);
-                });
-                
-                renderUsersList();
-                
-            } catch (error) {
-                console.error('Error loading users:', error);
-                showNotification('Failed to load users', 'error');
-            }
-        };
 
-        function renderUsersList() {
-            const usersList = document.getElementById('availableUsersList');
-            const searchTerm = document.getElementById('userSearchInput').value.toLowerCase();
-            
-            const filteredUsers = allAvailableUsers.filter(user => {
-                const matchesSearch = user.name.toLowerCase().includes(searchTerm) || 
-                                    user.email.toLowerCase().includes(searchTerm);
-                const matchesFilter = currentFilter === 'all' || user.role === currentFilter;
-                return matchesSearch && matchesFilter;
-            });
-            
-            if (filteredUsers.length === 0) {
-                usersList.innerHTML = '<div class="no-data"><p>No users found matching your criteria</p></div>';
-                return;
-            }
-            
-            usersList.innerHTML = '';
-            
-            const assignedUsers = filteredUsers.filter(u => u.isAssigned);
-            const unassignedUsers = filteredUsers.filter(u => !u.isAssigned);
-            
-            if (assignedUsers.length > 0) {
-                const assignedHeader = document.createElement('div');
-                assignedHeader.className = 'section-header';
-                assignedHeader.innerHTML = '<i class="fas fa-star"></i> Assigned to Active Reports';
-                usersList.appendChild(assignedHeader);
+                let roomId;
+                let participants;
+                let participantRoles;
+
+                // FIXED: Simplified room creation logic - always use pair-based for consistency
+                const userIds = [currentUserInfo.uid, targetUserId].sort();
+                roomId = `${userIds[0]}_${userIds[1]}`;
+                participants = [currentUserInfo.uid, targetUserId];
+                participantRoles = {
+                    [currentUserInfo.uid]: currentUserInfo.role,
+                    [targetUserId]: targetUserRole
+                };
+
+                console.log('Final Room ID:', roomId);
+                console.log('Participants:', participants);
+                console.log('Participant Roles:', participantRoles);
                 
-                assignedUsers.forEach(user => {
-                    usersList.appendChild(createUserItem(user));
-                });
-            }
-            
-            if (unassignedUsers.length > 0) {
-                if (assignedUsers.length > 0) {
-                    const otherHeader = document.createElement('div');
-                    otherHeader.className = 'section-header';
-                    otherHeader.innerHTML = '<i class="fas fa-users"></i> Other Available Users';
-                    usersList.appendChild(otherHeader);
+                const roomRef = doc(db, 'chatRooms', roomId);
+                
+                console.log('Checking if room exists...');
+                const roomDoc = await getDoc(roomRef);
+                
+                if (roomDoc.exists()) {
+                    console.log('✅ Room already exists!');
+                    return roomId;
                 }
+
+                console.log('❌ Room does not exist, creating new room...');
                 
-                unassignedUsers.forEach(user => {
-                    usersList.appendChild(createUserItem(user));
+                const now = serverTimestamp();
+                
+                const roomData = {
+                    participants: participants,
+                    participantRoles: participantRoles,
+                    createdAt: now,
+                    createdBy: currentUserInfo.uid,
+                    lastUpdated: now,
+                    lastMessage: 'Chat started',
+                    lastMessageSender: currentUserInfo.uid,
+                    lastMessageSenderRole: currentUserInfo.role,
+                    lastMessageTime: now,
+                    isActive: true,
+                    unreadCount: {
+                        [currentUserInfo.role]: 0,
+                        [targetUserRole]: 0
+                    }
+                };
+
+                console.log('Room data to be created:', roomData);
+                
+                await setDoc(roomRef, roomData);
+                console.log('✅ Room created successfully!');
+                
+                // Create welcome message
+                const messagesRef = collection(db, 'chatRooms', roomId, 'messages');
+                await addDoc(messagesRef, {
+                    senderId: 'system',
+                    senderRole: 'system',
+                    senderName: 'LipaAlertHub',
+                    content: 'Private chat room created. Your conversation is secure.',
+                    type: 'text',
+                    createdAt: now
                 });
+                
+                console.log('✅ System message created!');
+                console.log('=== END createOrFindChatRoom ===');
+                
+                return roomId;
+
+            } catch (error) {
+                console.error('❌ ERROR in createOrFindChatRoom:', error);
+                throw new ChatError(`Failed to create chat: ${error.message}`);
             }
         }
-
-        function createUserItem(user) {
-            const userItem = document.createElement('div');
-            userItem.className = 'rescuer-item';
-            userItem.dataset.userId = user.id;
-            userItem.dataset.userRole = user.role;
-            
-            userItem.innerHTML = `
-                <div class="rescuer-info">
-                    <h6>
-                        ${user.name}
-                        ${user.isAssigned ? '<span class="assigned-badge"><i class="fas fa-star"></i> ASSIGNED</span>' : ''}
-                    </h6>
-                    <small>${user.email}</small>
-                    <div style="margin-top: 8px;">
-                        <span class="rescuer-status-badge ${user.role}">${user.role.toUpperCase()}</span>
-                    </div>
-                </div>
-                <button class="assign-rescuer-btn" onclick="startChatWithUser('${user.id}', '${user.name.replace(/'/g, "\\'")}', '${user.role}')">
-                    <i class="fas fa-comment"></i>
-                    Start Chat
-                </button>
-            `;
-            
-            return userItem;
-        }
-
-        window.filterUsers = function(filter) {
-            currentFilter = filter;
-            
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.filter === filter);
-            });
-            
-            renderUsersList();
-        };
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const searchInput = document.getElementById('userSearchInput');
-            if (searchInput) {
-                searchInput.addEventListener('input', function() {
-                    renderUsersList();
-                });
-            }
-        });
-
-        window.startChatWithUser = async function(userId, userName, userRole) {
-            try {
-                showNotification(`Creating chat with ${userName}...`, 'info');
-                closeNewConversationModal();
-                
-                const roomId = await createOrFindChatRoom(userId, userRole);
-                
-                await loadChatRooms();
-                
-                setTimeout(() => {
-                    const roomElement = document.querySelector(`[data-room-id="${roomId}"]`);
-                    if (roomElement) {
-                        roomElement.click();
-                        showNotification(`Chat started with ${userName}`, 'success');
-                    } else {
-                        setTimeout(() => {
-                            const retryElement = document.querySelector(`[data-room-id="${roomId}"]`);
-                            if (retryElement) {
-                                retryElement.click();
-                                showNotification(`Chat started with ${userName}`, 'success');
-                            } else {
-                                showNotification('Chat created. Please select it from the list.', 'info');
-                            }
-                        }, 1000);
-                    }
-                }, 500);
-                
-            } catch (error) {
-                console.error('Error starting chat:', error);
-                showNotification('Failed to start chat: ' + error.message, 'error');
-            }
-        };
-
-        window.closeNewConversationModal = function() {
-            document.getElementById('newConversationModal').style.display = 'none';
-        };
 
         function applyRoleBasedUI() {
             const roleElements = document.querySelectorAll('[data-role]');
@@ -1743,7 +1734,7 @@
             if (roleElement) {
                 const roleDisplayName = {
                     [USER_ROLES.ADMIN]: 'Administrator',
-                    [USER_ROLES.MONITOR]: 'Monitor',
+                    [USER_ROLES.MONITOR]: 'Moderator',
                     [USER_ROLES.RESCUER]: 'Rescuer',
                     [USER_ROLES.AGENCY]: 'Agency',
                     [USER_ROLES.RESIDENT]: 'Resident'
@@ -1764,7 +1755,7 @@
 
             switch (currentUserInfo.role) {
                 case 'admin':
-                    noticeText = 'You can communicate with all users. All conversations are private and secure.';
+                    noticeText = 'You can communicate with all users including other administrators. All conversations are private and secure.';
                     break;
                 case 'monitor':
                     noticeText = 'You can communicate with residents, admins, rescuers, and agencies. All conversations are private.';
@@ -1786,96 +1777,145 @@
             notice.style.display = 'block';
         }
 
-        async function loadChatRooms() {
-            const container = document.getElementById('chatRoomsList');
-            
-            try {
-                console.log('Loading ONLY your private conversations');
-                
-                const q = query(
-                    collection(db, "chatRooms"),
-                    where("participants", "array-contains", currentUserInfo.user.uid),
-                    orderBy("lastUpdated", "desc")
-                );
+       async function loadChatRooms() {
+  const container = document.getElementById('chatRoomsList');
+  
+  try {
+    console.log('=== LOAD CHAT ROOMS STARTED ===');
+    console.log('Current user role:', currentUserInfo.role);
+    
+    if (chatRoomsListener) {
+      console.log('Unsubscribing from previous listener');
+      chatRoomsListener();
+      chatRoomsListener = null;
+    }
 
-                if (chatRoomsListener) {
-                    chatRoomsListener();
-                }
+    let q;
+    
+    // ✅ FIX: Admin and Monitor see ALL rooms
+    if (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor') {
+      console.log('✅ Loading ALL chat rooms (Admin/Monitor view)');
+      q = query(
+        collection(db, "chatRooms"),
+        orderBy("lastUpdated", "desc")
+      );
+    } else {
+      // Other roles only see rooms they're part of
+      console.log('Loading only participated chat rooms');
+      q = query(
+        collection(db, "chatRooms"),
+        where("participants", "array-contains", currentUserInfo.uid),
+        orderBy("lastUpdated", "desc")
+      );
+    }
 
-                chatRoomsListener = onSnapshot(q, async (snapshot) => {
-                    container.innerHTML = '';
-                    
-                    if (snapshot.empty) {
-                        container.innerHTML = `
-                            <div class="loading-messages">
-                                <i class="fas fa-inbox fa-2x mb-3"></i>
-                                <p>No conversations found</p>
-                                <small>Start a new conversation using the button above</small>
-                            </div>
-                        `;
-                        updateChatStats(0, 0);
-                        return;
-                    }
+    console.log('Setting up onSnapshot listener...');
+    
+    chatRoomsListener = onSnapshot(q, async (snapshot) => {
+      console.log('=== CHAT ROOMS SNAPSHOT RECEIVED ===');
+      console.log('Total docs in snapshot:', snapshot.size);
+      console.log('Has pending writes:', snapshot.metadata.hasPendingWrites);
+      
+      if (snapshot.metadata.hasPendingWrites && !isInitialLoad) {
+        console.log('Skipping snapshot with pending writes');
+        return;
+      }
+      
+      isInitialLoad = false;
+      container.innerHTML = '';
+      
+      if (snapshot.empty) {
+        console.log('No conversations found');
+        container.innerHTML = `
+          <div class="loading-messages">
+            <i class="fas fa-inbox fa-2x mb-3"></i>
+            <p>No conversations found</p>
+            <small>Start a new conversation using the button above</small>
+          </div>
+        `;
+        updateChatStats(0, 0);
+        return;
+      }
 
-                    let totalUnread = 0;
-                    const chatRooms = [];
+      console.log('Processing chat rooms...');
+      let totalUnread = 0;
+      const chatRooms = [];
 
-                    for (const docSnap of snapshot.docs) {
-                        const data = docSnap.data();
-                        
-                        const roomElement = await createChatRoomElement(docSnap.id, data);
-                        if (roomElement) {
-                            chatRooms.push({ element: roomElement, data });
-                            
-                            const unreadCount = getUnreadCountForUser(data);
-                            if (unreadCount > 0) {
-                                totalUnread += unreadCount;
-                            }
-                        }
-                    }
-
-                    chatRooms.sort((a, b) => {
-                        const aUnread = getUnreadCountForUser(a.data);
-                        const bUnread = getUnreadCountForUser(b.data);
-                        
-                        if (aUnread !== bUnread) {
-                            return bUnread - aUnread;
-                        }
-                        
-                        const aTime = a.data.lastUpdated?.seconds || 0;
-                        const bTime = b.data.lastUpdated?.seconds || 0;
-                        return bTime - aTime;
-                    });
-
-                    chatRooms.forEach(room => {
-                        container.appendChild(room.element);
-                    });
-
-                    updateChatStats(chatRooms.length, totalUnread);
-                    
-                }, (error) => {
-                    console.error('Error loading chat rooms:', error);
-                    container.innerHTML = `
-                        <div class="error-state">
-                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                            <p>Error loading conversations</p>
-                            <small>${error.message}</small>
-                        </div>
-                    `;
-                    updateChatStats(0, 0);
-                });
-
-            } catch (error) {
-                console.error('Error setting up chat rooms listener:', error);
-                container.innerHTML = `
-                    <div class="error-state">
-                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                        <p>Error loading chat system</p>
-                    </div>
-                `;
-                updateChatStats(0, 0);
-            }
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        
+        if (!data.participants || !Array.isArray(data.participants)) {
+          console.warn('Skipping room with invalid participants:', docSnap.id);
+          continue;
         }
+        
+        // ✅ Admin/Monitor can see all rooms
+        // Other roles only see their own rooms (already filtered by query)
+        const isParticipant = data.participants.includes(currentUserInfo.uid);
+        const canView = (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor') || isParticipant;
+        
+        if (!canView) {
+          console.log('Skipping room - no access:', docSnap.id);
+          continue;
+        }
+        
+        const roomElement = await createChatRoomElement(docSnap.id, data);
+        if (roomElement) {
+          chatRooms.push({ element: roomElement, data });
+          
+          const unreadCount = getUnreadCountForUser(data);
+          if (unreadCount > 0) {
+            totalUnread += unreadCount;
+          }
+        }
+      }
+
+      console.log(`Total valid rooms to display: ${chatRooms.length}`);
+      
+      chatRooms.sort((a, b) => {
+        const aUnread = getUnreadCountForUser(a.data);
+        const bUnread = getUnreadCountForUser(b.data);
+        
+        if (aUnread !== bUnread) {
+          return bUnread - aUnread;
+        }
+        
+        const aTime = a.data.lastUpdated?.seconds || 0;
+        const bTime = b.data.lastUpdated?.seconds || 0;
+        return bTime - aTime;
+      });
+
+      container.innerHTML = '';
+      chatRooms.forEach((room) => {
+        container.appendChild(room.element);
+      });
+
+      updateChatStats(chatRooms.length, totalUnread);
+      console.log('=== LOAD CHAT ROOMS COMPLETED ===');
+      
+    }, (error) => {
+      console.error('❌ ERROR in onSnapshot listener:', error);
+      container.innerHTML = `
+        <div class="error-state">
+          <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+          <p>Error loading conversations</p>
+          <small>${error.message}</small>
+        </div>
+      `;
+      updateChatStats(0, 0);
+    });
+
+  } catch (error) {
+    console.error('❌ ERROR setting up chat rooms listener:', error);
+    container.innerHTML = `
+      <div class="error-state">
+        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+        <p>Error loading chat system</p>
+      </div>
+    `;
+    updateChatStats(0, 0);
+  }
+}
 
         function getUnreadCountForUser(roomData) {
             const userRole = currentUserInfo.role;
@@ -1888,201 +1928,203 @@
             roomDiv.className = 'chat-room-item';
             roomDiv.dataset.roomId = roomId;
             
-            let participantName = 'Unknown User';
-            let participantRole = 'user';
-            let participantAvatar = 'U';
-            
             try {
-                if (!data.participants || !Array.isArray(data.participants)) {
-                    console.warn('Invalid participants in room:', roomId);
-                    return null;
-                }
-                
-                const otherParticipants = data.participants.filter(id => id !== currentUserInfo.user.uid);
-                
+                const otherParticipants = data.participants.filter(id => id !== currentUserInfo.uid);
                 if (otherParticipants.length === 0) {
                     console.warn('Room has no other participants:', roomId);
                     return null;
                 }
-                
+
                 const otherUserId = otherParticipants[0];
-                participantRole = data.participantRoles?.[otherUserId] || 'user';
+                const participantRole = data.participantRoles?.[otherUserId] || 'user';
                 
+                let participantName = 'Unknown User';
+                let participantAvatar = participantRole.charAt(0).toUpperCase();
+
                 try {
                     const userDoc = await getDoc(doc(db, 'users', otherUserId));
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
                         participantName = userData.name || userData.displayName || userData.email || 'User';
-                        participantRole = userData.role || participantRole;
-                    } else {
-                        participantName = participantRole.charAt(0).toUpperCase() + participantRole.slice(1);
+                        participantAvatar = participantName.charAt(0).toUpperCase();
                     }
                 } catch (err) {
                     console.error('Error fetching participant:', err);
                     participantName = participantRole.charAt(0).toUpperCase() + participantRole.slice(1);
                 }
+
+                const unreadCount = getUnreadCountForUser(data);
+                const lastMessageTime = formatTimestamp(data.lastMessageTime || data.lastUpdated);
+                const lastMessagePreview = data.lastMessage || 'No messages yet';
+                const lastMessageSender = data.lastMessageSender || '';
+
+                let displaySender = '';
+                if (lastMessageSender === currentUserInfo.uid) {
+                    displaySender = 'You: ';
+                } else if (lastMessageSender) {
+                    displaySender = `${participantName}: `;
+                }
+
+                roomDiv.innerHTML = `
+                    <div class="chat-room-header">
+                        <div class="chat-participant">
+                            <div class="participant-avatar ${participantRole}">
+                                ${participantAvatar}
+                            </div>
+                            <div>
+                                <div class="participant-name">${participantName}</div>
+                                <div class="participant-role">${participantRole.toUpperCase()}</div>
+                            </div>
+                        </div>
+                        <div class="chat-time">${lastMessageTime}</div>
+                    </div>
+                    
+                    <div class="chat-preview">
+                        ${displaySender}${lastMessagePreview}
+                    </div>
+                    
+                    <div class="chat-meta">
+                        <div class="status-indicator ${Math.random() > 0.5 ? 'online' : 'offline'}"></div>
+                        ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
+                    </div>
+                `;
+
+                roomDiv.addEventListener('click', () => selectChatRoom(roomId, data));
                 
-                participantAvatar = participantName.charAt(0).toUpperCase();
-                
+                return roomDiv;
+
             } catch (error) {
-                console.error('Error processing participant data for room:', roomId, error);
+                console.error('Error creating room element:', error);
                 return null;
             }
-
-            const unreadCount = getUnreadCountForUser(data);
-            const lastMessageTime = formatTimestamp(data.lastMessageTime || data.lastUpdated);
-            const lastMessagePreview = data.lastMessage || 'No messages yet';
-            const lastMessageSender = data.lastMessageSender || '';
-
-            let displaySender = '';
-            
-            if (lastMessageSender === currentUserInfo.user.uid) {
-                displaySender = 'You: ';
-            } else if (lastMessageSender === currentUserInfo.role) {
-                displaySender = 'You: ';
-            } else if (data.participants && data.participants.includes(lastMessageSender)) {
-                displaySender = `${participantName}: `;
-            } else if (lastMessageSender) {
-                displaySender = `${participantName}: `;
-            }
-
-            roomDiv.innerHTML = `
-                <div class="chat-room-header">
-                    <div class="chat-participant">
-                        <div class="participant-avatar ${participantRole}">
-                            ${participantAvatar}
-                        </div>
-                        <div>
-                            <div class="participant-name">${participantName}</div>
-                            <div class="participant-role">${participantRole.toUpperCase()}</div>
-                        </div>
-                    </div>
-                    <div class="chat-time">${lastMessageTime}</div>
-                </div>
-                
-                <div class="chat-preview">
-                    ${displaySender}${lastMessagePreview}
-                </div>
-                
-                <div class="chat-meta">
-                    <div class="status-indicator ${Math.random() > 0.5 ? 'online' : 'offline'}"></div>
-                    ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
-                </div>
-            `;
-
-            roomDiv.addEventListener('click', () => selectChatRoom(roomId, data));
-            
-            return roomDiv;
         }
 
-        async function fetchFreshParticipantData(roomData) {
-            let participantName = 'Unknown User';
-            let participantRole = 'user';
-            let participantAvatar = 'U';
-            
-            try {
-                const otherParticipants = roomData.participants?.filter(id => id !== currentUserInfo.user.uid) || [];
-                
-                if (otherParticipants.length === 0) {
-                    return { name: participantName, role: participantRole, avatar: participantAvatar };
-                }
-                
-                const otherUserId = otherParticipants[0];
-                participantRole = roomData.participantRoles?.[otherUserId] || 'user';
-                
-                const userDoc = await getDoc(doc(db, 'users', otherUserId));
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    participantName = userData.name || userData.displayName || userData.email || 'User';
-                    participantRole = userData.role || participantRole;
-                } else {
-                    participantName = participantRole.charAt(0).toUpperCase() + participantRole.slice(1);
-                }
-                
-                participantAvatar = participantName.charAt(0).toUpperCase();
-                
-            } catch (error) {
-                console.error('Error fetching fresh participant data:', error);
-            }
-            
-            return { name: participantName, role: participantRole, avatar: participantAvatar };
-        }
+      async function selectChatRoom(roomId, roomData) {
+  document.querySelectorAll('.chat-room-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  
+  const clickedRoom = document.querySelector(`[data-room-id="${roomId}"]`);
+  if (clickedRoom) {
+    clickedRoom.classList.add('active');
+  }
 
-        async function selectChatRoom(roomId, roomData) {
-            document.querySelectorAll('.chat-room-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            const clickedRoom = document.querySelector(`[data-room-id="${roomId}"]`);
-            if (clickedRoom) {
-                clickedRoom.classList.add('active');
-            }
+  selectedChatRoom = { id: roomId, data: roomData };
+  
+  try {
+    // ✅ FIX: Admin can join rooms they're not yet part of
+    const isParticipant = roomData.participants.includes(currentUserInfo.uid);
+    
+    if (!isParticipant && (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor')) {
+      console.log('✅ Admin/Monitor joining room:', roomId);
+      
+      // Add admin to participants
+      const updatedParticipants = [...roomData.participants, currentUserInfo.uid];
+      const updatedRoles = {
+        ...roomData.participantRoles,
+        [currentUserInfo.uid]: currentUserInfo.role
+      };
+      
+      await updateDoc(doc(db, 'chatRooms', roomId), {
+        participants: updatedParticipants,
+        participantRoles: updatedRoles,
+        lastUpdated: serverTimestamp()
+      });
+      
+      // Update local data
+      roomData.participants = updatedParticipants;
+      roomData.participantRoles = updatedRoles;
+      
+      showNotification('Joined conversation successfully', 'success');
+    }
+    
+    // Mark messages as read
+    const updateData = {};
+    updateData[`unreadCount.${currentUserInfo.role}`] = 0;
+    await updateDoc(doc(db, 'chatRooms', roomId), updateData);
+    
+  } catch (error) {
+    console.error('Error selecting chat room:', error);
+    showNotification('Error accessing chat room: ' + error.message, 'error');
+  }
 
-            selectedChatRoom = { id: roomId, data: roomData };
-            
-            try {
-                const updateData = {};
-                updateData[`unreadCount.${currentUserInfo.role}`] = 0;
-                await updateDoc(doc(db, 'chatRooms', roomId), updateData);
-            } catch (error) {
-                console.error('Error marking messages as read:', error);
-            }
-
-            await loadChatInterface(roomId, roomData);
-        }
+  await loadChatInterface(roomId, roomData);
+}
 
         async function loadChatInterface(roomId, roomData) {
             const chatMain = document.getElementById('chatMain');
             chatMain.className = 'chat-main';
             
-            const participantData = await fetchFreshParticipantData(roomData);
-            
-            chatMain.innerHTML = `
-                <div class="chat-header">
-                    <div class="chat-participant-info">
-                        <div class="participant-avatar ${participantData.role}">
-                            ${participantData.avatar}
+            try {
+                const otherParticipants = roomData.participants.filter(id => id !== currentUserInfo.uid);
+                const otherUserId = otherParticipants[0];
+                const participantRole = roomData.participantRoles?.[otherUserId] || 'user';
+                
+                let participantName = 'Unknown User';
+                let participantAvatar = participantRole.charAt(0).toUpperCase();
+
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', otherUserId));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        participantName = userData.name || userData.displayName || userData.email || 'User';
+                        participantAvatar = participantName.charAt(0).toUpperCase();
+                    }
+                } catch (error) {
+                    console.error('Error fetching participant data:', error);
+                }
+
+                chatMain.innerHTML = `
+                    <div class="chat-header">
+                        <div class="chat-participant-info">
+                            <div class="participant-avatar ${participantRole}">
+                                ${participantAvatar}
+                            </div>
+                            <div>
+                                <div class="participant-name">${participantName}</div>
+                                <div class="participant-role">${participantRole.toUpperCase()}</div>
+                            </div>
                         </div>
-                        <div>
-                            <div class="participant-name">${participantData.name}</div>
-                            <div class="participant-role">${participantData.role.toUpperCase()}</div>
+                        
+    
+                            <button class="btn-chat-action" onclick="refreshChat()" title="Refresh">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
                         </div>
                     </div>
                     
-                    <div class="chat-actions">
-                        <button class="btn-chat-action" onclick="refreshChat()" title="Refresh">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
+                    <div class="messages" id="messagesContainer">
+                        <div class="loading-messages">
+                            <div class="loading-spinner-small"></div>
+                            <p>Loading messages...</p>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="messages" id="messagesContainer">
-                    <div class="loading-messages">
-                        <div class="loading-spinner-small"></div>
-                        <p>Loading messages...</p>
+                    
+                    <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                        <i class="fas fa-ellipsis-h"></i> Someone is typing...
                     </div>
-                </div>
-                
-                <div class="typing-indicator" id="typingIndicator">
-                    <i class="fas fa-ellipsis-h"></i> Someone is typing...
-                </div>
-                
-                <div class="chat-input">
-                    <div class="input-wrapper">
-                        <textarea 
-                            id="chatMessage" 
-                            placeholder="Type your message..."
-                            maxlength="1000"
-                        ></textarea>
-                        <button id="sendMessageBtn" onclick="sendMessage()">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
+                    
+                    <div class="chat-input">
+                        <div class="input-wrapper">
+                            <textarea 
+                                id="chatMessage" 
+                                placeholder="Type your message..."
+                                maxlength="1000"
+                            ></textarea>
+                            <button id="sendMessageBtn" onclick="sendMessage()" disabled>
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
 
-            await loadMessages(roomId);
-            setupMessageInput();
+                await loadMessages(roomId);
+                setupMessageInput();
+
+            } catch (error) {
+                console.error('Error loading chat interface:', error);
+                showErrorState(chatMain, 'Error loading chat');
+            }
         }
 
         async function loadMessages(roomId) {
@@ -2124,29 +2166,19 @@
                     
                 }, (error) => {
                     console.error('Error loading messages:', error);
-                    container.innerHTML = `
-                        <div class="error-state">
-                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                            <p>Error loading messages</p>
-                        </div>
-                    `;
+                    showErrorState(container, 'Error loading messages');
                 });
 
             } catch (error) {
                 console.error('Error setting up messages listener:', error);
-                container.innerHTML = `
-                    <div class="error-state">
-                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                        <p>Error loading messages</p>
-                    </div>
-                `;
+                showErrorState(container, 'Error loading messages');
             }
         }
 
         function createMessageElement(messageId, data) {
             const messageDiv = document.createElement('div');
             const isSystemMessage = data.senderId === 'system';
-            const isOwnMessage = data.senderId === currentUserInfo.user.uid;
+            const isOwnMessage = data.senderId === currentUserInfo.uid;
             
             if (isSystemMessage) {
                 messageDiv.className = 'system-message';
@@ -2160,32 +2192,68 @@
 
             messageDiv.className = `message ${isOwnMessage ? 'own' : data.senderRole}`;
             
-            let displaySenderName = getSenderDisplayName(data.senderRole, data.senderName, isOwnMessage);
+            let displaySenderName = isOwnMessage ? 'You' : data.senderName || data.senderRole;
             
-            messageDiv.innerHTML = `
-                <div class="message-avatar ${data.senderRole}">
-                    ${getAvatarText(data.senderRole, data.senderName)}
-                </div>
-                <div class="message-content">
-                    ${!isOwnMessage && currentUserInfo.role !== 'resident' ? `<div class="message-sender">${displaySenderName}</div>` : ''}
-                    <div class="message-bubble">
-                        <div class="message-text">${data.content}</div>
-                        <div class="message-time">${formatTimestamp(data.createdAt)}</div>
+            // Handle file messages
+            if (data.type === 'file') {
+                messageDiv.innerHTML = `
+                    <div class="message-avatar ${data.senderRole}">
+                        ${getAvatarText(data.senderRole, data.senderName)}
                     </div>
-                </div>
-            `;
+                    <div class="message-content">
+                        ${!isOwnMessage ? `<div class="message-sender">${displaySenderName}</div>` : ''}
+                        <div class="message-bubble">
+                            <div class="file-message">
+                                <div class="file-attachment">
+                                    <div class="file-icon">
+                                        ${getFileIcon(data.fileType)}
+                                    </div>
+                                    <div class="file-details">
+                                        <div class="file-name">${data.fileName}</div>
+                                        <div class="file-size">${formatFileSize(data.fileSize)}</div>
+                                    </div>
+                                    <button class="download-btn" onclick="downloadFile('${data.fileUrl}', '${data.fileName}')">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
+                                ${data.content ? `<div class="message-text">${data.content}</div>` : ''}
+                            </div>
+                            <div class="message-time">${formatTimestamp(data.createdAt)}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="message-avatar ${data.senderRole}">
+                        ${getAvatarText(data.senderRole, data.senderName)}
+                    </div>
+                    <div class="message-content">
+                        ${!isOwnMessage ? `<div class="message-sender">${displaySenderName}</div>` : ''}
+                        <div class="message-bubble">
+                            <div class="message-text">${data.content}</div>
+                            <div class="message-time">${formatTimestamp(data.createdAt)}</div>
+                        </div>
+                    </div>
+                `;
+            }
             
             return messageDiv;
         }
 
-        function getSenderDisplayName(senderRole, senderName, isOwnMessage) {
-            if (isOwnMessage) return 'You';
-            
-            if (currentUserInfo.role === 'resident' && (senderRole === 'admin' || senderRole === 'monitor')) {
-                return 'LipaAlertHub';
+        function getFileIcon(fileType) {
+            if (fileType.startsWith('image/')) {
+                return '<i class="fas fa-image"></i>';
+            } else if (fileType.includes('pdf')) {
+                return '<i class="fas fa-file-pdf"></i>';
+            } else if (fileType.includes('word') || fileType.includes('document')) {
+                return '<i class="fas fa-file-word"></i>';
+            } else if (fileType.includes('excel') || fileType.includes('spreadsheet')) {
+                return '<i class="fas fa-file-excel"></i>';
+            } else if (fileType.includes('zip') || fileType.includes('compressed')) {
+                return '<i class="fas fa-file-archive"></i>';
+            } else {
+                return '<i class="fas fa-file"></i>';
             }
-            
-            return senderName || (senderRole.charAt(0).toUpperCase() + senderRole.slice(1));
         }
 
         function getAvatarText(role, name) {
@@ -2226,7 +2294,7 @@
             });
         }
 
-        async function sendMessage() {
+        window.sendMessage = async function() {
             const textarea = document.getElementById('chatMessage');
             const sendBtn = document.getElementById('sendMessageBtn');
             
@@ -2239,12 +2307,12 @@
                 sendBtn.disabled = true;
                 sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                 
-                if (!selectedChatRoom.data.participants.includes(currentUserInfo.user.uid)) {
-                    throw new Error('You are not a participant in this chat');
+                if (!selectedChatRoom.data.participants.includes(currentUserInfo.uid)) {
+                    throw new ChatError('You are not a participant in this chat');
                 }
                 
                 const messageData = {
-                    senderId: currentUserInfo.user.uid,
+                    senderId: currentUserInfo.uid,
                     senderRole: currentUserInfo.role,
                     senderName: currentUserInfo.userData?.name || currentUserInfo.user.displayName || 'User',
                     content: content,
@@ -2255,16 +2323,17 @@
                 const messagesRef = collection(db, 'chatRooms', selectedChatRoom.id, 'messages');
                 await addDoc(messagesRef, messageData);
                 
+                // Update room with last message
                 const updateData = {
-                    lastMessage: content,
-                    lastMessageSender: currentUserInfo.user.uid,
+                    lastMessage: content.length > 50 ? content.substring(0, 47) + '...' : content,
+                    lastMessageSender: currentUserInfo.uid,
                     lastMessageSenderRole: currentUserInfo.role,
                     lastMessageTime: serverTimestamp(),
                     lastUpdated: serverTimestamp()
                 };
 
                 const otherParticipants = selectedChatRoom.data.participants.filter(
-                    id => id !== currentUserInfo.user.uid
+                    id => id !== currentUserInfo.uid
                 );
                 
                 for (const participantId of otherParticipants) {
@@ -2277,6 +2346,7 @@
 
                 await updateDoc(doc(db, 'chatRooms', selectedChatRoom.id), updateData);
 
+                // Clear input
                 textarea.value = '';
                 textarea.style.height = 'auto';
                 
@@ -2287,93 +2357,382 @@
                 sendBtn.disabled = false;
                 sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
             }
+        };
+
+        // FIXED: Enhanced user loading with proper role filtering
+        window.showNewConversationModal = async function() {
+            try {
+                const modal = document.getElementById('newConversationModal');
+                const usersList = document.getElementById('availableUsersList');
+                
+                modal.style.display = 'block';
+                usersList.innerHTML = '<div class="loading-content"><div class="loading-spinner-small"></div><p>Loading available users...</p></div>';
+                
+                currentFilter = 'all';
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.filter === 'all');
+                });
+                document.getElementById('userSearchInput').value = '';
+                
+                // FIXED: For admin, allow chatting with all roles including other admins
+                const allowedRoles = currentUserInfo.role === 'admin' 
+                    ? ['admin', 'monitor', 'rescuer', 'agency', 'resident']
+                    : CHAT_PERMISSIONS[currentUserInfo.role] || [];
+                
+                if (allowedRoles.length === 0) {
+                    usersList.innerHTML = '<div class="no-data"><p>You cannot start new conversations</p></div>';
+                    return;
+                }
+                
+                const usersQuery = query(
+                    collection(db, "users"),
+                    where("role", "in", allowedRoles),
+                    where("status", "==", "active")
+                );
+                
+                const snapshot = await getDocs(usersQuery);
+                
+                if (snapshot.empty) {
+                    usersList.innerHTML = '<div class="no-data"><p>No available users to chat with</p></div>';
+                    return;
+                }
+                
+                allAvailableUsers = [];
+                snapshot.forEach((doc) => {
+                    if (doc.id !== currentUserInfo.uid) {
+                        const userData = doc.data();
+                        allAvailableUsers.push({
+                            id: doc.id,
+                            name: userData.name || userData.displayName || userData.email,
+                            email: userData.email,
+                            role: userData.role,
+                            barangay: userData.barangay || 'N/A'
+                        });
+                    }
+                });
+                
+                allAvailableUsers.sort((a, b) => a.name.localeCompare(b.name));
+                renderUsersList();
+                
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showNotification('Failed to load users', 'error');
+                document.getElementById('availableUsersList').innerHTML = '<div class="error-state"><p>Error loading users</p></div>';
+            }
+        };
+
+        function renderUsersList() {
+            const usersList = document.getElementById('availableUsersList');
+            const searchTerm = document.getElementById('userSearchInput').value.toLowerCase();
+            
+            const filteredUsers = allAvailableUsers.filter(user => {
+                const matchesSearch = user.name.toLowerCase().includes(searchTerm) || 
+                                    user.email.toLowerCase().includes(searchTerm);
+                const matchesFilter = currentFilter === 'all' || user.role === currentFilter;
+                return matchesSearch && matchesFilter;
+            });
+            
+            if (filteredUsers.length === 0) {
+                usersList.innerHTML = '<div class="no-data"><p>No users found matching your criteria</p></div>';
+                return;
+            }
+            
+            usersList.innerHTML = '';
+            
+            filteredUsers.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'rescuer-item';
+                userItem.innerHTML = `
+                    <div class="rescuer-info">
+                        <h6>${user.name}</h6>
+                        <small>${user.email}</small>
+                        <div style="margin-top: 8px;">
+                            <span class="rescuer-status-badge ${user.role}">${user.role.toUpperCase()}</span>
+                            <small style="color: #666; margin-left: 8px;">${user.barangay}</small>
+                        </div>
+                    </div>
+                    <button class="assign-rescuer-btn" onclick="startChatWithUser('${user.id}', '${user.name.replace(/'/g, "\\'")}', '${user.role}')">
+                        <i class="fas fa-comment"></i>
+                        Start Chat
+                    </button>
+                `;
+                usersList.appendChild(userItem);
+            });
         }
 
-        window.sendMessage = sendMessage;
+        window.filterUsers = function(filter) {
+            currentFilter = filter;
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filter);
+            });
+            
+            renderUsersList();
+        };
 
-        async function createOrFindChatRoom(targetUserId, targetUserRole) {
+        window.startChatWithUser = async function(userId, userName, userRole) {
             try {
-                const allowedRoles = CHAT_PERMISSIONS[currentUserInfo.role] || [];
-                if (!allowedRoles.includes(targetUserRole)) {
-                    throw new Error(`${currentUserInfo.role} cannot chat with ${targetUserRole}`);
-                }
-
-                const userIds = [currentUserInfo.user.uid, targetUserId].sort();
-                const roomId = `${userIds[0]}_${userIds[1]}`;
+                showNotification(`Creating chat with ${userName}...`, 'info');
+                closeNewConversationModal();
                 
-                const participants = [currentUserInfo.user.uid, targetUserId];
-                const participantRoles = {
-                    [currentUserInfo.user.uid]: currentUserInfo.role,
-                    [targetUserId]: targetUserRole
-                };
-
-                const roomRef = doc(db, 'chatRooms', roomId);
+                const roomId = await createOrFindChatRoom(userId, userRole);
                 
-                try {
-                    const roomDoc = await getDoc(roomRef);
-                    
-                    if (roomDoc.exists()) {
-                        console.log('Chat room already exists:', roomId);
-                        return roomId;
-                    }
-                } catch (readError) {
-                    console.log('Cannot read room (might not exist):', readError.code);
-                }
-
-                console.log('Creating new chat room:', roomId);
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                const roomData = {
-                    participants: participants,
-                    participantRoles: participantRoles
-                };
-
-                try {
-                    await setDoc(roomRef, roomData);
-                    console.log('Successfully created chat room structure');
-                    
-                    await updateDoc(roomRef, {
-                        createdAt: serverTimestamp(),
-                        createdBy: currentUserInfo.user.uid,
-                        lastUpdated: serverTimestamp(),
-                        lastMessage: '',
-                        lastMessageSender: '',
-                        lastMessageTime: null,
-                        isActive: true
-                    });
-                    
-                    console.log('Chat room fully initialized');
-                    
-                    const messagesRef = collection(db, 'chatRooms', roomId, 'messages');
-                    await addDoc(messagesRef, {
-                        senderId: 'system',
-                        content: 'Private chat room created. Your conversation is secure.',
-                        createdAt: serverTimestamp()
-                    });
-                    
-                    return roomId;
-                    
-                } catch (createError) {
-                    console.error('Create error:', createError.code, createError.message);
-                    
-                    if (createError.code === 'permission-denied') {
-                        console.log('Permission denied - room likely already exists');
-                        return roomId;
-                    }
-                    
-                    throw createError;
+                const roomElement = document.querySelector(`[data-room-id="${roomId}"]`);
+                if (roomElement) {
+                    roomElement.click();
+                    showNotification(`Chat started with ${userName}`, 'success');
+                } else {
+                    showNotification('Chat created! Loading conversation...', 'success');
+                    await loadChatRooms();
+                    setTimeout(() => {
+                        const retryElement = document.querySelector(`[data-room-id="${roomId}"]`);
+                        if (retryElement) {
+                            retryElement.click();
+                        }
+                    }, 500);
                 }
-
+                
             } catch (error) {
-                console.error('Error creating/finding chat room:', error);
-                throw error;
+                console.error('Error starting chat:', error);
+                showNotification('Failed to start chat: ' + error.message, 'error');
+            }
+        };
+
+        window.closeNewConversationModal = function() {
+            document.getElementById('newConversationModal').style.display = 'none';
+        };
+
+        // File Upload Functions
+        function setupFileUploadDragDrop() {
+            const fileUploadArea = document.getElementById('fileUploadArea');
+            const fileInput = document.getElementById('fileInput');
+            
+            if (!fileUploadArea || !fileInput) return;
+
+            fileUploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            fileUploadArea.addEventListener('drop', handleDrop, false);
+            fileInput.addEventListener('change', handleFileSelect);
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function highlight() {
+                fileUploadArea.classList.add('dragover');
+            }
+
+            function unhighlight() {
+                fileUploadArea.classList.remove('dragover');
+            }
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
             }
         }
 
+        function handleFiles(files) {
+            for (let i = 0; i < files.length; i++) {
+                selectedFiles.push(files[i]);
+            }
+            updateFilePreview();
+        }
+
+        function handleFileSelect(event) {
+            handleFiles(event.target.files);
+            event.target.value = '';
+        }
+
+        function updateFilePreview() {
+            const preview = document.getElementById('filePreview');
+            preview.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const previewItem = document.createElement('div');
+                previewItem.className = 'file-preview-item';
+                
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewItem.innerHTML = `
+                            <img src="${e.target.result}" alt="${file.name}">
+                            <div class="file-info">
+                                <i class="fas fa-image"></i>
+                                ${file.name} (${formatFileSize(file.size)})
+                            </div>
+                            <button class="remove-file-btn" onclick="removeSelectedFile(${index})">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        `;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    previewItem.innerHTML = `
+                        <div style="padding: 20px; background: var(--light-color); border-radius: 8px; text-align: center;">
+                            <i class="fas fa-file fa-2x" style="color: #666; margin-bottom: 10px;"></i>
+                            <div class="file-info">
+                                ${file.name} (${formatFileSize(file.size)})
+                            </div>
+                        </div>
+                        <button class="remove-file-btn" onclick="removeSelectedFile(${index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                }
+                
+                preview.appendChild(previewItem);
+            });
+        }
+
+        window.removeSelectedFile = function(index) {
+            selectedFiles.splice(index, 1);
+            updateFilePreview();
+        };
+
+        async function uploadSelectedFiles() {
+            const uploadPromises = selectedFiles.map(async (file) => {
+                try {
+                    const storageRef = ref(storage, `chat-files/${selectedChatRoom.id}/${Date.now()}_${file.name}`);
+                    const snapshot = await uploadBytes(storageRef, file);
+                    const downloadURL = await getDownloadURL(snapshot.ref);
+                    
+                    return {
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        url: downloadURL
+                    };
+                } catch (error) {
+                    console.error('Error uploading file:', error);
+                    throw new Error(`Failed to upload ${file.name}: ${error.message}`);
+                }
+            });
+            
+            return await Promise.all(uploadPromises);
+        }
+
+        window.showFileUploadModal = function() {
+            const modal = document.getElementById('fileUploadModal');
+            modal.style.display = 'block';
+            document.getElementById('filePreview').innerHTML = '';
+            selectedFiles = [];
+        };
+
+        window.closeFileUploadModal = function() {
+            const modal = document.getElementById('fileUploadModal');
+            modal.style.display = 'none';
+        };
+
+        window.uploadFiles = async function() {
+            if (selectedFiles.length === 0) {
+                showNotification('Please select files to upload', 'warning');
+                return;
+            }
+
+            try {
+                const uploadBtn = document.getElementById('uploadFilesBtn');
+                uploadBtn.disabled = true;
+                uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+                const fileUrls = await uploadSelectedFiles();
+                
+                for (const fileData of fileUrls) {
+                    const messageData = {
+                        senderId: currentUserInfo.uid,
+                        senderRole: currentUserInfo.role,
+                        senderName: currentUserInfo.userData?.name || currentUserInfo.user.displayName || 'User',
+                        content: '',
+                        type: 'file',
+                        fileName: fileData.name,
+                        fileSize: fileData.size,
+                        fileType: fileData.type,
+                        fileUrl: fileData.url,
+                        createdAt: serverTimestamp()
+                    };
+
+                    const messagesRef = collection(db, 'chatRooms', selectedChatRoom.id, 'messages');
+                    await addDoc(messagesRef, messageData);
+                }
+
+                const updateData = {
+                    lastMessage: `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} sent`,
+                    lastMessageSender: currentUserInfo.uid,
+                    lastMessageSenderRole: currentUserInfo.role,
+                    lastMessageTime: serverTimestamp(),
+                    lastUpdated: serverTimestamp()
+                };
+
+                const otherParticipants = selectedChatRoom.data.participants.filter(
+                    id => id !== currentUserInfo.uid
+                );
+                
+                for (const participantId of otherParticipants) {
+                    const participantRole = selectedChatRoom.data.participantRoles?.[participantId];
+                    if (participantRole) {
+                        updateData[`unreadCount.${participantRole}`] = 
+                            (selectedChatRoom.data.unreadCount?.[participantRole] || 0) + 1;
+                    }
+                }
+
+                await updateDoc(doc(db, 'chatRooms', selectedChatRoom.id), updateData);
+
+                showNotification('Files uploaded successfully', 'success');
+                closeFileUploadModal();
+                
+            } catch (error) {
+                console.error('Error uploading files:', error);
+                showNotification('Failed to upload files: ' + error.message, 'error');
+            } finally {
+                const uploadBtn = document.getElementById('uploadFilesBtn');
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Files';
+            }
+        };
+
+        window.downloadFile = function(url, fileName) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Utility Functions
         function setupChatSearch() {
             const searchInput = document.getElementById('chatSearch');
             if (!searchInput) return;
 
-            searchInput.addEventListener('input', function() {
+            searchInput.addEventListener('input', debounce(function() {
                 const searchTerm = this.value.toLowerCase();
                 const chatRooms = document.querySelectorAll('.chat-room-item');
                 
@@ -2384,7 +2743,26 @@
                     const matches = participantName.includes(searchTerm) || lastMessage.includes(searchTerm);
                     room.style.display = matches ? 'block' : 'none';
                 });
-            });
+            }, 300));
+        }
+
+        function setupEventListeners() {
+            const userSearchInput = document.getElementById('userSearchInput');
+            if (userSearchInput) {
+                userSearchInput.addEventListener('input', debounce(renderUsersList, 300));
+            }
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
         }
 
         function updateChatStats(total, unread) {
@@ -2397,7 +2775,7 @@
             
             if (unreadElement) {
                 unreadElement.textContent = `${unread} Unread`;
-                unreadElement.style.color = unread > 0 ? '#d73527' : '#666';
+                unreadElement.style.color = unread > 0 ? 'var(--primary-color)' : '#666';
                 unreadElement.style.fontWeight = unread > 0 ? '600' : '400';
             }
         }
@@ -2405,21 +2783,16 @@
         function formatTimestamp(timestamp) {
             if (!timestamp) return 'Unknown time';
             
-            let date;
-            
             try {
+                let date;
                 if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
                     date = new Date(timestamp.seconds * 1000);
                 } else if (timestamp && typeof timestamp === 'object' && typeof timestamp.toDate === 'function') {
                     date = timestamp.toDate();
                 } else if (timestamp instanceof Date) {
                     date = timestamp;
-                } else if (typeof timestamp === 'string') {
-                    date = new Date(timestamp);
-                } else if (typeof timestamp === 'number') {
-                    date = timestamp < 1000000000000 ? new Date(timestamp * 1000) : new Date(timestamp);
                 } else {
-                    return 'Unknown format';
+                    return 'Invalid date';
                 }
                 
                 if (isNaN(date.getTime())) {
@@ -2432,34 +2805,44 @@
                 const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
                 const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
                 
-                if (Math.abs(diffMins) < 1) {
-                    return 'Just now';
-                } else if (Math.abs(diffMins) < 60) {
-                    return diffMins > 0 ? `${diffMins}m ago` : `In ${Math.abs(diffMins)}m`;
-                } else if (Math.abs(diffHours) < 24) {
-                    return diffHours > 0 ? `${diffHours}h ago` : `In ${Math.abs(diffHours)}h`;
-                } else if (Math.abs(diffDays) < 7) {
-                    return diffDays > 0 ? `${diffDays}d ago` : `In ${Math.abs(diffDays)}d`;
-                } else {
-                    return date.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                    });
-                }
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins}m ago`;
+                if (diffHours < 24) return `${diffHours}h ago`;
+                if (diffDays < 7) return `${diffDays}d ago`;
+                
+                return date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
                 
             } catch (error) {
                 console.error('Error formatting timestamp:', error);
-                return 'Error formatting';
+                return 'Error';
             }
         }
 
+        function showErrorState(container, message) {
+            container.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                    <p>${message}</p>
+                    <button class="btn btn-primary mt-2" onclick="location.reload()">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                </div>
+            `;
+        }
+
+        // UI Controls
         window.refreshChat = function() {
             if (selectedChatRoom) {
                 loadChatInterface(selectedChatRoom.id, selectedChatRoom.data);
                 showNotification('Chat refreshed', 'info');
+            } else {
+                loadChatRooms();
+                showNotification('Conversations refreshed', 'info');
             }
         };
 
@@ -2500,6 +2883,9 @@
         window.logoutUser = async function() {
             if (confirm("Are you sure you want to logout?")) {
                 try {
+                    if (chatRoomsListener) chatRoomsListener();
+                    if (messagesListener) messagesListener();
+                    
                     await signOut(auth);
                     showNotification("Logged out successfully", "info");
                     window.location.href = "index.html";
@@ -2510,6 +2896,7 @@
             }
         };
 
+        // Notification System
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
@@ -2527,20 +2914,42 @@
             
             setTimeout(() => {
                 if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
+                    notification.style.opacity = '0';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 300);
                 }
             }, 5000);
             
             notification.addEventListener('click', () => {
                 if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
+                    notification.style.opacity = '0';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 300);
                 }
             });
         }
 
+        // Cleanup
         window.addEventListener('beforeunload', () => {
             if (chatRoomsListener) chatRoomsListener();
             if (messagesListener) messagesListener();
+        });
+
+        // Global Error Handling
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+            showNotification('An unexpected error occurred', 'error');
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+            showNotification('An unexpected error occurred', 'error');
         });
 
     </script>

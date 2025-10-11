@@ -1,8 +1,10 @@
-// app/(main)/notifications/index.tsx - Complete with Violation Notifications
+// app/(main)/notifications/index.tsx - IMPROVED DESIGN VERSION
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   Image,
   Platform,
@@ -15,6 +17,9 @@ import {
 } from "react-native";
 import { useAuth } from "../../../hooks/useAuth";
 import { NotificationData, notificationService } from "../../../services/notifications";
+
+const { width } = Dimensions.get('window');
+const isSmallDevice = width < 375;
 
 export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
@@ -95,29 +100,33 @@ export default function NotificationsScreen() {
     if (type.startsWith('report_')) return '🚨';
     if (type.startsWith('forum_')) return '💬';
     if (type.startsWith('chat_')) return '📱';
-    return '👤';
+    if (type.startsWith('announcement')) return '📢';
+    if (type.startsWith('alert')) return '🔔';
+    return '📋';
   };
 
   const getIconColor = (type: string, status: string) => {
-    const opacity = status === 'unread' ? 1 : 0.6;
+    const isUnread = status === 'unread';
     
     if (type.startsWith('violation')) {
-      return `rgba(231, 76, 60, ${opacity})`;
+      return isUnread ? '#e74c3c' : '#fadbd8';
     }
     
     if (type.startsWith('report_')) {
       if (type.includes('approved') || type.includes('verified') || type.includes('resolved')) {
-        return `rgba(34, 197, 94, ${opacity})`;
+        return isUnread ? '#22c55e' : '#d1fae5';
       }
       if (type.includes('rejected') || type.includes('failed')) {
-        return `rgba(239, 68, 68, ${opacity})`;
+        return isUnread ? '#ef4444' : '#fee2e2';
       }
-      return `rgba(59, 130, 246, ${opacity})`;
+      return isUnread ? '#3b82f6' : '#dbeafe';
     }
     
-    if (type.startsWith('forum_')) return `rgba(156, 39, 176, ${opacity})`;
-    if (type.startsWith('chat_')) return `rgba(52, 152, 219, ${opacity})`;
-    return `rgba(107, 114, 128, ${opacity})`;
+    if (type.startsWith('forum_')) return isUnread ? '#9c27b0' : '#f3e5f5';
+    if (type.startsWith('chat_')) return isUnread ? '#3498db' : '#dbeafe';
+    if (type.startsWith('announcement')) return isUnread ? '#ff9800' : '#fff3e0';
+    if (type.startsWith('alert')) return isUnread ? '#f44336' : '#ffebee';
+    return isUnread ? '#6b7280' : '#f3f4f6';
   };
 
   const formatTime = (timestamp: any) => {
@@ -150,23 +159,29 @@ export default function NotificationsScreen() {
         .map(n => n.id!)
         .filter(Boolean);
 
-      if (unreadNotifications.length > 0) {
-        await notificationService.markMultipleAsRead(unreadNotifications);
+      if (unreadNotifications.length === 0) {
+        Alert.alert("Info", "All notifications are already read");
+        return;
       }
+
+      await notificationService.markMultipleAsRead(unreadNotifications);
     } catch (error) {
       console.error('Error marking all as read:', error);
+      Alert.alert("Error", "Failed to mark notifications as read");
     }
   };
 
+  const unreadCount = notifications.filter(n => n.status === 'unread').length;
+
   const renderNotification = ({ item }: { item: NotificationData }) => {
     const isViolation = item.type.startsWith('violation');
+    const isUnread = item.status === 'unread';
     
     return (
       <TouchableOpacity
         style={[
           styles.notificationItem,
-          item.status === 'unread' && styles.unreadItem,
-          isViolation && styles.violationItem
+          isUnread && styles.unreadItem
         ]}
         onPress={() => handleNotificationPress(item)}
         activeOpacity={0.7}
@@ -184,21 +199,23 @@ export default function NotificationsScreen() {
           <View style={styles.titleRow}>
             <Text style={[
               styles.title,
-              item.status === 'unread' && styles.unreadTitle,
+              isUnread && styles.unreadTitle,
               isViolation && styles.violationTitle
             ]} numberOfLines={1}>
               {item.title}
             </Text>
-            {item.status === 'unread' && <View style={styles.unreadDot} />}
+            {isUnread && <View style={styles.unreadDot} />}
           </View>
-          <Text style={styles.message} numberOfLines={2}>
+          <Text style={[
+            styles.message,
+            isUnread && styles.unreadMessage
+          ]} numberOfLines={2}>
             {item.body}
           </Text>
+          <Text style={styles.timestamp}>
+            {formatTime(item.createdAt)}
+          </Text>
         </View>
-        
-        <Text style={styles.timestamp}>
-          {formatTime(item.createdAt)}
-        </Text>
       </TouchableOpacity>
     );
   };
@@ -206,6 +223,7 @@ export default function NotificationsScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#e74c3c" />
         <Text style={styles.loadingText}>Loading notifications...</Text>
       </View>
     );
@@ -213,7 +231,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#f8f9fa" barStyle="dark-content" />
+      <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -225,9 +243,18 @@ export default function NotificationsScreen() {
           />
           <Text style={styles.logoTitle}>LipaAlertHub</Text>
         </View>
+        
         <View style={styles.headerBottom}>
-          <Text style={styles.pageTitle}>Notifications</Text>
-          {notifications.length > 0 && (
+          <View style={styles.titleContainer}>
+            <Text style={styles.pageTitle}>Notifications</Text>
+            {unreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+              </View>
+            )}
+          </View>
+          
+          {notifications.length > 0 && unreadCount > 0 && (
             <TouchableOpacity
               style={styles.markAllButton}
               onPress={markAllAsRead}
@@ -243,7 +270,7 @@ export default function NotificationsScreen() {
       <FlatList
         data={notifications}
         renderItem={renderNotification}
-        keyExtractor={(item) => item.id || `temp-${Math.random()}`}
+        keyExtractor={(item, index) => item.id || `temp-${index}`}
         style={styles.listContainer}
         contentContainerStyle={[
           styles.listContent,
@@ -260,7 +287,9 @@ export default function NotificationsScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🔔</Text>
+            <View style={styles.emptyIcon}>
+              <Text style={styles.emptyEmoji}>🔔</Text>
+            </View>
             <Text style={styles.emptyTitle}>No Notifications</Text>
             <Text style={styles.emptyText}>
               You'll see updates about your reports, forum activity, and chat messages here.
@@ -284,22 +313,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8f9fa",
   },
   loadingText: {
+    marginTop: 12,
     fontSize: 16,
     color: "#666",
     fontWeight: "500",
   },
   header: {
     backgroundColor: "#fff",
-    paddingTop: Platform.OS === 'ios' ? 50 : 25,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
     paddingHorizontal: 20,
-    paddingBottom: 15,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: "#e5e7eb",
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 3,
   },
   logoContainer: {
     flexDirection: "row",
@@ -307,12 +337,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   logoImage: {
-    width: 28,
-    height: 28,
-    marginRight: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    marginRight: 10,
   },
   logoTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
     color: "#333",
   },
@@ -321,76 +352,97 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  pageTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#333",
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
+  pageTitle: {
+    fontSize: isSmallDevice ? 22 : 24,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  unreadBadge: {
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  unreadBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   markAllButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 8,
     backgroundColor: "#e74c3c",
   },
   markAllText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: isSmallDevice ? 11 : 12,
     fontWeight: "600",
   },
   listContainer: {
     flex: 1,
   },
   listContent: {
-    paddingBottom: 100,
+    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
   },
   emptyList: {
     flexGrow: 1,
   },
   notificationItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   unreadItem: {
     backgroundColor: '#f8faff',
-    borderLeftWidth: 3,
+    borderLeftWidth: 4,
     borderLeftColor: '#3b82f6',
-  },
-  violationItem: {
-    backgroundColor: '#fff5f5',
-    borderLeftWidth: 3,
-    borderLeftColor: '#e74c3c',
+    shadowOpacity: 0.1,
+    elevation: 2,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: isSmallDevice ? 44 : 48,
+    height: isSmallDevice ? 44 : 48,
+    borderRadius: isSmallDevice ? 22 : 24,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   iconText: {
-    fontSize: 16,
+    fontSize: isSmallDevice ? 20 : 22,
   },
   contentContainer: {
     flex: 1,
-    marginRight: 8,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   title: {
-    fontSize: 15,
+    fontSize: isSmallDevice ? 14 : 15,
     fontWeight: '600',
-    color: '#374151',
+    color: '#4b5563',
     flex: 1,
+    lineHeight: 20,
   },
   unreadTitle: {
     color: '#1f2937',
@@ -401,23 +453,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   unreadDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#3b82f6',
     marginLeft: 6,
   },
   message: {
-    fontSize: 13,
+    fontSize: isSmallDevice ? 12 : 13,
     color: '#6b7280',
     lineHeight: 18,
+    marginBottom: 6,
+  },
+  unreadMessage: {
+    color: '#4b5563',
+    fontWeight: '500',
   },
   timestamp: {
     fontSize: 11,
     color: '#9ca3af',
     fontWeight: '500',
-    minWidth: 40,
-    textAlign: 'right',
   },
   emptyContainer: {
     flex: 1,
@@ -427,14 +482,21 @@ const styles = StyleSheet.create({
     paddingTop: 100,
   },
   emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  emptyEmoji: {
     fontSize: 48,
-    marginBottom: 16,
-    opacity: 0.5,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
     marginBottom: 8,
   },
   emptyText: {
@@ -442,5 +504,6 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 20,
+    maxWidth: 280,
   },
 });

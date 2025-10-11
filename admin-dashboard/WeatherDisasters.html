@@ -66,6 +66,7 @@
             z-index: 1000;
             overflow-y: auto;
             box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
         }
 
         .sidebar-header {
@@ -134,22 +135,36 @@
             margin-left: 250px;
             min-height: 100vh;
             background: #f8f9fa;
+            transition: margin-left 0.3s ease;
         }
 
         .header {
             background: white;
-            padding: 20px 30px;
+            padding: 15px 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #d53b2c;
+            cursor: pointer;
         }
 
         .page-title {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 600;
             color: #333;
+            margin: 0;
         }
 
         .user-info {
@@ -165,10 +180,11 @@
         .user-name {
             font-weight: 600;
             color: #333;
+            font-size: 14px;
         }
 
         .user-role {
-            font-size: 12px;
+            font-size: 11px;
             color: #666;
             text-transform: uppercase;
         }
@@ -186,21 +202,17 @@
             background: linear-gradient(135deg, #dc3545, #c82333);
         }
 
-        .role-badge.monitor {
-            background: linear-gradient(135deg, #17a2b8, #138496);
-        }
-
         .dashboard-content {
-            padding: 30px;
+            padding: 20px;
         }
 
         .content-card {
             background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             border: 1px solid #e9ecef;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .card-header {
@@ -210,6 +222,8 @@
             margin-bottom: 20px;
             padding-bottom: 15px;
             border-bottom: 2px solid #f1f3f4;
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
         .card-title {
@@ -227,19 +241,28 @@
 
         .controls-row {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
             margin-bottom: 20px;
             flex-wrap: wrap;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #d53b2c, #b92e20);
+        .btn {
             border: none;
             border-radius: 8px;
-            padding: 10px 20px;
+            padding: 10px 18px;
             font-weight: 600;
             transition: all 0.3s ease;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            color: white;
         }
 
         .btn-primary:hover {
@@ -249,42 +272,40 @@
 
         .btn-success {
             background: linear-gradient(135deg, #28a745, #20c997);
-            border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            color: white;
         }
 
         .btn-warning {
             background: linear-gradient(135deg, #ffc107, #fd7e14);
-            border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            color: white;
         }
 
         .btn-danger {
             background: linear-gradient(135deg, #dc3545, #c82333);
-            border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
         }
 
         .alert-card {
             border: 1px solid #dee2e6;
-            border-radius: 12px;
-            padding: 20px;
+            border-radius: 10px;
+            padding: 18px;
             margin-bottom: 15px;
             background: white;
             transition: all 0.3s ease;
         }
 
         .alert-card:hover {
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             transform: translateY(-2px);
         }
 
@@ -302,14 +323,16 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .alert-type {
             display: inline-block;
             padding: 4px 12px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
         }
@@ -337,7 +360,7 @@
         .source-badge {
             padding: 4px 8px;
             border-radius: 12px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             color: white;
         }
@@ -358,29 +381,96 @@
             background: #dc3545;
         }
 
+        .source-badge.CDRRMO {
+            background: #6610f2;
+        }
+
+        .source-badge.LGU {
+            background: #e83e8c;
+        }
+
+        .source-badge.Manual {
+            background: #fd7e14;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            padding: 18px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-box:hover {
+            transform: translateY(-3px);
+        }
+
+        .stat-box.weather {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        }
+
+        .stat-box.earthquake {
+            background: linear-gradient(135deg, #fd7e14 0%, #dc3545 100%);
+        }
+
+        .stat-box.pending {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        }
+
+        .stat-box.approved {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .last-update {
+            font-size: 11px;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+
         .alert-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
-            margin-top: 15px;
+            margin-top: 12px;
         }
 
         .btn-sm {
-            padding: 6px 12px;
-            font-size: 12px;
+            padding: 5px 10px;
+            font-size: 11px;
             border-radius: 6px;
+            gap: 5px;
         }
 
         .toggle-container {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
         .toggle-switch {
             position: relative;
-            width: 50px;
-            height: 25px;
+            width: 45px;
+            height: 22px;
         }
 
         .toggle-switch input {
@@ -396,14 +486,14 @@
             bottom: 0;
             background-color: #ccc;
             transition: .4s;
-            border-radius: 25px;
+            border-radius: 22px;
         }
 
         .toggle-slider:before {
             position: absolute;
             content: "";
-            height: 19px;
-            width: 19px;
+            height: 16px;
+            width: 16px;
             left: 3px;
             bottom: 3px;
             background-color: white;
@@ -416,24 +506,26 @@
         }
 
         input:checked + .toggle-slider:before {
-            transform: translateX(25px);
+            transform: translateX(23px);
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
 
         .form-label {
             font-weight: 600;
             color: #333;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            font-size: 14px;
         }
 
         .form-control, .form-select {
             border: 2px solid #e9ecef;
             border-radius: 8px;
-            padding: 10px 15px;
+            padding: 10px 12px;
             transition: all 0.3s ease;
+            font-size: 14px;
         }
 
         .form-control:focus, .form-select:focus {
@@ -444,12 +536,12 @@
         .raw-json {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 10px;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 8px;
             font-family: 'Courier New', monospace;
-            font-size: 12px;
-            max-height: 200px;
+            font-size: 11px;
+            max-height: 150px;
             overflow-y: auto;
             display: none;
         }
@@ -460,16 +552,18 @@
 
         .search-container {
             position: relative;
-            max-width: 300px;
+            max-width: 280px;
+            width: 100%;
         }
 
         .search-container input {
-            padding-left: 40px;
+            padding-left: 35px;
+            font-size: 14px;
         }
 
         .search-container i {
             position: absolute;
-            left: 15px;
+            left: 12px;
             top: 50%;
             transform: translateY(-50%);
             color: #666;
@@ -477,24 +571,27 @@
 
         .notification-container {
             position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
+            top: 15px;
+            right: 15px;
+            z-index: 10000;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
+            max-width: calc(100vw - 30px);
         }
 
         .notification {
-            padding: 15px 25px;
-            border-radius: 12px;
+            padding: 12px 20px;
+            border-radius: 10px;
             color: white;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-            min-width: 320px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+            min-width: 280px;
+            max-width: 100%;
             animation: slideIn 0.4s ease;
+            font-size: 14px;
         }
 
         .notification.success {
@@ -525,46 +622,157 @@
         }
 
         .modal-body .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         .loading-spinner-small {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             border: 2px solid #f3f3f3;
             border-top: 2px solid #d53b2c;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             display: inline-block;
-            margin-right: 10px;
+            margin-right: 8px;
         }
 
+        .stats-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        /* Mobile Styles */
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
-                transition: transform 0.3s ease;
+                width: 280px;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
             }
 
             .main-content {
                 margin-left: 0;
             }
 
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .header {
+                padding: 12px 15px;
+            }
+
+            .page-title {
+                font-size: 20px;
+            }
+
             .dashboard-content {
-                padding: 20px 15px;
+                padding: 15px;
+            }
+
+            .content-card {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
             }
 
             .controls-row {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 10px;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .toggle-container {
+                justify-content: space-between;
+                width: 100%;
             }
 
             .alert-header {
                 flex-direction: column;
-                gap: 10px;
+                align-items: flex-start;
+                gap: 8px;
             }
 
             .alert-actions {
                 justify-content: center;
+                width: 100%;
+            }
+
+            .user-details {
+                display: none;
+            }
+
+            .stats-container {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .stat-box {
+                padding: 15px;
+            }
+
+            .stat-number {
+                font-size: 24px;
+            }
+
+            .search-container {
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+
+            .notification {
+                min-width: auto;
+                width: calc(100vw - 30px);
+            }
+
+            .modal-dialog {
+                margin: 10px;
+            }
+
+            .btn-sm {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .alert-actions {
+                gap: 5px;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            .sidebar, .header, .btn, .toggle-container, .alert-actions {
+                display: none !important;
+            }
+
+            .main-content {
+                margin-left: 0 !important;
+            }
+
+            .content-card {
+                box-shadow: none;
+                border: 1px solid #000;
             }
         }
     </style>
@@ -573,7 +781,7 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="loading-spinner"></div>
         <div style="text-align: center;">
-            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">
                 Loading Weather & Disaster Alerts...
             </div>
             <small style="opacity: 0.8;">
@@ -583,78 +791,78 @@
     </div>
 
     <div id="dashboardContainer" class="dashboard-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
                 <div class="brand-title">LipaAlertHub</div>
-                <div class="brand-subtitle">Disaster Management System</div>
+                <div class="brand-subtitle">Admin Dashboard</div>
             </div>
             
             <nav class="sidebar-nav">
-                <div class="nav-item" data-role="admin,monitor">
+                <div class="nav-item">
                     <a href="Dashboard.html" class="nav-link">
                         <i class="fas fa-tachometer-alt"></i>
                         Dashboard
                     </a>
                 </div>
                 
-                <div class="nav-item" data-role="admin,monitor,rescuer">
+                <div class="nav-item">
                     <a href="IncidentReportList.html" class="nav-link">
                         <i class="fas fa-exclamation-triangle"></i>
-                        Reports
+                        Incident Reports
                     </a>
                 </div>
                 
-                <div class="nav-item" data-role="admin">
+                <div class="nav-item">
                     <a href="Announcements.html" class="nav-link">
                         <i class="fas fa-bullhorn"></i>
                         Announcements
                     </a>
                 </div>
                 
-                <div class="nav-item" data-role="admin,monitor">
+                <div class="nav-item">
                     <a href="EmergencyTips.html" class="nav-link">
                         <i class="fas fa-lightbulb"></i>
                         Emergency Tips
                     </a>
                 </div>
 
-                <div class="nav-item" data-role="admin,monitor">
+                <div class="nav-item">
                     <a href="Forums.html" class="nav-link">
                         <i class="fas fa-comments"></i>
-                        Forums
+                        Community Forums
                     </a>
                 </div>
                 
-                <div class="nav-item" data-role="admin">
+                <div class="nav-item">
                     <a href="Maps.html" class="nav-link">
                         <i class="fas fa-map"></i>
-                        Map
+                        Hazard Map
                     </a>
                 </div>
                 
                 <div class="nav-item">
                     <a href="Chats.html" class="nav-link">
                         <i class="fas fa-comment-dots"></i>
-                        CHATS
+                        Chats
                     </a>
                 </div>
                 
-                <div class="nav-item" data-role="admin">
-                    <a href="AccountVerification.html" class="nav-link">
+                <div class="nav-item">
+                    <a href="Accounts.html" class="nav-link">
                         <i class="fas fa-users"></i>
                         Accounts
                     </a>
                 </div>
                 
-                <div class="nav-item" data-role="admin">
+                <div class="nav-item">
                     <a href="Analytics.html" class="nav-link">
                         <i class="fas fa-chart-bar"></i>
                         Analytics
                     </a>
                 </div>
                 
-                <div class="nav-item" data-role="admin">
+                <div class="nav-item">
                     <a href="WeatherDisasters.html" class="nav-link active">
                         <i class="fas fa-bolt"></i>
                         Weather & Disasters
@@ -667,11 +875,21 @@
                         Contacts
                     </a>
                 </div>
+                
+                   <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="changepassword.html" class="nav-link">
+                        <i class="fas fa-key"></i>
+                        Change Password
+                    </a>
+                </div>
             </nav>
         </div>
 
         <div class="main-content">
             <div class="header">
+                <button class="mobile-menu-btn" id="mobileMenuBtn">
+                    <i class="fas fa-bars"></i>
+                </button>
                 <h1 class="page-title">Weather & Disaster Alerts</h1>
                 
                 <div class="user-info">
@@ -679,10 +897,10 @@
                         <div class="user-name" data-user-info="name">Loading...</div>
                         <div class="user-role" data-user-info="email">Loading...</div>
                     </div>
-                    <div class="role-badge" data-user-info="role">Loading...</div>
+                    <div class="role-badge admin" data-user-info="role">Admin</div>
                     <div class="dropdown">
                         <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle fa-2x" style="color: #d53b2c;"></i>
+                            <i class="fas fa-user-circle fa-lg" style="color: #d53b2c;"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#" onclick="logoutUser()">
@@ -694,26 +912,48 @@
             </div>
 
             <div class="dashboard-content">
+                <!-- Stats Dashboard -->
+                <div class="stats-container">
+                    <div class="stat-box weather">
+                        <div class="stat-number" id="weatherCount">0</div>
+                        <div class="stat-label">Weather Alerts</div>
+                        <div class="last-update" id="weatherUpdate">-</div>
+                    </div>
+                    <div class="stat-box earthquake">
+                        <div class="stat-number" id="earthquakeCount">0</div>
+                        <div class="stat-label">Earthquake Alerts</div>
+                        <div class="last-update" id="earthquakeUpdate">-</div>
+                    </div>
+                    <div class="stat-box pending">
+                        <div class="stat-number" id="pendingCountStat">0</div>
+                        <div class="stat-label">Pending Review</div>
+                    </div>
+                    <div class="stat-box approved">
+                        <div class="stat-number" id="approvedCountStat">0</div>
+                        <div class="stat-label">Active Alerts</div>
+                    </div>
+                </div>
+
                 <!-- Automated Feeds Section -->
                 <div class="content-card">
                     <div class="card-header">
                         <h3 class="card-title">
                             <i class="fas fa-rss"></i>
                             Automated Feeds (Pending Approval)
+                            <span class="stats-badge bg-warning text-dark" id="pendingCount">0 Pending</span>
                         </h3>
                         <div class="controls-row">
                             <div class="search-container">
                                 <input type="text" class="form-control" id="searchAlerts" placeholder="Search alerts...">
                                 <i class="fas fa-search"></i>
                             </div>
-                            <select class="form-select" id="filterSource" style="width: 150px;">
+                            <select class="form-select" id="filterSource">
                                 <option value="">All Sources</option>
                                 <option value="OpenWeather">OpenWeather</option>
                                 <option value="USGS">USGS</option>
-                                <option value="PAGASA">PAGASA</option>
-                                <option value="PHIVOLCS">PHIVOLCS</option>
+                                <option value="Manual">Manual Entry</option>
                             </select>
-                            <select class="form-select" id="filterType" style="width: 120px;">
+                            <select class="form-select" id="filterType">
                                 <option value="">All Types</option>
                                 <option value="weather">Weather</option>
                                 <option value="earthquake">Earthquake</option>
@@ -725,21 +965,30 @@
 
                     <div class="controls-row">
                         <button class="btn btn-primary" onclick="fetchOpenWeather()">
-                            <i class="fas fa-cloud"></i> Fetch OpenWeather
+                            <i class="fas fa-cloud"></i> Fetch Weather
                         </button>
                         <button class="btn btn-primary" onclick="fetchUSGS()">
-                            <i class="fas fa-mountain"></i> Fetch USGS Earthquakes
+                            <i class="fas fa-mountain"></i> Fetch Earthquakes
                         </button>
-                        <div class="toggle-container">
-                            <span>Auto-Fetch:</span>
+                        <button class="btn btn-info" onclick="refreshAllData()">
+                            <i class="fas fa-sync-alt"></i> Refresh All
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteAllPendingAlerts()" id="deleteAllBtn">
+                            <i class="fas fa-trash-alt"></i> Delete All Pending
+                        </button>
+                        <button class="btn btn-warning" onclick="deleteExpiredAlerts()">
+                            <i class="fas fa-trash"></i> Delete Expired Alerts
+                        </button>
+                        <div class="toggle-container ms-auto">
+                            <span>Auto-Refresh:</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="autoFetchToggle">
                                 <span class="toggle-slider"></span>
                             </label>
-                            <select class="form-select" id="autoFetchInterval" style="width: 120px;">
+                            <select class="form-select" id="autoFetchInterval">
                                 <option value="5">5 min</option>
                                 <option value="10">10 min</option>
-                                <option value="15">15 min</option>
+                                <option value="15" selected>15 min</option>
                                 <option value="30">30 min</option>
                             </select>
                         </div>
@@ -753,8 +1002,38 @@
                     </div>
                 </div>
 
+                <!-- Approved Alerts History -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-check-circle"></i>
+                            Approved Alerts History
+                            <span class="stats-badge bg-success text-white" id="approvedCount">0 Approved</span>
+                        </h3>
+                        <div class="controls-row">
+                            <div class="search-container">
+                                <input type="text" class="form-control" id="searchApprovedAlerts" placeholder="Search approved...">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <select class="form-select" id="filterApprovedSource">
+                                <option value="">All Sources</option>
+                                <option value="OpenWeather">OpenWeather</option>
+                                <option value="USGS">USGS</option>
+                                <option value="Manual">Manual Entry</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="approvedAlerts">
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-history fa-2x mb-3"></i>
+                            <p>No approved alerts yet.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Manual Alert Creation -->
-                <div class="content-card" data-role="admin">
+                <div class="content-card">
                     <div class="card-header">
                         <h3 class="card-title">
                             <i class="fas fa-plus-circle"></i>
@@ -781,9 +1060,12 @@
                                     <label class="form-label">Source</label>
                                     <select class="form-select" id="manualSource" required>
                                         <option value="">Select source...</option>
+                                        <option value="OpenWeather">OpenWeather</option>
+                                        <option value="USGS">USGS</option>
                                         <option value="PAGASA">PAGASA</option>
                                         <option value="PHIVOLCS">PHIVOLCS</option>
-                                        <option value="CDRRMO">CDRRMO</option>
+                                        <option value="CDRRMO">CDRRMO Lipa</option>
+                                        <option value="LGU">LGU Lipa</option>
                                         <option value="Manual">Manual Entry</option>
                                     </select>
                                 </div>
@@ -819,7 +1101,7 @@
                             <button type="button" class="btn btn-warning" onclick="saveManualAlert('pending')">
                                 <i class="fas fa-clock"></i> Save as Pending
                             </button>
-                            <button type="button" class="btn btn-success" onclick="saveManualAlert('approved')" data-role="admin">
+                            <button type="button" class="btn btn-success" onclick="saveManualAlert('approved')">
                                 <i class="fas fa-check"></i> Save & Approve
                             </button>
                             <button type="reset" class="btn btn-secondary">
@@ -834,7 +1116,7 @@
 
     <!-- Edit Alert Modal -->
     <div class="modal fade" id="editAlertModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Edit Alert</h5>
@@ -889,8 +1171,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-        import { getStorage } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, where, getDocs } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-functions.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
@@ -904,13 +1186,16 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app);
+        const functions = getFunctions(app, 'asia-southeast1');
 
-        // Constants
-        const OPENWEATHER_API_KEY = "0baa706a6ca53436f3aa0b5bd9f0d25b";
-        const LIPA_LAT = 13.9411;
-        const LIPA_LON = 121.1631;
-        const USGS_RADIUS = 200;
+        // Cloud Functions
+        const manualFetchOpenWeather = httpsCallable(functions, 'manualFetchOpenWeather');
+        const manualFetchUSGS = httpsCallable(functions, 'manualFetchUSGS');
+
+        const LIPA_COORDS = {
+            lat: 13.9411,
+            lon: 121.1631
+        };
 
         const USER_ROLES = {
             ADMIN: 'admin',
@@ -922,13 +1207,16 @@
 
         let currentUserInfo = null;
         let pendingAlerts = [];
+        let approvedAlerts = [];
         let autoFetchInterval = null;
         let alertsListener = null;
+        let lastWeatherUpdate = null;
+        let lastEarthquakeUpdate = null;
 
-        // Initialize on load
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 console.log('🚀 Initializing Weather & Disaster Alerts Admin...');
+                setupMobileMenu();
                 await checkAuthentication();
             } catch (error) {
                 console.error('❌ Initialization failed:', error);
@@ -938,6 +1226,24 @@
                 }, 3000);
             }
         });
+
+        function setupMobileMenu() {
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const sidebar = document.getElementById('sidebar');
+            
+            mobileMenuBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('mobile-open');
+            });
+
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', (event) => {
+                if (window.innerWidth <= 768 && 
+                    !sidebar.contains(event.target) && 
+                    !mobileMenuBtn.contains(event.target)) {
+                    sidebar.classList.remove('mobile-open');
+                }
+            });
+        }
 
         async function checkAuthentication() {
             return new Promise((resolve, reject) => {
@@ -949,14 +1255,22 @@
                     }
 
                     try {
-                        // Check if user has admin role
-                        const idTokenResult = await user.getIdTokenResult();
-                        const isAdmin = idTokenResult.claims.admin === true;
+                        // Check if user is admin by checking Firestore user document
+                        const userDoc = await getDocs(
+                            query(collection(db, "users"), where("uid", "==", user.uid))
+                        );
+                        
+                        if (userDoc.empty) {
+                            throw new Error('User document not found');
+                        }
+
+                        const userData = userDoc.docs[0].data();
+                        const isAdmin = userData.role === USER_ROLES.ADMIN;
                         
                         if (!isAdmin) {
-                            alert("Access denied. Weather & Disaster Alerts requires Administrator privileges.");
+                            alert("❌ Access Denied: Weather & Disaster Alerts requires Administrator privileges.");
                             await signOut(auth);
-                            window.location.href = "index.html?error=insufficient-permissions";
+                            window.location.href = "Dashboard.html";
                             reject(new Error('Insufficient permissions'));
                             return;
                         }
@@ -964,7 +1278,7 @@
                         currentUserInfo = {
                             user,
                             role: USER_ROLES.ADMIN,
-                            userData: { name: user.displayName || user.email }
+                            userData: userData
                         };
 
                         console.log('✅ Admin access granted:', user.email);
@@ -984,7 +1298,6 @@
 
         async function initializeAdmin() {
             try {
-                applyRoleBasedUI();
                 updateUserInfo();
                 setupEventListeners();
                 loadExistingAlerts();
@@ -995,16 +1308,6 @@
                 console.error('Error initializing admin:', error);
                 showNotification('Error loading admin interface', 'warning');
             }
-        }
-
-        function applyRoleBasedUI() {
-            const roleElements = document.querySelectorAll('[data-role]');
-            roleElements.forEach(element => {
-                const allowedRoles = element.getAttribute('data-role').split(',');
-                if (!allowedRoles.includes(currentUserInfo.role)) {
-                    element.style.display = 'none';
-                }
-            });
         }
 
         function updateUserInfo() {
@@ -1027,21 +1330,29 @@
         }
 
         function setupEventListeners() {
-            // Auto-fetch toggle
             const autoFetchToggle = document.getElementById('autoFetchToggle');
             autoFetchToggle.addEventListener('change', handleAutoFetchToggle);
 
-            // Search and filter
             document.getElementById('searchAlerts').addEventListener('input', filterAlerts);
             document.getElementById('filterSource').addEventListener('change', filterAlerts);
             document.getElementById('filterType').addEventListener('change', filterAlerts);
 
-            // Manual alert form reset
+            document.getElementById('searchApprovedAlerts').addEventListener('input', filterApprovedAlerts);
+            document.getElementById('filterApprovedSource').addEventListener('change', filterApprovedAlerts);
+
             document.getElementById('manualAlertForm').addEventListener('reset', () => {
                 setTimeout(() => {
-                    // Clear any validation states after reset
                     document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
                 }, 10);
+            });
+
+            // Close mobile menu when clicking on nav links
+            document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('sidebar').classList.remove('mobile-open');
+                    }
+                });
             });
         }
 
@@ -1058,16 +1369,39 @@
 
                 alertsListener = onSnapshot(alertsQuery, (snapshot) => {
                     pendingAlerts = [];
+                    approvedAlerts = [];
+                    const now = new Date();
+                    
                     snapshot.forEach((doc) => {
                         const data = doc.data();
-                        if (data.status === 'pending') {
+                        
+                        // Check if alert is expired
+                        const expiresAt = data.expiresAt?.toDate?.() || data.expiresAt;
+                        const isExpired = expiresAt && expiresAt < now;
+                        
+                        // Skip expired alerts
+                        if (isExpired) {
+                            console.log(`Skipping expired alert: ${doc.id}`);
+                            return;
+                        }
+                        
+                        // USE THE CORRECT FIELD FOR FILTERING - check 'approved' boolean field
+                        if (data.approved === true) {
+                            approvedAlerts.push({
+                                id: doc.id,
+                                ...data
+                            });
+                        } else {
                             pendingAlerts.push({
                                 id: doc.id,
                                 ...data
                             });
                         }
                     });
+                    
                     renderPendingAlerts();
+                    renderApprovedAlerts();
+                    updateAlertCounts();
                 }, (error) => {
                     console.error('Error loading alerts:', error);
                     showNotification('Error loading existing alerts', 'error');
@@ -1079,186 +1413,105 @@
             }
         }
 
-        // OpenWeather API Integration
+        function updateAlertCounts() {
+            document.getElementById('pendingCount').textContent = `${pendingAlerts.length} Pending`;
+            document.getElementById('approvedCount').textContent = `${approvedAlerts.length} Approved`;
+            
+            document.getElementById('pendingCountStat').textContent = pendingAlerts.length;
+            document.getElementById('approvedCountStat').textContent = approvedAlerts.length;
+            
+            const weatherCount = [...pendingAlerts, ...approvedAlerts].filter(a => a.type === 'weather').length;
+            const earthquakeCount = [...pendingAlerts, ...approvedAlerts].filter(a => a.type === 'earthquake').length;
+            
+            document.getElementById('weatherCount').textContent = weatherCount;
+            document.getElementById('earthquakeCount').textContent = earthquakeCount;
+            
+            if (lastWeatherUpdate) {
+                document.getElementById('weatherUpdate').textContent = `Last: ${lastWeatherUpdate.toLocaleTimeString('en-PH')}`;
+            }
+            if (lastEarthquakeUpdate) {
+                document.getElementById('earthquakeUpdate').textContent = `Last: ${lastEarthquakeUpdate.toLocaleTimeString('en-PH')}`;
+            }
+        }
+
         window.fetchOpenWeather = async function() {
             const button = event.target;
+            const originalText = button.innerHTML;
             button.disabled = true;
             button.innerHTML = '<span class="loading-spinner-small"></span>Fetching...';
 
             try {
-                const url = `https://api.openweathermap.org/data/2.5/weather?lat=${LIPA_LAT}&lon=${LIPA_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+                console.log('☁️ Fetching OpenWeather data via Cloud Function...');
                 
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`OpenWeather API error: ${response.status}`);
-                }
-
-                const data = await response.json();
+                const result = await manualFetchOpenWeather();
                 
-                // Process weather data into alert format
-                const weatherAlert = processOpenWeatherData(data);
-                if (weatherAlert) {
-                    addPendingAlert(weatherAlert);
-                    showNotification('OpenWeather data fetched successfully!', 'success');
+                if (result.data.success) {
+                    lastWeatherUpdate = new Date();
+                    showNotification(result.data.message || 'Weather data fetched successfully!', 'success');
+                    console.log('✅ OpenWeather fetch successful:', result.data);
                 } else {
-                    showNotification('No significant weather conditions detected', 'info');
+                    throw new Error(result.data.message || 'Failed to fetch weather data');
                 }
 
             } catch (error) {
-                console.error('Error fetching OpenWeather:', error);
-                showNotification(`Error fetching OpenWeather: ${error.message}`, 'error');
+                console.error('❌ Error fetching OpenWeather:', error);
+                showNotification(`Error: ${error.message}`, 'error');
             } finally {
                 button.disabled = false;
-                button.innerHTML = '<i class="fas fa-cloud"></i> Fetch OpenWeather';
+                button.innerHTML = originalText;
             }
         };
 
-        function processOpenWeatherData(data) {
-            const weather = data.weather[0];
-            const main = data.main;
-            const wind = data.wind;
-            const rain = data.rain;
-
-            // Determine if weather conditions warrant an alert
-            let shouldAlert = false;
-            let alertType = "weather";
-            let title = "";
-            let description = "";
-
-            // Check for severe weather conditions
-            if (weather.id < 300) { // Thunderstorm
-                shouldAlert = true;
-                title = "Thunderstorm Warning";
-                description = `Thunderstorm conditions detected in Lipa area. ${weather.description}. Take appropriate precautions.`;
-            } else if (weather.id >= 500 && weather.id < 600 && rain) { // Rain
-                if (rain["1h"] > 10 || rain["3h"] > 25) { // Heavy rain threshold
-                    shouldAlert = true;
-                    title = "Heavy Rain Advisory";
-                    description = `Heavy rainfall detected: ${rain["1h"] || 0}mm in the last hour. Risk of flooding in low-lying areas.`;
-                }
-            } else if (wind.speed > 10) { // Strong winds (> 36 km/h)
-                shouldAlert = true;
-                title = "Strong Wind Advisory";
-                description = `Strong winds detected: ${wind.speed} m/s (${Math.round(wind.speed * 3.6)} km/h). Secure loose objects.`;
-            } else if (main.temp > 35) { // Extreme heat
-                shouldAlert = true;
-                title = "Heat Advisory";
-                description = `High temperature alert: ${Math.round(main.temp)}°C. Stay hydrated and avoid prolonged sun exposure.`;
-            }
-
-            if (!shouldAlert) {
-                return null;
-            }
-
-            return {
-                type: alertType,
-                title: title,
-                description: description,
-                source: "OpenWeather",
-                raw: data,
-                timestamp: new Date(),
-                status: "pending",
-                location: {
-                    lat: LIPA_LAT,
-                    lon: LIPA_LON
-                }
-            };
-        }
-
-        // USGS Earthquake API Integration
         window.fetchUSGS = async function() {
             const button = event.target;
+            const originalText = button.innerHTML;
             button.disabled = true;
             button.innerHTML = '<span class="loading-spinner-small"></span>Fetching...';
 
             try {
-                const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=${LIPA_LAT}&longitude=${LIPA_LON}&maxradiuskm=${USGS_RADIUS}`;
+                console.log('🏔️ Fetching USGS earthquake data via Cloud Function...');
                 
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`USGS API error: ${response.status}`);
-                }
-
-                const data = await response.json();
+                const result = await manualFetchUSGS();
                 
-                // Process earthquake data
-                let alertsCreated = 0;
-                data.features.forEach(earthquake => {
-                    const quakeAlert = processUSGSEarthquake(earthquake);
-                    if (quakeAlert) {
-                        addPendingAlert(quakeAlert);
-                        alertsCreated++;
-                    }
-                });
-
-                if (alertsCreated > 0) {
-                    showNotification(`${alertsCreated} earthquake alert(s) created`, 'success');
+                if (result.data.success) {
+                    lastEarthquakeUpdate = new Date();
+                    showNotification(result.data.message || 'Earthquake data fetched successfully!', 'success');
+                    console.log('✅ USGS fetch successful:', result.data);
                 } else {
-                    showNotification('No significant earthquakes detected', 'info');
+                    throw new Error(result.data.message || 'Failed to fetch earthquake data');
                 }
 
             } catch (error) {
-                console.error('Error fetching USGS:', error);
-                showNotification(`Error fetching USGS: ${error.message}`, 'error');
+                console.error('❌ Error fetching USGS:', error);
+                showNotification(`Error: ${error.message}`, 'error');
             } finally {
                 button.disabled = false;
-                button.innerHTML = '<i class="fas fa-mountain"></i> Fetch USGS Earthquakes';
+                button.innerHTML = originalText;
             }
         };
 
-        function processUSGSEarthquake(earthquake) {
-            const props = earthquake.properties;
-            const coords = earthquake.geometry.coordinates;
-            const magnitude = props.mag;
+        window.refreshAllData = async function() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span class="loading-spinner-small"></span>Refreshing...';
 
-            // Only create alerts for significant earthquakes
-            if (magnitude < 3.0) {
-                return null;
+            try {
+                showNotification('Refreshing all data sources...', 'info');
+                
+                await fetchOpenWeather();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                await fetchUSGS();
+                
+                showNotification('All data refreshed successfully!', 'success');
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                showNotification('Error during refresh', 'error');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalText;
             }
-
-            let severity = "info";
-            if (magnitude >= 5.0) severity = "warning";
-            if (magnitude >= 6.0) severity = "danger";
-
-            return {
-                type: "earthquake",
-                title: `Magnitude ${magnitude} Earthquake`,
-                description: `Earthquake detected: M${magnitude} at ${props.place}. Depth: ${Math.abs(coords[2])}km. Time: ${new Date(props.time).toLocaleString()}.`,
-                source: "USGS",
-                raw: earthquake,
-                timestamp: new Date(),
-                status: "pending",
-                location: {
-                    lat: coords[1],
-                    lon: coords[0]
-                },
-                magnitude: magnitude,
-                severity: severity
-            };
-        }
-
-        function addPendingAlert(alertData) {
-            // Check for duplicates based on source and type
-            const duplicate = pendingAlerts.find(alert => 
-                alert.source === alertData.source && 
-                alert.type === alertData.type &&
-                Math.abs(new Date(alert.timestamp) - new Date(alertData.timestamp)) < 300000 // 5 minutes
-            );
-
-            if (duplicate) {
-                console.log('Duplicate alert detected, skipping');
-                return;
-            }
-
-            // Add to pending alerts array
-            alertData.id = generateAlertId();
-            pendingAlerts.unshift(alertData);
-            renderPendingAlerts();
-        }
-
-        function generateAlertId() {
-            return 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        }
+        };
 
         function renderPendingAlerts() {
             const container = document.getElementById('pendingAlerts');
@@ -1275,7 +1528,45 @@
 
             let filteredAlerts = filterAlertsArray(pendingAlerts);
             
-            container.innerHTML = filteredAlerts.map(alert => createAlertCard(alert)).join('');
+            if (filteredAlerts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-filter fa-2x mb-3"></i>
+                        <p>No alerts match your current filters.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filteredAlerts.map(alert => createAlertCard(alert, 'pending')).join('');
+        }
+
+        function renderApprovedAlerts() {
+            const container = document.getElementById('approvedAlerts');
+            
+            if (approvedAlerts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-history fa-2x mb-3"></i>
+                        <p>No approved alerts yet.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let filteredAlerts = filterApprovedAlertsArray(approvedAlerts);
+            
+            if (filteredAlerts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-filter fa-2x mb-3"></i>
+                        <p>No approved alerts match your current filters.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filteredAlerts.map(alert => createAlertCard(alert, 'approved')).join('');
         }
 
         function filterAlertsArray(alerts) {
@@ -1295,47 +1586,102 @@
             });
         }
 
+        function filterApprovedAlertsArray(alerts) {
+            const searchTerm = document.getElementById('searchApprovedAlerts').value.toLowerCase();
+            const sourceFilter = document.getElementById('filterApprovedSource').value;
+
+            return alerts.filter(alert => {
+                const matchesSearch = !searchTerm || 
+                    alert.title.toLowerCase().includes(searchTerm) ||
+                    alert.description.toLowerCase().includes(searchTerm);
+                
+                const matchesSource = !sourceFilter || alert.source === sourceFilter;
+
+                return matchesSearch && matchesSource;
+            });
+        }
+
         function filterAlerts() {
             renderPendingAlerts();
         }
 
-        function createAlertCard(alert) {
+        function filterApprovedAlerts() {
+            renderApprovedAlerts();
+        }
+
+        function createAlertCard(alert, status) {
+            // Determine status based on approved field
+            const displayStatus = alert.approved === true ? 'approved' : 'pending';
+            
             const timestamp = alert.timestamp instanceof Date ? 
-                alert.timestamp : new Date(alert.timestamp?.seconds ? alert.timestamp.seconds * 1000 : alert.timestamp);
+                alert.timestamp : new Date(alert.timestamp?.seconds ? alert.timestamp.seconds * 1000 : alert.timestamp || Date.now());
+
+            // Calculate time remaining
+            const expiresAt = alert.expiresAt?.toDate?.() || alert.expiresAt;
+            let timeRemaining = '';
+            if (expiresAt) {
+                const now = new Date();
+                const diffMs = expiresAt - now;
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffHours / 24);
+                
+                if (diffDays > 0) {
+                    timeRemaining = `${diffDays}d ${diffHours % 24}h remaining`;
+                } else if (diffHours > 0) {
+                    timeRemaining = `${diffHours}h remaining`;
+                } else {
+                    timeRemaining = 'Expiring soon';
+                }
+            }
+
+            const locationInfo = alert.location?.distanceFromLipa ? 
+                `${alert.location.distanceFromLipa.toFixed(1)}km from Lipa City` : 
+                alert.location?.name || 'Lipa City, Batangas';
+
+            const actions = displayStatus === 'pending' ? `
+                <button class="btn btn-success btn-sm" onclick="approveAlert('${alert.id}')">
+                    <i class="fas fa-check"></i> Approve
+                </button>
+                <button class="btn btn-warning btn-sm" onclick="editAlert('${alert.id}')">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteAlert('${alert.id}')">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleRawJSON('${alert.id}')">
+                    <i class="fas fa-code"></i> JSON
+                </button>
+            ` : `
+                <button class="btn btn-info btn-sm" onclick="toggleRawJSON('${alert.id}')">
+                    <i class="fas fa-code"></i> JSON
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteAlert('${alert.id}')">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            `;
 
             return `
-                <div class="alert-card ${alert.status}" data-alert-id="${alert.id}">
+                <div class="alert-card ${displayStatus}" data-alert-id="${alert.id}">
                     <div class="alert-header">
                         <div>
                             <span class="alert-type ${alert.type}">${alert.type}</span>
                             <span class="source-badge ${alert.source}">${alert.source}</span>
+                            ${alert.severity ? `<span class="badge bg-${alert.severity === 'high' ? 'danger' : alert.severity === 'medium' ? 'warning' : 'info'}">${alert.severity.toUpperCase()}</span>` : ''}
+                            ${timeRemaining ? `<span class="badge bg-secondary">${timeRemaining}</span>` : ''}
                         </div>
-                        <small class="text-muted">${timestamp.toLocaleString()}</small>
+                        <small class="text-muted">${timestamp.toLocaleString('en-PH')}</small>
                     </div>
                     
                     <h5 class="mb-2">${alert.title}</h5>
                     <p class="mb-3">${alert.description.length > 200 ? alert.description.substring(0, 200) + '...' : alert.description}</p>
                     
-                    ${alert.location ? `
-                        <small class="text-muted">
-                            <i class="fas fa-map-marker-alt"></i> 
-                            Lat: ${alert.location.lat.toFixed(4)}, Lon: ${alert.location.lon.toFixed(4)}
-                        </small>
-                    ` : ''}
+                    <small class="text-muted">
+                        <i class="fas fa-map-marker-alt"></i> ${locationInfo}
+                        ${alert.location ? ` (${alert.location.lat?.toFixed(4) || 'N/A'}, ${alert.location.lon?.toFixed(4) || 'N/A'})` : ''}
+                    </small>
                     
                     <div class="alert-actions">
-                        <button class="btn btn-success btn-sm" onclick="approveAlert('${alert.id}')">
-                            <i class="fas fa-check"></i> Approve
-                        </button>
-                        <button class="btn btn-warning btn-sm" onclick="editAlert('${alert.id}')">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="discardAlert('${alert.id}')">
-                            <i class="fas fa-trash"></i> Discard
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="toggleRawJSON('${alert.id}')">
-                            <i class="fas fa-code"></i> Raw JSON
-                        </button>
+                        ${actions}
                     </div>
                     
                     <div class="raw-json" id="raw-${alert.id}">
@@ -1345,51 +1691,32 @@
             `;
         }
 
-        // Alert Actions
         window.approveAlert = async function(alertId) {
+            if (!confirm('Are you sure you want to approve and publish this alert to all users?')) {
+                return;
+            }
+
             try {
-                const alert = pendingAlerts.find(a => a.id === alertId);
-                if (!alert) {
-                    throw new Error('Alert not found');
-                }
-
-                // Save to Firestore with approved status
-                const alertData = {
-                    ...alert,
-                    status: "approved",
-                    timestamp: serverTimestamp(),
+                console.log('✅ Approving alert:', alertId);
+                
+                // Set expiration to 24 hours from now
+                const expiresAt = new Date();
+                expiresAt.setHours(expiresAt.getHours() + 24);
+                
+                await updateDoc(doc(db, "alerts", alertId), {
+                    approved: true,           // Use boolean field
+                    isActive: true,           // Active when approved
                     approvedBy: currentUserInfo.user.uid,
-                    approvedAt: serverTimestamp()
-                };
-
-                delete alertData.id; // Remove temp ID
-
-                await addDoc(collection(db, "alerts"), alertData);
-
-                // Also add to weather_alerts collection for the mobile app
-                if (alert.type === 'weather' || alert.type === 'earthquake') {
-                    await addDoc(collection(db, "weather_alerts"), {
-                        title: alert.title,
-                        description: alert.description,
-                        severity: alert.severity || 'info',
-                        type: alert.type,
-                        approved: true,
-                        isActive: true,
-                        createdAt: serverTimestamp(),
-                        createdBy: currentUserInfo.user.uid,
-                        source: alert.source
-                    });
-                }
-
-                // Remove from pending alerts
-                pendingAlerts = pendingAlerts.filter(a => a.id !== alertId);
-                renderPendingAlerts();
-
+                    approvedAt: serverTimestamp(),
+                    expiresAt: expiresAt,     // Add expiration
+                    // DON'T add 'status' field
+                });
+                
                 showNotification('Alert approved and published successfully!', 'success');
 
             } catch (error) {
-                console.error('Error approving alert:', error);
-                showNotification(`Error approving alert: ${error.message}`, 'error');
+                console.error('❌ Error approving alert:', error);
+                showNotification(`Error: ${error.message}`, 'error');
             }
         };
 
@@ -1400,7 +1727,6 @@
                 return;
             }
 
-            // Populate edit form
             document.getElementById('editAlertId').value = alertId;
             document.getElementById('editTitle').value = alert.title;
             document.getElementById('editDescription').value = alert.description;
@@ -1408,46 +1734,139 @@
             document.getElementById('editLat').value = alert.location?.lat || '';
             document.getElementById('editLon').value = alert.location?.lon || '';
 
-            // Show modal
             const modal = new bootstrap.Modal(document.getElementById('editAlertModal'));
             modal.show();
         };
 
-        window.saveEditedAlert = function() {
+        window.saveEditedAlert = async function() {
             const alertId = document.getElementById('editAlertId').value;
-            const alert = pendingAlerts.find(a => a.id === alertId);
             
-            if (!alert) {
-                showNotification('Alert not found', 'error');
+            try {
+                const updates = {
+                    title: document.getElementById('editTitle').value,
+                    description: document.getElementById('editDescription').value,
+                    type: document.getElementById('editType').value,
+                };
+                
+                const lat = parseFloat(document.getElementById('editLat').value);
+                const lon = parseFloat(document.getElementById('editLon').value);
+                
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    updates.location = { 
+                        lat, 
+                        lon,
+                        name: 'Lipa City, Batangas'
+                    };
+                }
+
+                await updateDoc(doc(db, "alerts", alertId), updates);
+
+                bootstrap.Modal.getInstance(document.getElementById('editAlertModal')).hide();
+                
+                showNotification('Alert updated successfully!', 'success');
+
+            } catch (error) {
+                console.error('Error updating alert:', error);
+                showNotification(`Error: ${error.message}`, 'error');
+            }
+        };
+
+        window.deleteAlert = async function(alertId) {
+            if (!confirm('Are you sure you want to permanently delete this alert?')) {
                 return;
             }
 
-            // Update alert data
-            alert.title = document.getElementById('editTitle').value;
-            alert.description = document.getElementById('editDescription').value;
-            alert.type = document.getElementById('editType').value;
-            
-            const lat = parseFloat(document.getElementById('editLat').value);
-            const lon = parseFloat(document.getElementById('editLon').value);
-            
-            if (!isNaN(lat) && !isNaN(lon)) {
-                alert.location = { lat, lon };
+            try {
+                await deleteDoc(doc(db, "alerts", alertId));
+                
+                showNotification('Alert deleted successfully', 'success');
+
+            } catch (error) {
+                console.error('Error deleting alert:', error);
+                showNotification(`Error: ${error.message}`, 'error');
             }
-
-            // Re-render alerts
-            renderPendingAlerts();
-
-            // Hide modal
-            bootstrap.Modal.getInstance(document.getElementById('editAlertModal')).hide();
-            
-            showNotification('Alert updated successfully!', 'success');
         };
 
-        window.discardAlert = function(alertId) {
-            if (confirm('Are you sure you want to discard this alert?')) {
-                pendingAlerts = pendingAlerts.filter(a => a.id !== alertId);
-                renderPendingAlerts();
-                showNotification('Alert discarded', 'warning');
+        window.deleteAllPendingAlerts = async function() {
+            if (pendingAlerts.length === 0) {
+                showNotification('No pending alerts to delete', 'info');
+                return;
+            }
+
+            const count = pendingAlerts.length;
+            const confirmMessage = `⚠️ WARNING: You are about to delete ALL ${count} pending alert${count > 1 ? 's' : ''}!\n\nThis action CANNOT be undone!\n\nAre you absolutely sure you want to continue?`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            if (!confirm(`Last chance! Delete ${count} pending alert${count > 1 ? 's' : ''}?`)) {
+                return;
+            }
+
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span class="loading-spinner-small"></span>Deleting...';
+
+            try {
+                let deleted = 0;
+                let failed = 0;
+
+                for (const alert of pendingAlerts) {
+                    try {
+                        await deleteDoc(doc(db, "alerts", alert.id));
+                        deleted++;
+                    } catch (error) {
+                        console.error(`Failed to delete alert ${alert.id}:`, error);
+                        failed++;
+                    }
+                }
+
+                if (failed === 0) {
+                    showNotification(`Successfully deleted all ${deleted} pending alerts`, 'success');
+                } else {
+                    showNotification(`Deleted ${deleted} alerts, ${failed} failed`, 'warning');
+                }
+
+            } catch (error) {
+                console.error('Error deleting all alerts:', error);
+                showNotification(`Error: ${error.message}`, 'error');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        };
+
+        window.deleteExpiredAlerts = async function() {
+            try {
+                const now = new Date();
+                const alertsQuery = query(collection(db, "alerts"));
+                const snapshot = await getDocs(alertsQuery);
+                
+                let expiredCount = 0;
+                let deletedCount = 0;
+
+                for (const doc of snapshot.docs) {
+                    const data = doc.data();
+                    const expiresAt = data.expiresAt?.toDate?.() || data.expiresAt;
+                    
+                    if (expiresAt && expiresAt < now) {
+                        expiredCount++;
+                        try {
+                            await deleteDoc(doc.ref);
+                            deletedCount++;
+                        } catch (error) {
+                            console.error(`Failed to delete expired alert ${doc.id}:`, error);
+                        }
+                    }
+                }
+
+                showNotification(`Deleted ${deletedCount} expired alerts (${expiredCount} found)`, 'success');
+                
+            } catch (error) {
+                console.error('Error deleting expired alerts:', error);
+                showNotification('Error deleting expired alerts', 'error');
             }
         };
 
@@ -1456,7 +1875,6 @@
             jsonDiv.classList.toggle('show');
         };
 
-        // Manual Alert Creation
         window.saveManualAlert = async function(status) {
             const form = document.getElementById('manualAlertForm');
             
@@ -1466,59 +1884,56 @@
             }
 
             try {
+                const isApproved = status === 'approved';
+                
+                // Set expiration
+                const expiresAt = new Date();
+                if (isApproved) {
+                    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours for approved
+                } else {
+                    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days for pending
+                }
+
                 const alertData = {
                     type: document.getElementById('manualType').value,
                     title: document.getElementById('manualTitle').value,
                     description: document.getElementById('manualDescription').value,
                     source: document.getElementById('manualSource').value,
-                    status: status,
+                    approved: isApproved,      // Use boolean field
+                    isActive: isApproved,      // Active only if approved
                     timestamp: serverTimestamp(),
-                    createdBy: currentUserInfo.user.uid
+                    createdAt: serverTimestamp(),
+                    createdBy: currentUserInfo.user.uid,
+                    severity: 'info',
+                    expiresAt: expiresAt       // Add expiration field
                 };
 
-                const lat = parseFloat(document.getElementById('manualLat').value);
-                const lon = parseFloat(document.getElementById('manualLon').value);
-
-                if (!isNaN(lat) && !isNaN(lon)) {
-                    alertData.location = { lat, lon };
+                // Add approval info if immediately approved
+                if (isApproved) {
+                    alertData.approvedBy = currentUserInfo.user.uid;
+                    alertData.approvedAt = serverTimestamp();
                 }
 
-                if (status === 'pending') {
-                    // Add to pending alerts array for immediate display
-                    const tempAlert = {
-                        ...alertData,
-                        id: generateAlertId(),
-                        timestamp: new Date()
-                    };
-                    addPendingAlert(tempAlert);
-                } else {
-                    // Save directly to Firestore as approved
-                    await addDoc(collection(db, "alerts"), alertData);
-                    
-                    // Also add to weather_alerts for mobile app
-                    await addDoc(collection(db, "weather_alerts"), {
-                        title: alertData.title,
-                        description: alertData.description,
-                        severity: 'info',
-                        type: alertData.type,
-                        approved: true,
-                        isActive: true,
-                        createdAt: serverTimestamp(),
-                        createdBy: currentUserInfo.user.uid,
-                        source: alertData.source
-                    });
-                }
+                const lat = parseFloat(document.getElementById('manualLat').value) || LIPA_COORDS.lat;
+                const lon = parseFloat(document.getElementById('manualLon').value) || LIPA_COORDS.lon;
+
+                alertData.location = { 
+                    lat, 
+                    lon,
+                    name: 'Lipa City, Batangas'
+                };
+
+                await addDoc(collection(db, "alerts"), alertData);
 
                 form.reset();
-                showNotification(`Manual alert ${status === 'pending' ? 'created' : 'created and approved'}!`, 'success');
+                showNotification(`Manual alert ${isApproved ? 'created and approved' : 'created'}!`, 'success');
 
             } catch (error) {
                 console.error('Error saving manual alert:', error);
-                showNotification(`Error saving alert: ${error.message}`, 'error');
+                showNotification(`Error: ${error.message}`, 'error');
             }
         };
 
-        // Auto-fetch functionality
         function handleAutoFetchToggle() {
             const toggle = document.getElementById('autoFetchToggle');
             const intervalSelect = document.getElementById('autoFetchInterval');
@@ -1539,18 +1954,23 @@
             }
 
             autoFetchInterval = setInterval(async () => {
-                console.log('Auto-fetch running...');
+                console.log('🔄 Auto-fetch running...');
                 try {
-                    // Fetch both OpenWeather and USGS data
-                    await Promise.allSettled([
-                        fetchOpenWeatherData(),
-                        fetchUSGSData()
-                    ]);
-                    console.log('Auto-fetch completed');
+                    await fetchOpenWeather();
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await fetchUSGS();
+                    console.log('✅ Auto-fetch completed');
                 } catch (error) {
-                    console.error('Auto-fetch error:', error);
+                    console.error('❌ Auto-fetch error:', error);
                 }
             }, minutes * 60 * 1000);
+
+            // Initial fetch
+            setTimeout(async () => {
+                await fetchOpenWeather();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                await fetchUSGS();
+            }, 1000);
         }
 
         function stopAutoFetch() {
@@ -1560,41 +1980,6 @@
             }
         }
 
-        async function fetchOpenWeatherData() {
-            try {
-                const url = `https://api.openweathermap.org/data/2.5/weather?lat=${LIPA_LAT}&lon=${LIPA_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`;
-                const response = await fetch(url);
-                if (response.ok) {
-                    const data = await response.json();
-                    const weatherAlert = processOpenWeatherData(data);
-                    if (weatherAlert) {
-                        addPendingAlert(weatherAlert);
-                    }
-                }
-            } catch (error) {
-                console.error('Auto-fetch OpenWeather error:', error);
-            }
-        }
-
-        async function fetchUSGSData() {
-            try {
-                const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=${LIPA_LAT}&longitude=${LIPA_LON}&maxradiuskm=${USGS_RADIUS}`;
-                const response = await fetch(url);
-                if (response.ok) {
-                    const data = await response.json();
-                    data.features.forEach(earthquake => {
-                        const quakeAlert = processUSGSEarthquake(earthquake);
-                        if (quakeAlert) {
-                            addPendingAlert(quakeAlert);
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('Auto-fetch USGS error:', error);
-            }
-        }
-
-        // Utility functions
         window.logoutUser = async function() {
             if (confirm("Are you sure you want to logout?")) {
                 try {
@@ -1636,12 +2021,18 @@
             });
         }
 
-        // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
             if (alertsListener) alertsListener();
             if (autoFetchInterval) clearInterval(autoFetchInterval);
         });
 
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                document.getElementById('sidebar').classList.remove('mobile-open');
+            }
+        });
+
     </script>
-</body>             
+</body>
 </html>

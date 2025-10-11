@@ -1,4 +1,4 @@
-// services/forum.ts - Merged with proper Firebase integration
+// services/forum.ts - Fixed with correct storage path
 import {
   addDoc,
   collection,
@@ -19,7 +19,7 @@ import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import { notificationService } from 'services/notifications';
 import { auth, db } from './firebase';
 
-// Updated interfa  ces with approval system
+// Updated interfaces with approval system
 export interface ForumPost {
   id?: string;
   userId: string;
@@ -56,7 +56,7 @@ export interface PostLike {
   createdAt: Timestamp;
 }
 
-// Upload image for forum post
+// Upload image for forum post - FIXED PATH
 export const uploadForumImage = async (uri: string): Promise<string> => {
   try {
     const user = auth.currentUser;
@@ -64,7 +64,9 @@ export const uploadForumImage = async (uri: string): Promise<string> => {
 
     const storage = getStorage();
     const timestamp = Date.now();
-    const imageRef = ref(storage, `forum_images/${user.uid}_${timestamp}.jpg`);
+    // FIXED: Changed from forum_images/{userId}_{timestamp}.jpg
+    // to forum_images/{userId}/{timestamp}.jpg to match storage rules
+    const imageRef = ref(storage, `forum_images/${user.uid}/${timestamp}.jpg`);
     
     const response = await fetch(uri);
     const blob = await response.blob();
@@ -94,6 +96,12 @@ export const createForumPost = async (postData: {
     const user = auth.currentUser;
     if (!user) throw new Error('User not authenticated');
 
+    // Require display name or email
+    const userName = user.displayName || user.email?.split('@')[0];
+    if (!userName) {
+      throw new Error('User must have a display name to post');
+    }
+
     let imageUrl;
     if (postData.imageUri) {
       imageUrl = await uploadForumImage(postData.imageUri);
@@ -102,7 +110,7 @@ export const createForumPost = async (postData: {
     // Create post object without undefined values
     const post: Omit<ForumPost, 'id'> = {
       userId: user.uid,
-      userName: user.displayName || user.email?.split('@')[0] || 'Anonymous User',
+      userName: userName,
       title: postData.title,
       content: postData.content,
       status: 'pending',
@@ -365,6 +373,12 @@ export const createForumReply = async (replyData: {
     const user = auth.currentUser;
     if (!user) throw new Error('User not authenticated');
 
+    // Require display name or email
+    const userName = user.displayName || user.email?.split('@')[0];
+    if (!userName) {
+      throw new Error('User must have a display name to reply');
+    }
+
     // Check if the post exists and is approved
     const post = await getForumPost(replyData.postId);
     if (!post) throw new Error('Post not found');
@@ -377,7 +391,7 @@ export const createForumReply = async (replyData: {
     const reply: Omit<ForumReply, 'id'> = {
       postId: replyData.postId,
       userId: user.uid,
-      userName: user.displayName || user.email?.split('@')[0] || 'Anonymous User',
+      userName: userName,
       content: replyData.content,
       createdAt: serverTimestamp() as Timestamp,
       likesCount: 0,
@@ -400,7 +414,7 @@ export const createForumReply = async (replyData: {
           post.userId,
           replyData.postId,
           post.title,
-          user.displayName || 'Anonymous User',
+          userName,
           replyData.content
         );
       }
@@ -522,11 +536,12 @@ export const toggleLike = async (targetId: string, type: 'post' | 'reply'): Prom
           if (type === 'post') {
             const post = await getForumPost(targetId);
             if (post && post.userId !== user.uid && notificationService.createForumPostLikeNotification) {
+              const likerName = user.displayName || user.email?.split('@')[0] || 'Someone';
               await notificationService.createForumPostLikeNotification(
                 post.userId,
                 targetId,
                 post.title,
-                user.displayName || 'Anonymous User'
+                likerName
               );
             }
           } else {
@@ -536,12 +551,13 @@ export const toggleLike = async (targetId: string, type: 'post' | 'reply'): Prom
               if (replyData.userId !== user.uid) {
                 const post = await getForumPost(replyData.postId);
                 if (post && notificationService.createForumReplyLikeNotification) {
+                  const likerName = user.displayName || user.email?.split('@')[0] || 'Someone';
                   await notificationService.createForumReplyLikeNotification(
                     replyData.userId,
                     replyData.postId,
                     targetId,
                     post.title,
-                    user.displayName || 'Anonymous User'
+                    likerName
                   );
                 }
               }
@@ -595,8 +611,7 @@ export const hasUserLiked = async (targetId: string, type: 'post' | 'reply'): Pr
   }
 };
 
-// Get user's like status for multiple items
-// Fixed getUserLikeStatuses function in services/forum.ts
+// Get user's like status for multiple items - FIXED
 export const getUserLikeStatuses = async (
   targetIds: string[],
   type: 'post' | 'reply'

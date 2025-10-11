@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { formatLocation, formatReportTime, getStatusDisplayText, IncidentReport, listenToReport } from "../../../services/reports";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ReportStatus() {
   const router = useRouter();
@@ -27,7 +29,6 @@ export default function ReportStatus() {
   }, [reportId]);
 
   const handleChatWithCDRRMO = () => {
-    // Navigate to chat screen - adjust path as needed
     router.push('/(main)/chat');
   };
 
@@ -49,12 +50,14 @@ export default function ReportStatus() {
               You will receive a notification once it has been processed.
             </Text>
             {renderReportDetails(getStatusDisplayText(report.status))}
-            <TouchableOpacity 
-              style={styles.button} 
-              onPress={() => router.replace('/(main)')}
-            >
-              <Text style={styles.buttonText}>Return to Dashboard</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity 
+                style={styles.button} 
+                onPress={() => router.replace('/(main)')}
+              >
+                <Text style={styles.buttonText}>Return to Dashboard</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         );
 
@@ -68,15 +71,17 @@ export default function ReportStatus() {
               You will be notified with further updates on the response progress.
             </Text>
             {renderReportDetails(getStatusDisplayText(report.status))}
-            <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
-              <Text style={styles.buttonText}>Chat with CDRRMO</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.button, styles.secondaryButton]} 
-              onPress={handleReturnToDashboard}
-            >
-              <Text style={styles.buttonText}>Return to Dashboard</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
+                <Text style={styles.buttonText}>Chat with CDRRMO</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.button, styles.secondaryButton]} 
+                onPress={handleReturnToDashboard}
+              >
+                <Text style={styles.buttonText}>Return to Dashboard</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         );
 
@@ -90,37 +95,40 @@ export default function ReportStatus() {
               You may track the response progress or chat with CDRRMO for updates.
             </Text>
             {renderReportDetails(getStatusDisplayText(report.status))}
-            <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
-              <Text style={styles.buttonText}>Chat with CDRRMO</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.button, styles.secondaryButton]} 
-              onPress={handleReturnToDashboard}
-            >
-              <Text style={styles.buttonText}>Return to Dashboard</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
+                <Text style={styles.buttonText}>Chat with CDRRMO</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.button, styles.secondaryButton]} 
+                onPress={handleReturnToDashboard}
+              >
+                <Text style={styles.buttonText}>Return to Dashboard</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         );
 
       case "rejected":
         return (
           <View style={styles.card}>
-            <Ionicons name="time-outline" size={72} color="#FF9800" />
-            <Text style={styles.title}>Waiting for Approval</Text>
+            <Ionicons name="close-circle" size={72} color="#f97316" />
+            <Text style={styles.title}>Report Rejected</Text>
             <Text style={styles.message}>
-              Your report is currently under verification. 
-              The CDRRMO may contact you for further information if needed.
+              Your report could not be processed. Please check the admin note for details.
             </Text>
-            {renderReportDetails("Pending Review")}
-            <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
-              <Text style={styles.buttonText}>Chat with CDRRMO</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.button, styles.secondaryButton]} 
-              onPress={handleReturnToDashboard}
-            >
-              <Text style={styles.buttonText}>Return to Dashboard</Text>
-            </TouchableOpacity>
+            {renderReportDetails(getStatusDisplayText(report.status))}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
+                <Text style={styles.buttonText}>Chat with CDRRMO</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.button, styles.secondaryButton]} 
+                onPress={handleReturnToDashboard}
+              >
+                <Text style={styles.buttonText}>Return to Dashboard</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         );
 
@@ -134,15 +142,17 @@ export default function ReportStatus() {
               Please provide more details or contact CDRRMO directly.
             </Text>
             {renderReportDetails(getStatusDisplayText(report.status))}
-            <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
-              <Text style={styles.buttonText}>Chat with CDRRMO</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.button, styles.secondaryButton]} 
-              onPress={handleReturnToDashboard}
-            >
-              <Text style={styles.buttonText}>Return to Dashboard</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
+                <Text style={styles.buttonText}>Chat with CDRRMO</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.button, styles.secondaryButton]} 
+                onPress={handleReturnToDashboard}
+              >
+                <Text style={styles.buttonText}>Return to Dashboard</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         );
 
@@ -150,21 +160,22 @@ export default function ReportStatus() {
         return (
           <View style={styles.card}>
             <Ionicons name="checkmark-done-circle" size={72} color="green" />
-            <Text style={styles.title}>Report Already Resolved</Text>
+            <Text style={styles.title}>Report Resolved</Text>
             <Text style={styles.message}>
-              Our records indicate that the concern you submitted has already been addressed. 
-              If you believe further action is required, you may still contact CDRRMO.
+              The incident has been successfully resolved. Thank you for your report.
             </Text>
             {renderReportDetails(getStatusDisplayText(report.status))}
-            <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
-              <Text style={styles.buttonText}>Chat with CDRRMO</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.button, styles.secondaryButton]} 
-              onPress={handleReturnToDashboard}
-            >
-              <Text style={styles.buttonText}>Return to Dashboard</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
+                <Text style={styles.buttonText}>Chat with CDRRMO</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.button, styles.secondaryButton]} 
+                onPress={handleReturnToDashboard}
+              >
+                <Text style={styles.buttonText}>Return to Dashboard</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         );
 
@@ -177,15 +188,17 @@ export default function ReportStatus() {
               There seems to be an issue with your report status. Please contact CDRRMO for assistance.
             </Text>
             {renderReportDetails("Unknown")}
-            <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
-              <Text style={styles.buttonText}>Chat with CDRRMO</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.button, styles.secondaryButton]} 
-              onPress={handleReturnToDashboard}
-            >
-              <Text style={styles.buttonText}>Return to Dashboard</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.button} onPress={handleChatWithCDRRMO}>
+                <Text style={styles.buttonText}>Chat with CDRRMO</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.button, styles.secondaryButton]} 
+                onPress={handleReturnToDashboard}
+              >
+                <Text style={styles.buttonText}>Return to Dashboard</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         );
     }
@@ -211,18 +224,86 @@ export default function ReportStatus() {
       </Text>
       <Text style={styles.detailText}>
         <Text style={styles.detailLabel}>Emergency Type: </Text>
-        <Text>{report?.emergencyType || 'Loading...'}</Text>
+        <Text>{report?.emergencyType || report?.category || 'Loading...'}</Text>
       </Text>
+      
+      {/* ADDED: SubCategory Display */}
       {report?.subCategory && (
         <Text style={styles.detailText}>
-          <Text style={styles.detailLabel}>Category: </Text>
+          <Text style={styles.detailLabel}>Sub Category: </Text>
           <Text>{report.subCategory}</Text>
         </Text>
       )}
+      
+      {/* ADDED: Additional Notes Display */}
+      {report?.additionalNotes && (
+        <Text style={styles.detailText}>
+          <Text style={styles.detailLabel}>Additional Notes: </Text>
+          <Text>{report.additionalNotes}</Text>
+        </Text>
+      )}
+      
+      {/* ADDED: Description Display */}
+      {report?.description && (
+        <Text style={styles.detailText}>
+          <Text style={styles.detailLabel}>Description: </Text>
+          <Text>{report.description}</Text>
+        </Text>
+      )}
+      
+      {/* ADDED: Establishment Display */}
+      {report?.establishment && (
+        <Text style={styles.detailText}>
+          <Text style={styles.detailLabel}>Establishment: </Text>
+          <Text>{report.establishment}</Text>
+        </Text>
+      )}
+      
+      {/* ADDED: Barangay Display */}
+      {report?.barangay && (
+        <Text style={styles.detailText}>
+          <Text style={styles.detailLabel}>Barangay: </Text>
+          <Text>{report.barangay}</Text>
+        </Text>
+      )}
+      
+      {/* ADDED: Assigned Rescuer Display */}
+      {report?.assignedRescuerName && (
+        <Text style={styles.detailText}>
+          <Text style={styles.detailLabel}>Assigned Rescuer: </Text>
+          <Text>{report.assignedRescuerName}</Text>
+        </Text>
+      )}
+      
+      {/* ADDED: Assigned Agency Display */}
+      {report?.assignedAgency && (
+        <Text style={styles.detailText}>
+          <Text style={styles.detailLabel}>Assigned Agency: </Text>
+          <Text>{report.assignedAgency}</Text>
+        </Text>
+      )}
+      
+      {/* ADDED: Admin Note Display */}
       {report?.adminNote && (
         <Text style={styles.detailText}>
           <Text style={styles.detailLabel}>Admin Note: </Text>
           <Text>{report.adminNote}</Text>
+        </Text>
+      )}
+      
+      {/* ADDED: Resolution Note Display */}
+      {report?.resolutionNote && (
+        <Text style={styles.detailText}>
+          <Text style={styles.detailLabel}>Resolution Note: </Text>
+          <Text>{report.resolutionNote}</Text>
+        </Text>
+      )}
+      
+      {/* ADDED: Last Updated Display */}
+      {report?.lastUpdated && (
+        <Text style={styles.detailText}>
+          <Text style={styles.detailLabel}>Last Updated: </Text>
+          <Text>{formatReportTime(report.lastUpdated)}</Text>
         </Text>
       )}
     </View>
@@ -230,7 +311,7 @@ export default function ReportStatus() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Loading report details...</Text>
       </View>
     );
@@ -238,7 +319,7 @@ export default function ReportStatus() {
 
   if (!report) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={styles.errorContainer}>
         <Ionicons name="alert-circle" size={72} color="#ef4444" />
         <Text style={styles.errorTitle}>Report Not Found</Text>
         <Text style={styles.errorMessage}>
@@ -252,48 +333,73 @@ export default function ReportStatus() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Header with back button */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color="#1f2937" />
-      </TouchableOpacity>
-      
-      <Image   source={require('../../../assets/images/logo.png')}  style={styles.logo} />
-      <Text style={styles.header}>Track Report Status</Text>
-      {renderStatusCard()}
-    </ScrollView>
+    <View style={styles.mainContainer}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+      >
+        {/* Header with back button */}
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="#1f2937" />
+        </TouchableOpacity>
+        
+        <Image source={require('../../../assets/images/logo.png')} style={styles.logo} />
+        <Text style={styles.header}>Track Report Status</Text>
+        {renderStatusCard()}
+        
+        {/* Add some bottom padding to ensure content is not hidden */}
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  mainContainer: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  scrollContainer: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: "#fff",
     alignItems: "center",
+    minHeight: SCREEN_HEIGHT,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: "#fff",
+    padding: 20,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: "#fff",
+    padding: 20,
   },
   backButton: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    zIndex: 1,
+    alignSelf: 'flex-start',
     padding: 8,
+    marginBottom: 10,
   },
   logo: {
     width: 120,
     height: 120,
     resizeMode: "contain",
     marginBottom: 10,
-    marginTop: 40,
   },
   header: {
     fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 15,
+    marginBottom: 20,
     textAlign: 'center',
   },
   card: {
     width: "100%",
+    maxWidth: 400,
     backgroundColor: "#F9F9F9",
     padding: 20,
     borderRadius: 15,
@@ -315,31 +421,36 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 15,
     color: "#555",
+    lineHeight: 20,
   },
   details: {
-    alignSelf: "flex-start",
-    marginBottom: 20,
     width: '100%',
+    marginBottom: 20,
   },
   detailText: {
     fontSize: 14,
-    marginBottom: 4,
+    marginBottom: 8,
     color: "#374151",
     flexDirection: 'row',
     flexWrap: 'wrap',
+    lineHeight: 20,
   },
   detailLabel: {
     fontWeight: '600',
     color: "#1f2937",
+  },
+  buttonContainer: {
+    width: '100%',
+    gap: 10,
   },
   button: {
     backgroundColor: "#E53935",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
-    marginTop: 8,
-    width: "100%",
     alignItems: "center",
+    minHeight: 50,
+    justifyContent: 'center',
   },
   secondaryButton: {
     backgroundColor: "#9E9E9E",
@@ -347,6 +458,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "600",
+    fontSize: 16,
   },
   loadingText: {
     fontSize: 16,
@@ -367,5 +479,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: "#6b7280",
     paddingHorizontal: 20,
+  },
+  bottomSpacer: {
+    height: 30,
   },
 });

@@ -172,7 +172,14 @@
             color: #666;
             text-transform: uppercase;
         }
+        .notification {
+    transition: opacity 0.3s ease;
+    white-space: pre-line;
+}
 
+.notification div {
+    line-height: 1.5;
+}
         .role-badge {
             padding: 0.25rem 0.75rem;
             border-radius: 20px;
@@ -744,6 +751,13 @@
                         Contacts
                     </a>
                 </div>
+
+                   <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="changepassword.html" class="nav-link">
+                        <i class="fas fa-key"></i>
+                        Change Password
+                    </a>
+                </div>
             </nav>
         </div>
 
@@ -792,8 +806,8 @@
                             <label for="roleFilter" class="form-label">Filter by Role</label>
                             <select class="form-select" id="roleFilter">
                                 <option value="">All Roles</option>
-                                <option value="resident">Resident</option>
                                 <option value="rescuer">Rescuer</option>
+                                <option value="rescuer">Residents</option>
                                 <option value="monitor">Moderator</option>
                                 <option value="agency">Agency</option>
                                 <option value="admin">Admin</option>
@@ -894,7 +908,7 @@
         </div>
     </div>
 
-    <!-- Create Account Modal (Admin Only) -->
+    <!-- ✅ UPDATED: Create Account Modal with Agency Name Field -->
     <div class="modal fade" id="createAccountModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
@@ -926,7 +940,7 @@
                                 <label for="newAccountBarangay" class="form-label">Barangay *</label>
                                 <select class="form-select" id="newAccountBarangay" required>
                                     <option value="">Select Barangay</option>
-                                    <option value="CDRRMO">CDRRMO</option>
+                                    <!-- Official 72 Barangays of Lipa City -->
                                     <option value="Adya">Adya</option>
                                     <option value="Anilao">Anilao</option>
                                     <option value="Anilao-Labac">Anilao-Labac</option>
@@ -935,6 +949,18 @@
                                     <option value="Bagong Pook">Bagong Pook</option>
                                     <option value="Balintawak">Balintawak</option>
                                     <option value="Banaybanay">Banaybanay</option>
+                                    <option value="Barangay 1 (Poblacion)">Barangay 1 (Poblacion)</option>
+                                    <option value="Barangay 2 (Poblacion)">Barangay 2 (Poblacion)</option>
+                                    <option value="Barangay 3 (Poblacion)">Barangay 3 (Poblacion)</option>
+                                    <option value="Barangay 4 (Poblacion)">Barangay 4 (Poblacion)</option>
+                                    <option value="Barangay 5 (Poblacion)">Barangay 5 (Poblacion)</option>
+                                    <option value="Barangay 6 (Poblacion)">Barangay 6 (Poblacion)</option>
+                                    <option value="Barangay 7 (Poblacion)">Barangay 7 (Poblacion)</option>
+                                    <option value="Barangay 8 (Poblacion)">Barangay 8 (Poblacion)</option>
+                                    <option value="Barangay 9 (Poblacion)">Barangay 9 (Poblacion)</option>
+                                    <option value="Barangay 9-A (Poblacion)">Barangay 9-A (Poblacion)</option>
+                                    <option value="Barangay 10 (Poblacion)">Barangay 10 (Poblacion)</option>
+                                    <option value="Barangay 11 (Poblacion)">Barangay 11 (Poblacion)</option>
                                     <option value="Bolbok">Bolbok</option>
                                     <option value="Bugtong na Pulo">Bugtong na Pulo</option>
                                     <option value="Bulacnin">Bulacnin</option>
@@ -943,8 +969,9 @@
                                     <option value="Cumba">Cumba</option>
                                     <option value="Dagatan">Dagatan</option>
                                     <option value="Duhatan">Duhatan</option>
+                                    <option value="Fernando Air Base">Fernando Air Base</option>
                                     <option value="Halang">Halang</option>
-                                    <option value="Inosluban">Inosluban</option>
+                                    <option value="Inosloban">Inosloban</option>
                                     <option value="Kayumanggi">Kayumanggi</option>
                                     <option value="Latag">Latag</option>
                                     <option value="Lodlod">Lodlod</option>
@@ -952,29 +979,16 @@
                                     <option value="Mabini">Mabini</option>
                                     <option value="Malagonlong">Malagonlong</option>
                                     <option value="Malitlit">Malitlit</option>
-                                    <option value="Marauoy">Marauoy</option>
+                                    <option value="Marawoy">Marawoy</option>
                                     <option value="Mataas na Lupa">Mataas na Lupa</option>
                                     <option value="Munting Pulo">Munting Pulo</option>
-                                    <option value="Pagolinan">Pagolinan</option>
-                                    <option value="Pallocan">Pallocan</option>
+                                    <option value="Pag-olingin Bata">Pag-olingin Bata</option>
+                                    <option value="Pag-olingin East">Pag-olingin East</option>
+                                    <option value="Pag-olingin West">Pag-olingin West</option>
                                     <option value="Pangao">Pangao</option>
-                                    <option value="Paninsingin">Paninsingin</option>
                                     <option value="Pinagkawitan">Pinagkawitan</option>
-                                    <option value="Pinagtongulan">Pinagtongulan</option>
+                                    <option value="Pinagtong-ulan">Pinagtong-ulan</option>
                                     <option value="Plaridel">Plaridel</option>
-                                    <option value="Poblacion Barangay 1">Poblacion Barangay 1</option>
-                                    <option value="Poblacion Barangay 2">Poblacion Barangay 2</option>
-                                    <option value="Poblacion Barangay 3">Poblacion Barangay 3</option>
-                                    <option value="Poblacion Barangay 4">Poblacion Barangay 4</option>
-                                    <option value="Poblacion Barangay 5">Poblacion Barangay 5</option>
-                                    <option value="Poblacion Barangay 6">Poblacion Barangay 6</option>
-                                    <option value="Poblacion Barangay 7">Poblacion Barangay 7</option>
-                                    <option value="Poblacion Barangay 8">Poblacion Barangay 8</option>
-                                    <option value="Poblacion Barangay 9">Poblacion Barangay 9</option>
-                                    <option value="Poblacion Barangay 9-A">Poblacion Barangay 9-A</option>
-                                    <option value="Poblacion Barangay 10">Poblacion Barangay 10</option>
-                                    <option value="Poblacion Barangay 11">Poblacion Barangay 11</option>
-                                    <option value="Poblacion Barangay 12">Poblacion Barangay 12</option>
                                     <option value="Pusil">Pusil</option>
                                     <option value="Quezon">Quezon</option>
                                     <option value="Rizal">Rizal</option>
@@ -985,28 +999,28 @@
                                     <option value="San Celestino">San Celestino</option>
                                     <option value="San Francisco">San Francisco</option>
                                     <option value="San Guillermo">San Guillermo</option>
+                                    <option value="San Isidro">San Isidro</option>
                                     <option value="San Jose">San Jose</option>
                                     <option value="San Lucas">San Lucas</option>
                                     <option value="San Salvador">San Salvador</option>
-                                    <option value="San Sebastian">San Sebastian</option>
-                                    <option value="Santo Nino">Santo Nino</option>
+                                    <option value="San Sebastián">San Sebastián</option>
+                                    <option value="Santo Niño">Santo Niño</option>
                                     <option value="Santo Toribio">Santo Toribio</option>
-                                    <option value="Sapac">Sapac</option>
                                     <option value="Sico">Sico</option>
-                                    <option value="Siniloan">Siniloan</option>
                                     <option value="Talisay">Talisay</option>
                                     <option value="Tambo">Tambo</option>
                                     <option value="Tangob">Tangob</option>
-                                    <option value="Tanguay">Tanguay</option>
+                                    <option value="Tangway">Tangway</option>
                                     <option value="Tibig">Tibig</option>
                                     <option value="Tipacan">Tipacan</option>
                                 </select>
                             </div>
                         </div>
+                        <!-- ✅ UPDATED: Role Selection with Agency Name Field -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="newAccountRole" class="form-label">Role *</label>
-                                <select class="form-select" id="newAccountRole" required>
+                                <select class="form-select" id="newAccountRole" required onchange="toggleAgencyNameField()">
                                     <option value="">Select Role</option>
                                     <option value="resident">Resident</option>
                                     <option value="rescuer">Rescuer</option>
@@ -1015,6 +1029,18 @@
                                     <option value="admin">Admin</option>
                                 </select>
                             </div>
+                            <div class="col-md-6 mb-3" id="agencyNameField" style="display: none;">
+                                <label for="newAccountAgencyName" class="form-label">Agency Name *</label>
+                                <select class="form-select" id="newAccountAgencyName">
+                                    <option value="">Select Agency</option>
+                                    <option value="PNP Lipa Police Station">PNP Lipa Police Station</option>
+                                    <option value="BFP Lipa Fire Station">BFP Lipa Fire Station</option>
+
+
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="newAccountPassword" class="form-label">Temporary Password *</label>
                                 <input type="password" class="form-control" id="newAccountPassword" minlength="6" required>
@@ -1031,16 +1057,15 @@
                         </div>
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            <strong>Note:</strong> Account will be created as <strong>ACTIVE</strong> and fully functional immediately. 
-                            The user can log in right away and change their password in their profile settings.
+                            <strong>Note:</strong> Account will be created with status <strong>PENDING</strong> and requires admin approval before the user can login.
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success" onclick="confirmCreateAccount()">
-                        <i class="fas fa-user-plus"></i> Create Account
-                    </button>
+                   <button type="button" class="btn btn-success" onclick="confirmCreateAccount(event)">
+    <i class="fas fa-user-plus"></i> Create Account
+</button>
                 </div>
             </div>
         </div>
@@ -1062,7 +1087,7 @@
                     <div class="mb-3">
                         <label for="newRole" class="form-label">New Role</label>
                         <select class="form-select" id="newRole" required>
-                            <option value="resident">Resident</option>
+                            <option value="monitor">Resident</option>
                             <option value="rescuer">Rescuer</option>
                             <option value="monitor">Moderator</option>
                             <option value="agency">Agency</option>
@@ -1211,10 +1236,13 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-      import { 
-  getFirestore, collection, query, where, getDocs, orderBy, onSnapshot, 
-  updateDoc, doc, getDoc, serverTimestamp, addDoc, increment, deleteDoc, setDoc 
-} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { 
+            getFirestore, collection, query, where, getDocs, orderBy, onSnapshot, 
+            updateDoc, doc, getDoc, serverTimestamp, addDoc, increment, deleteDoc, setDoc 
+        } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-functions.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
             authDomain: "lipaalerthub.firebaseapp.com",
@@ -1223,154 +1251,181 @@
             messagingSenderId: "991310233066",
             appId: "1:991310233066:web:7e836a60e5c4a302de0693",
         };
+        
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const functions = getFunctions(app, 'asia-southeast1');
 
-       const USER_ROLES = {
-    ADMIN: 'admin',
-    MONITOR: 'monitor', 
-    RESCUER: 'rescuer',
-    RESIDENT: 'resident',
-    AGENCY: 'agency'
-};
+        const USER_ROLES = {
+            ADMIN: 'admin',
+            MONITOR: 'monitor', 
+            RESCUER: 'rescuer',
+            RESIDENT: 'resident',
+            AGENCY: 'agency'
+        };
 
-const USER_STATUS = {
-    ACTIVE: 'active',
-    PENDING: 'pending',
-    UNDER_REVIEW: 'under_review',
-    DECLINED: 'declined',
-    INACTIVE: 'inactive',
-    SUSPENDED_3D: 'suspended_3d',
-    SUSPENDED_2W: 'suspended_2w',
-    BANNED: 'banned'
-};
+        const USER_STATUS = {
+            ACTIVE: 'active',
+            PENDING: 'pending',
+            UNDER_REVIEW: 'under_review',
+            DECLINED: 'declined',
+            INACTIVE: 'inactive',
+            SUSPENDED_3D: 'suspended_3d',
+            SUSPENDED_2W: 'suspended_2w',
+            BANNED: 'banned'
+        };
 
+        let currentUserInfo = null;
+        let usersListener = null;
+        let allUsers = [];
+        let filteredUsers = [];
+        let currentActionUserId = null;
+        let availableBarangays = new Set();
 
-
-let currentUserInfo = null;
-let usersListener = null;
-let allUsers = [];
-let filteredUsers = [];
-let currentActionUserId = null;
-let availableBarangays = new Set();
-
-    document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        console.log('🚀 Initializing Account Management...');
-        await checkAuthentication();
-        setupEventListeners();
-    } catch (error) {
-        console.error('❌ Account management initialization failed:', error);
-        showNotification('Failed to load account management. Please try again.', 'error');
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 3000);
-    }
-});
-
-    async function checkAuthentication() {
-    return new Promise((resolve, reject) => {
-        onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                console.log('❌ No authenticated user found');
-                window.location.href = "index.html?error=auth-required";
-                reject(new Error('Not authenticated'));
-                return;
-            }
-
-            try {
-                console.log('🔍 Checking user permissions...');
-
-                // Look up user document by firebaseUID
-                const q = query(collection(db, "users"), where("firebaseUID", "==", user.uid));
-                let querySnapshot = await getDocs(q);
-
-                if (querySnapshot.empty) {
-                    console.log('❌ User document not found for UID:', user.uid);
-                    alert("User account not found in system. Please contact administrator.");
-                    await signOut(auth);
-                    window.location.href = "index.html?error=user-not-found";
-                    reject(new Error('User document not found'));
-                    return;
-                }
-
-                const userDoc = querySnapshot.docs[0];
-                const userData = userDoc.data();
-
-                // 🔗 Auto-link firebaseUID if it's missing in the document
-                if (!userData.firebaseUID) {
-                    await updateDoc(userDoc.ref, {
-                        firebaseUID: user.uid,
-                        accountActivatedAt: serverTimestamp()
-                    });
-                    console.log("🔗 Linked Firebase UID to Firestore user:", user.uid);
-                }
-
-                const userRole = userData.role?.toLowerCase() || USER_ROLES.RESIDENT;
-                const userStatus = userData.status?.toLowerCase() || USER_STATUS.PENDING;
-
-                if (userStatus === USER_STATUS.PENDING) {
-                    alert("Your account is pending approval. Please wait for administrator approval.");
-                    await signOut(auth);
-                    window.location.href = "index.html?error=pending-approval";
-                    reject(new Error('Account pending approval'));
-                    return;
-                }
-
-                if ([USER_STATUS.DECLINED, USER_STATUS.INACTIVE, USER_STATUS.SUSPENDED_3D, USER_STATUS.SUSPENDED_2W, USER_STATUS.BANNED].includes(userStatus)) {
-                    alert("Your account has been suspended. Please contact administrator.");
-                    await signOut(auth);
-                    window.location.href = "index.html?error=account-suspended";
-                    reject(new Error('Account suspended'));
-                    return;
-                }
-
-                // Admin and Monitor can access Account Management
-                if (userRole !== USER_ROLES.ADMIN && userRole !== USER_ROLES.MONITOR) {
-                    alert(`Access denied. Account Management requires Admin or Moderator role. Your role: ${userRole}`);
-                    await signOut(auth);
-                    window.location.href = "index.html?error=insufficient-permissions";
-                    reject(new Error('Insufficient permissions'));
-                    return;
-                }
-
-                currentUserInfo = {
-                    user,
-                    role: userRole,
-                    status: userStatus,
-                    userData
+        // ✅ FIXED: Single debounce function definition
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
                 };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
 
-                console.log('✅ Account Management access granted:', {
-                    email: user.email,
-                    role: userRole
-                });
+        // ✅ ADDED: Cloud Function for duplicate checking
+        const checkDuplicateAccount = httpsCallable(functions, 'checkDuplicateAccount');
 
-                await initializeAccountManagement();
-                resolve(currentUserInfo);
-
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                console.log('🚀 Initializing Account Management...');
+                await checkAuthentication();
+                setupEventListeners();
             } catch (error) {
-                console.error('Error checking user role:', error);
-                alert("Error verifying permissions. Please try again.");
-                await signOut(auth);
-                window.location.href = "index.html?error=auth-error";
-                reject(error);
+                console.error('❌ Account management initialization failed:', error);
+                showNotification('Failed to load account management. Please try again.', 'error');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 3000);
             }
         });
-    });
-}
 
-     async function initializeAccountManagement() {
+        async function checkAuthentication() {
+            return new Promise((resolve, reject) => {
+                onAuthStateChanged(auth, async (user) => {
+                    if (!user) {
+                        console.log('❌ No authenticated user found');
+                        window.location.href = "index.html?error=auth-required";
+                        reject(new Error('Not authenticated'));
+                        return;
+                    }
+
+                    try {
+                        console.log('🔍 Checking user permissions...');
+
+                        // Look up user document by firebaseUID
+                        const q = query(collection(db, "users"), where("firebaseUID", "==", user.uid));
+                        let querySnapshot = await getDocs(q);
+
+                        if (querySnapshot.empty) {
+                            console.log('❌ User document not found for UID:', user.uid);
+                            alert("User account not found in system. Please contact administrator.");
+                            await signOut(auth);
+                            window.location.href = "index.html?error=user-not-found";
+                            reject(new Error('User document not found'));
+                            return;
+                        }
+
+                        const userDoc = querySnapshot.docs[0];
+                        const userData = userDoc.data();
+
+                        // 🔗 Auto-link firebaseUID if it's missing in the document
+                        if (!userData.firebaseUID) {
+                            await updateDoc(userDoc.ref, {
+                                firebaseUID: user.uid,
+                                accountActivatedAt: serverTimestamp()
+                            });
+                            console.log("🔗 Linked Firebase UID to Firestore user:", user.uid);
+                        }
+
+                        const userRole = userData.role?.toLowerCase() || USER_ROLES.RESIDENT;
+                        const userStatus = userData.status?.toLowerCase() || USER_STATUS.PENDING;
+
+                        if (userStatus === USER_STATUS.PENDING) {
+                            alert("Your account is pending approval. Please wait for administrator approval.");
+                            await signOut(auth);
+                            window.location.href = "index.html?error=pending-approval";
+                            reject(new Error('Account pending approval'));
+                            return;
+                        }
+
+                        if ([USER_STATUS.DECLINED, USER_STATUS.INACTIVE, USER_STATUS.SUSPENDED_3D, USER_STATUS.SUSPENDED_2W, USER_STATUS.BANNED].includes(userStatus)) {
+                            alert("Your account has been suspended. Please contact administrator.");
+                            await signOut(auth);
+                            window.location.href = "index.html?error=account-suspended";
+                            reject(new Error('Account suspended'));
+                            return;
+                        }
+
+                        // Admin and Monitor can access Account Management
+                        if (userRole !== USER_ROLES.ADMIN && userRole !== USER_ROLES.MONITOR) {
+                            alert(`Access denied. Account Management requires Admin or Moderator role. Your role: ${userRole}`);
+                            await signOut(auth);
+                            window.location.href = "index.html?error=insufficient-permissions";
+                            reject(new Error('Insufficient permissions'));
+                            return;
+                        }
+
+                        currentUserInfo = {
+                            user,
+                            role: userRole,
+                            status: userStatus,
+                            userData
+                        };
+
+                        console.log('✅ Account Management access granted:', {
+                            email: user.email,
+                            role: userRole
+                        });
+
+                        await initializeAccountManagement();
+                        resolve(currentUserInfo);
+
+                    } catch (error) {
+                        console.error('Error checking user role:', error);
+                        alert("Error verifying permissions. Please try again.");
+                        await signOut(auth);
+                        window.location.href = "index.html?error=auth-error";
+                        reject(error);
+                    }
+                });
+            });
+        }
+
+      async function initializeAccountManagement() {
     try {
         updateUserInfo();
+        updateNavigationVisibility(currentUserInfo.role);
+        
+        // Show admin-only features only for admin users
         if (currentUserInfo.role === USER_ROLES.ADMIN) {
             document.getElementById('adminOnlyActions').style.display = 'block';
         }
+        
         document.getElementById('loadingOverlay').style.display = 'none';
         document.getElementById('accountsContainer').style.display = 'block';
         await loadUsersRealtime();
+        
+        // ✅ STEP 3: INITIALIZE REAL-TIME VALIDATION
+        setTimeout(() => {
+            setupRealTimeValidation();
+            console.log('🎯 Real-time duplicate validation initialized');
+        }, 1000);
+        
         showNotification(`Welcome, ${currentUserInfo.userData?.name || currentUserInfo.user.email}!`, 'success');
     } catch (error) {
         console.error('Error initializing account management:', error);
@@ -1378,6 +1433,28 @@ let availableBarangays = new Set();
     }
 }
 
+        // ✅ FIXED: Proper role-based navigation visibility
+        function updateNavigationVisibility(userRole) {
+            const navItems = document.querySelectorAll('.nav-item[data-role]');
+            
+            navItems.forEach(item => {
+                const allowedRoles = item.getAttribute('data-role').split(',');
+                
+                // Check if user role is included in allowed roles
+                if (allowedRoles.includes(userRole)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            // Special handling for admin-only features
+            if (userRole === USER_ROLES.ADMIN) {
+                document.getElementById('adminOnlyActions').style.display = 'block';
+            } else {
+                document.getElementById('adminOnlyActions').style.display = 'none';
+            }
+        }
 
         function updateUserInfo() {
             const nameElement = document.querySelector('[data-user-info="name"]');
@@ -1417,18 +1494,6 @@ let availableBarangays = new Set();
             statusFilter.addEventListener('change', filterUsers);
         }
 
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-
         async function loadUsersRealtime() {
             try {
                 const q = query(
@@ -1446,10 +1511,10 @@ let availableBarangays = new Set();
                     
                     snapshot.forEach((docSnap) => {
                         const userData = docSnap.data();
-                     allUsers.push({
-    docId: docSnap.id,      // Firestore Document ID
-    ...userData             // includes firebaseUID
-});
+                        allUsers.push({
+                            docId: docSnap.id,      // Firestore Document ID
+                            ...userData             // includes firebaseUID
+                        });
                         
                         // Collect barangays for filter
                         if (userData.barangay) {
@@ -1512,7 +1577,7 @@ let availableBarangays = new Set();
                             user.status = USER_STATUS.UNDER_REVIEW;
                         } else {
                             existingUser.duplicateFlag = true;
-                         existingUser.duplicateOf = user.docId;
+                            existingUser.duplicateOf = user.docId;
                             existingUser.status = USER_STATUS.UNDER_REVIEW;
                         }
                     }
@@ -1712,6 +1777,7 @@ let availableBarangays = new Set();
             return html;
         }
 
+        // ✅ FIXED: Role-based action permissions
         function createActionDropdown(user) {
             const isAdmin = currentUserInfo.role === USER_ROLES.ADMIN;
             const isMonitor = currentUserInfo.role === USER_ROLES.MONITOR;
@@ -1723,10 +1789,10 @@ let availableBarangays = new Set();
             // Approve/Decline buttons for pending and under review (Admin and Monitor can do this)
             if (status === USER_STATUS.PENDING || status === USER_STATUS.UNDER_REVIEW) {
                 approveDecline = `
-                    <button class="btn btn-success btn-sm me-1" onclick="approveUser('${user.docId}')"
+                    <button class="btn btn-success btn-sm me-1" onclick="approveUser('${user.docId}')">
                         <i class="fas fa-check"></i> Approve
                     </button>
-                    <button class="btn btn-danger btn-sm me-1" onclick="declineUser('${user.docId}')"
+                    <button class="btn btn-danger btn-sm me-1" onclick="declineUser('${user.docId}')">
                         <i class="fas fa-times"></i> Decline
                     </button>
                 `;
@@ -1738,7 +1804,7 @@ let availableBarangays = new Set();
             // Reset password - both Admin and Monitor can do this
             if (isAdmin || isMonitor) {
                 dropdownActions.push(`
-                    <li><a class="dropdown-item" href="#" onclick="resetPassword('${user.docId}')"
+                    <li><a class="dropdown-item" href="#" onclick="resetPassword('${user.docId}')">
                         <i class="fas fa-key me-2"></i>Reset Password
                     </a></li>
                 `);
@@ -1748,7 +1814,7 @@ let availableBarangays = new Set();
             if (isAdmin) {
                 // Role change
                 dropdownActions.push(`
-                    <li><a class="dropdown-item" href="#" onclick="changeUserRole('${user.docId}', '${user.role || 'resident'}')"
+                    <li><a class="dropdown-item" href="#" onclick="changeUserRole('${user.docId}', '${user.role || 'resident'}')">
                         <i class="fas fa-user-tag me-2"></i>Change Role
                     </a></li>
                 `);
@@ -1756,13 +1822,13 @@ let availableBarangays = new Set();
                 // Activate/Deactivate
                 if (status === USER_STATUS.ACTIVE) {
                     dropdownActions.push(`
-                        <li><a class="dropdown-item" href="#"onclick="deactivateUser('${user.docId}')"
+                        <li><a class="dropdown-item" href="#" onclick="deactivateUser('${user.docId}')">
                             <i class="fas fa-pause me-2"></i>Deactivate
                         </a></li>
                     `);
                 } else if (status === USER_STATUS.INACTIVE) {
                     dropdownActions.push(`
-                        <li><a class="dropdown-item" href="#" onclick="activateUser('${user.docId}')"
+                        <li><a class="dropdown-item" href="#" onclick="activateUser('${user.docId}')">
                             <i class="fas fa-play me-2"></i>Activate
                         </a></li>
                     `);
@@ -1771,10 +1837,10 @@ let availableBarangays = new Set();
                 // Warning and Strike for active users
                 if (status === USER_STATUS.ACTIVE) {
                     dropdownActions.push(`
-                        <li><a class="dropdown-item" href="#" onclick="issueWarning('${user.docId}')"
+                        <li><a class="dropdown-item" href="#" onclick="issueWarning('${user.docId}')">
                             <i class="fas fa-exclamation-triangle me-2"></i>Issue Warning
                         </a></li>
-                        <li><a class="dropdown-item" href="#" onclick="addStrike('${user.docId}')"
+                        <li><a class="dropdown-item" href="#" onclick="addStrike('${user.docId}')">
                             <i class="fas fa-bolt me-2"></i>Add Strike
                         </a></li>
                     `);
@@ -1783,7 +1849,7 @@ let availableBarangays = new Set();
                 // Delete user
                 dropdownActions.push(`
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-danger" href="#"onclick="deleteUser('${user.docId}')"
+                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteUser('${user.docId}')">
                         <i class="fas fa-trash me-2"></i>Delete User
                     </a></li>
                 `);
@@ -1870,6 +1936,21 @@ let availableBarangays = new Set();
             }
         }
 
+        // ✅ NEW: Toggle Agency Name Field
+        window.toggleAgencyNameField = function() {
+            const role = document.getElementById('newAccountRole').value;
+            const agencyField = document.getElementById('agencyNameField');
+            const agencySelect = document.getElementById('newAccountAgencyName');
+            
+            if (role === 'agency') {
+                agencyField.style.display = 'block';
+                agencySelect.required = true;
+            } else {
+                agencyField.style.display = 'none';
+                agencySelect.required = false;
+                agencySelect.value = '';
+            }
+        };
 
         window.viewID = function(idFileUrl) {
             if (!idFileUrl) {
@@ -1894,89 +1975,210 @@ let availableBarangays = new Set();
             document.getElementById('createAccountForm').reset();
             document.getElementById('sendWelcomeEmail').checked = true;
             
+            // Reset agency field
+            document.getElementById('agencyNameField').style.display = 'none';
+            document.getElementById('newAccountAgencyName').required = false;
+            
             modal.show();
         };
 
-        // REVISED: Create account WITHOUT isInvite - All accounts are legitimate and ACTIVE
-        window.confirmCreateAccount = async function() {
+        // ✅ UPDATED: Enhanced confirmCreateAccount function with duplicate warnings handling
+        window.confirmCreateAccount = async function(event) {
+            // Prevent form submission
+            if (event) event.preventDefault();
+            
+            // Verify admin permission
             if (!currentUserInfo || currentUserInfo.role !== USER_ROLES.ADMIN) {
                 showNotification('Access denied. Only administrators can create accounts.', 'error');
                 return;
             }
             
+            // Get form values
             const name = document.getElementById('newAccountName').value.trim();
             const email = document.getElementById('newAccountEmail').value.trim();
             const phone = document.getElementById('newAccountPhone').value.trim();
             const barangay = document.getElementById('newAccountBarangay').value;
             const role = document.getElementById('newAccountRole').value;
             const password = document.getElementById('newAccountPassword').value;
-            const sendWelcome = document.getElementById('sendWelcomeEmail').checked;
+            const agencyName = document.getElementById('newAccountAgencyName').value;
             
+            // Validate required fields
             if (!name || !email || !phone || !barangay || !role || !password) {
                 showNotification('Please fill in all required fields', 'warning');
                 return;
             }
             
+            // Validate agency name for agency role
+            if (role === 'agency' && !agencyName) {
+                showNotification('Please select an agency name for agency accounts', 'warning');
+                return;
+            }
+            
+            // Validate password length
             if (password.length < 6) {
                 showNotification('Password must be at least 6 characters long', 'warning');
                 return;
             }
             
-            try {
-                console.log('✨ Creating ACTIVE account (no invite system)...');
-                
-                // Generate a unique ID for the user document
-                const newUserDocRef = doc(collection(db, "users"));
-                const newUserUID = newUserDocRef.id;
-              const userData = {
-                uid: newUserUID,
-             firebaseUID: null, // will be filled when actual Firebase Auth user is created
-               name: name,
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showNotification('Please enter a valid email address', 'warning');
+                return;
+            }
+            
+            // Validate phone number
+            const cleanPhone = phone.replace(/\s/g, '');
+            if (!/^(09|\+639)\d{9}$/.test(cleanPhone)) {
+                showNotification('Please enter a valid Philippine mobile number (09XXXXXXXXX)', 'warning');
+                return;
+            }
+
+            // ✅ STEP 4.3: CHECK FOR DUPLICATE WARNINGS
+            if (hasDuplicateWarnings()) {
+                showNotification('Please fix the duplicate warnings before creating the account', 'warning');
+                return;
+            }
+
+            // ✅ STEP 4.3: FINAL DUPLICATE CHECK
+            const finalCheck = await performFinalDuplicateCheck({
                 email: email,
-             number: phone,
-      phone: phone,
-    barangay: barangay,
-    role: role,
-    status: USER_STATUS.ACTIVE,
-    tempPassword: password,
-    createdAt: serverTimestamp(),
-    createdBy: currentUserInfo.user.email,
-    adminCreated: true,
-    strikes: 0,
-    warnings: 0,
-    accountType: 'admin-created'
-};
+                phone: phone,
+                name: name,
+                barangay: barangay
+            });
+
+            if (finalCheck.hasDuplicates) {
+                showNotification(finalCheck.message, 'error');
+                return;
+            }
+
+            // Get button and show loading state
+            const createButton = document.querySelector('#createAccountModal .modal-footer .btn-success');
+            if (!createButton) {
+                console.error('Create button not found');
+                showNotification('UI error: Button not found', 'error');
+                return;
+            }
+            
+            const originalText = createButton.innerHTML;
+            createButton.disabled = true;
+            createButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating...';
+
+            try {
+                console.log('Creating staff account via Cloud Function...');
+                console.log('Data:', { email, name, role, barangay, agencyName: agencyName || 'N/A' });
+
+                // Prepare account data
+                const accountData = {
+                    email: email,
+                    password: password,
+                    name: name,
+                    phoneNumber: phone,
+                    barangay: barangay,
+                    role: role
+                };
                 
-                // Create user document in Firestore
-             
-                await setDoc(newUserDocRef, userData);
-                console.log('✅ ACTIVE account created successfully');
-                
-                // Send welcome notification
-                if (sendWelcome) {
-                    const roleDisplayName = getRoleDisplayName(role);
-                    await createNotification(newUserUID, "Welcome to LipaAlertHub", 
-                        `Welcome to LipaAlertHub! Your ${roleDisplayName} account is now ACTIVE and ready to use. Login with your email (${email}) and the provided password. You can change your password in your profile settings anytime.`, "account");
+                // Only include agencyName if role is agency
+                if (role === 'agency') {
+                    accountData.agencyName = agencyName;
                 }
+
+                // Call Cloud Function
+                const createStaffAccount = httpsCallable(functions, 'createStaffAccount');
+                const result = await createStaffAccount(accountData);
+
+                console.log('✅ Cloud Function success:', result.data);
+
+                // Reset button
+                createButton.disabled = false;
+                createButton.innerHTML = originalText;
+
+                // ✅ STEP 4.3: HANDLE WARNINGS IN FRONTEND
+                if (result.data.warnings && result.data.warnings.hasDuplicates) {
+                    let warningMessage = `✅ Account created successfully!\n\n`;
+                    warningMessage += `👤 User: ${name}\n`;
+                    warningMessage += `📧 Email: ${email}\n`;
+                    warningMessage += `👔 Role: ${role.toUpperCase()}\n\n`;
+                    
+                    warningMessage += `⚠️ **DUPLICATE WARNINGS:**\n`;
+                    
+                    result.data.warnings.duplicateDetails.forEach(dup => {
+                        warningMessage += `\n• ${dup.matchType.toUpperCase()}: ${dup.existingUser.name}\n`;
+                        warningMessage += `  📧 ${dup.existingUser.email}\n`;
+                        warningMessage += `  🏠 ${dup.existingUser.barangay}\n`;
+                        warningMessage += `  📊 Status: ${dup.existingUser.status}\n`;
+                        if (dup.isSuspended) {
+                            warningMessage += `  🚫 **SUSPENDED USER**\n`;
+                        }
+                    });
+                    
+                    warningMessage += `\n🔍 Please review these potential duplicates in the accounts list.`;
+                    
+                    showNotification(warningMessage, 'warning');
+                } else {
+                    // Regular success message
+                    let successMessage = `✅ Account created successfully!\n\n`;
+                    successMessage += `👤 User: ${name}\n`;
+                    successMessage += `📧 Email: ${email}\n`;
+                    successMessage += `👔 Role: ${role.toUpperCase()}`;
+                    
+                    if (role === 'agency') {
+                        successMessage += `\n🏢 Agency: ${agencyName}`;
+                    }
+                    
+                    successMessage += `\n\n📋 Status: ${result.data.status === 'active' ? 'ACTIVE ✓' : 'PENDING APPROVAL'}`;
+                    successMessage += `\n\n${result.data.message || 'The user can now login to the system.'}`;
+                    
+                    showNotification(successMessage, 'success');
+                }
+
+                // Close modal and reset form
+                const modal = bootstrap.Modal.getInstance(document.getElementById('createAccountModal'));
+                if (modal) modal.hide();
+
+                document.getElementById('createAccountForm').reset();
+                document.getElementById('agencyNameField').style.display = 'none';
+                document.getElementById('newAccountAgencyName').required = false;
                 
-                // Close modal
-                bootstrap.Modal.getInstance(document.getElementById('createAccountModal')).hide();
-                
-                // Show success message
-                showNotification(`✅ ACTIVE account created for ${name}! User can login immediately and change password in profile settings.`, 'success');
-                
-                console.log('🎉 Account creation completed - Fully functional ACTIVE account created');
-                
+                // Clear duplicate warnings
+                clearFieldWarning('email');
+                clearFieldWarning('phone');
+                clearFieldWarning('name');
+
+                console.log('✅ Account creation completed successfully');
+
             } catch (error) {
-                console.error('❌ Account creation error:', error);
-                
-                let errorMessage = 'Failed to create account';
-                if (error.code === 'permission-denied') {
-                    errorMessage = 'Permission denied - check Firestore rules';
-                } else if (error.message) {
-                    errorMessage = error.message;
+                console.error('❌ Account creation failed:', error);
+
+                // Reset button
+                const createButton = document.querySelector('#createAccountModal .modal-footer .btn-success');
+                if (createButton) {
+                    createButton.disabled = false;
+                    createButton.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
                 }
-                
+
+                // Handle specific errors
+                let errorMessage = 'Failed to create account. Please try again.';
+
+                if (error.code === 'functions/already-exists') {
+                    errorMessage = '❌ This email address is already in use. Please use a different email.';
+                } else if (error.code === 'functions/invalid-argument') {
+                    errorMessage = `❌ Invalid input: ${error.message}`;
+                } else if (error.code === 'functions/permission-denied') {
+                    errorMessage = '❌ Permission denied. Only administrators can create accounts.';
+                } else if (error.code === 'functions/unauthenticated') {
+                    errorMessage = '❌ You must be logged in to create accounts.';
+                } else if (error.code === 'functions/internal') {
+                    errorMessage = `❌ Server error: ${error.message}`;
+                } else if (error.code === 'functions/deadline-exceeded') {
+                    errorMessage = '❌ Request timeout. Please check your internet connection and try again.';
+                } else if (error.code === 'functions/unavailable') {
+                    errorMessage = '❌ Service temporarily unavailable. Please try again in a moment.';
+                } else if (error.message) {
+                    errorMessage = `❌ Error: ${error.message}`;
+                }
+
                 showNotification(errorMessage, 'error');
             }
         };
@@ -2142,50 +2344,50 @@ let availableBarangays = new Set();
             modal.show();
         };
 
-       window.confirmWarning = async function() {
-    const reason = document.getElementById('warningReason').value.trim();
-    
-    if (!reason) {
-        showNotification('Please provide a reason for the warning', 'warning');
-        return;
-    }
-    
-    try {
-        const userDoc = await getDoc(doc(db, "users", currentActionUserId));
-        const currentWarnings = (userDoc.data().warnings || 0) + 1;
-        const currentStrikes = userDoc.data().strikes || 0;
-        
-        await updateDoc(doc(db, "users", currentActionUserId), {
-            warnings: increment(1),
-            lastViolationReason: reason,
-            lastViolationDate: serverTimestamp()
-        });
-        
-        // Create notification matching mobile app format
-        await addDoc(collection(db, "notifications"), {
-            userId: currentActionUserId,
-            title: "⚠️ Account Warning",
-            body: `You have received a warning for: ${reason}. Current warnings: ${currentWarnings}`,
-            type: 'violation_warning',
-            status: 'unread',
-            priority: 'high',
-            createdAt: serverTimestamp(),
-            data: {
-                violationType: 'warning',
-                reason: reason,
-                warnings: currentWarnings,
-                strikes: currentStrikes
+        window.confirmWarning = async function() {
+            const reason = document.getElementById('warningReason').value.trim();
+            
+            if (!reason) {
+                showNotification('Please provide a reason for the warning', 'warning');
+                return;
             }
-        });
-        
-        bootstrap.Modal.getInstance(document.getElementById('warningModal')).hide();
-        showNotification(`Warning issued successfully. User now has ${currentWarnings} warning(s).`, 'warning');
-        currentActionUserId = null;
-    } catch (error) {
-        console.error('Error issuing warning:', error);
-        showNotification('Failed to issue warning: ' + error.message, 'error');
-    }
-};
+            
+            try {
+                const userDoc = await getDoc(doc(db, "users", currentActionUserId));
+                const currentWarnings = (userDoc.data().warnings || 0) + 1;
+                const currentStrikes = userDoc.data().strikes || 0;
+                
+                await updateDoc(doc(db, "users", currentActionUserId), {
+                    warnings: increment(1),
+                    lastViolationReason: reason,
+                    lastViolationDate: serverTimestamp()
+                });
+                
+                // Create notification matching mobile app format
+                await addDoc(collection(db, "notifications"), {
+                    userId: currentActionUserId,
+                    title: "⚠️ Account Warning",
+                    body: `You have received a warning for: ${reason}. Current warnings: ${currentWarnings}`,
+                    type: 'violation_warning',
+                    status: 'unread',
+                    priority: 'high',
+                    createdAt: serverTimestamp(),
+                    data: {
+                        violationType: 'warning',
+                        reason: reason,
+                        warnings: currentWarnings,
+                        strikes: currentStrikes
+                    }
+                });
+                
+                bootstrap.Modal.getInstance(document.getElementById('warningModal')).hide();
+                showNotification(`Warning issued successfully. User now has ${currentWarnings} warning(s).`, 'warning');
+                currentActionUserId = null;
+            } catch (error) {
+                console.error('Error issuing warning:', error);
+                showNotification('Failed to issue warning: ' + error.message, 'error');
+            }
+        };
 
         window.addStrike = function(userId) {
             if (currentUserInfo.role !== USER_ROLES.ADMIN) {
@@ -2200,101 +2402,101 @@ let availableBarangays = new Set();
         };
 
         window.confirmStrike = async function() {
-    const reason = document.getElementById('strikeReason').value.trim();
-    
-    if (!reason) {
-        showNotification('Please provide a reason for the strike', 'warning');
-        return;
-    }
-    
-    try {
-        const userDoc = await getDoc(doc(db, "users", currentActionUserId));
-        const currentStrikes = userDoc.data().strikes || 0;
-        const currentWarnings = userDoc.data().warnings || 0;
-        const newStrikes = currentStrikes + 1;
-        
-        let newStatus = USER_STATUS.ACTIVE;
-        let suspensionUntil = null;
-        let suspensionDays = 0;
-        
-        // Match mobile app logic: suspended with date, not suspended_3d/suspended_2w
-        if (newStrikes === 1) {
-            newStatus = 'suspended';
-            suspensionUntil = new Date();
-            suspensionUntil.setDate(suspensionUntil.getDate() + 3); // 3 days
-            suspensionDays = 3;
-        } else if (newStrikes === 2) {
-            newStatus = 'suspended';
-            suspensionUntil = new Date();
-            suspensionUntil.setDate(suspensionUntil.getDate() + 14); // 14 days
-            suspensionDays = 14;
-        } else if (newStrikes >= 3) {
-            newStatus = 'banned';
-        }
-        
-        // Update user document
-        const updateData = {
-            strikes: increment(1),
-            status: newStatus,
-            lastViolationReason: reason,
-            lastViolationDate: serverTimestamp()
-        };
-        
-        // Only add suspensionUntil if suspended
-        if (suspensionUntil) {
-            updateData.suspensionUntil = suspensionUntil;
-        }
-        
-        await updateDoc(doc(db, "users", currentActionUserId), updateData);
-        
-        // Create notification matching mobile app format
-        const notificationTitle = newStrikes >= 3 ? "🚫 Account Permanently Banned" : 
-                                 suspensionDays > 0 ? "⏸️ Account Suspended" : 
-                                 "🔺 Account Strike";
-        
-        const notificationBody = newStrikes >= 3 ? 
-            `Your account has been permanently banned due to: ${reason}. You have accumulated ${newStrikes} strikes.` :
-            suspensionDays > 0 ?
-            `Your account has been suspended for ${suspensionDays} days due to: ${reason}. Suspension ends on ${suspensionUntil.toLocaleDateString()}.` :
-            `You have received a strike for: ${reason}. Total strikes: ${newStrikes}`;
-        
-        const notificationType = newStrikes >= 3 ? 'violation_ban' :
-                                suspensionDays > 0 ? 'violation_suspension' :
-                                'violation_strike';
-        
-        // Create notification with proper structure for mobile app
-        await addDoc(collection(db, "notifications"), {
-            userId: currentActionUserId,
-            title: notificationTitle,
-            body: notificationBody,
-            type: notificationType,
-            status: 'unread',
-            priority: 'urgent',
-            createdAt: serverTimestamp(),
-            data: {
-                violationType: newStrikes >= 3 ? 'ban' : suspensionDays > 0 ? 'suspension' : 'strike',
-                reason: reason,
-                strikes: newStrikes,
-                warnings: currentWarnings,
-                suspensionDays: suspensionDays || 0,
-                suspensionUntil: suspensionUntil ? suspensionUntil.toISOString() : null
+            const reason = document.getElementById('strikeReason').value.trim();
+            
+            if (!reason) {
+                showNotification('Please provide a reason for the strike', 'warning');
+                return;
             }
-        });
-        
-        bootstrap.Modal.getInstance(document.getElementById('strikeModal')).hide();
-        
-        const statusMessage = newStrikes >= 3 ? 'User has been permanently banned.' :
-                             suspensionDays > 0 ? `User suspended for ${suspensionDays} days.` :
-                             `Strike added. User now has ${newStrikes}/3 strikes.`;
-        
-        showNotification(statusMessage, newStrikes >= 3 ? 'error' : 'warning');
-        currentActionUserId = null;
-    } catch (error) {
-        console.error('Error adding strike:', error);
-        showNotification('Failed to add strike: ' + error.message, 'error');
-    }
-};
-        // REVISED: Reset password (stores tempPassword for profile change)
+            
+            try {
+                const userDoc = await getDoc(doc(db, "users", currentActionUserId));
+                const currentStrikes = userDoc.data().strikes || 0;
+                const currentWarnings = userDoc.data().warnings || 0;
+                const newStrikes = currentStrikes + 1;
+                
+                let newStatus = USER_STATUS.ACTIVE;
+                let suspensionUntil = null;
+                let suspensionDays = 0;
+                
+                // Match mobile app logic: suspended with date, not suspended_3d/suspended_2w
+                if (newStrikes === 1) {
+                    newStatus = 'suspended';
+                    suspensionUntil = new Date();
+                    suspensionUntil.setDate(suspensionUntil.getDate() + 3); // 3 days
+                    suspensionDays = 3;
+                } else if (newStrikes === 2) {
+                    newStatus = 'suspended';
+                    suspensionUntil = new Date();
+                    suspensionUntil.setDate(suspensionUntil.getDate() + 14); // 14 days
+                    suspensionDays = 14;
+                } else if (newStrikes >= 3) {
+                    newStatus = 'banned';
+                }
+                
+                // Update user document
+                const updateData = {
+                    strikes: increment(1),
+                    status: newStatus,
+                    lastViolationReason: reason,
+                    lastViolationDate: serverTimestamp()
+                };
+                
+                // Only add suspensionUntil if suspended
+                if (suspensionUntil) {
+                    updateData.suspensionUntil = suspensionUntil;
+                }
+                
+                await updateDoc(doc(db, "users", currentActionUserId), updateData);
+                
+                // Create notification matching mobile app format
+                const notificationTitle = newStrikes >= 3 ? "🚫 Account Permanently Banned" : 
+                                         suspensionDays > 0 ? "⏸️ Account Suspended" : 
+                                         "🔺 Account Strike";
+                
+                const notificationBody = newStrikes >= 3 ? 
+                    `Your account has been permanently banned due to: ${reason}. You have accumulated ${newStrikes} strikes.` :
+                    suspensionDays > 0 ?
+                    `Your account has been suspended for ${suspensionDays} days due to: ${reason}. Suspension ends on ${suspensionUntil.toLocaleDateString()}.` :
+                    `You have received a strike for: ${reason}. Total strikes: ${newStrikes}`;
+                
+                const notificationType = newStrikes >= 3 ? 'violation_ban' :
+                                        suspensionDays > 0 ? 'violation_suspension' :
+                                        'violation_strike';
+                
+                // Create notification with proper structure for mobile app
+                await addDoc(collection(db, "notifications"), {
+                    userId: currentActionUserId,
+                    title: notificationTitle,
+                    body: notificationBody,
+                    type: notificationType,
+                    status: 'unread',
+                    priority: 'urgent',
+                    createdAt: serverTimestamp(),
+                    data: {
+                        violationType: newStrikes >= 3 ? 'ban' : suspensionDays > 0 ? 'suspension' : 'strike',
+                        reason: reason,
+                        strikes: newStrikes,
+                        warnings: currentWarnings,
+                        suspensionDays: suspensionDays || 0,
+                        suspensionUntil: suspensionUntil ? suspensionUntil.toISOString() : null
+                    }
+                });
+                
+                bootstrap.Modal.getInstance(document.getElementById('strikeModal')).hide();
+                
+                const statusMessage = newStrikes >= 3 ? 'User has been permanently banned.' :
+                                     suspensionDays > 0 ? `User suspended for ${suspensionDays} days.` :
+                                     `Strike added. User now has ${newStrikes}/3 strikes.`;
+                
+                showNotification(statusMessage, newStrikes >= 3 ? 'error' : 'warning');
+                currentActionUserId = null;
+            } catch (error) {
+                console.error('Error adding strike:', error);
+                showNotification('Failed to add strike: ' + error.message, 'error');
+            }
+        };
+
         window.resetPassword = function(userId) {
             currentActionUserId = userId;
             const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
@@ -2405,38 +2607,250 @@ let availableBarangays = new Set();
             }
         };
 
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.textContent = message;
-            
-            let container = document.getElementById('notificationContainer');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'notificationContainer';
-                container.className = 'notification-container';
-                document.body.appendChild(container);
-            }
-            
-            container.appendChild(notification);
-            
+     function showNotification(message, type = 'info') {
+    // Support multi-line messages
+    const lines = message.split('\n');
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    
+    // Handle multi-line messages
+    if (lines.length > 1) {
+        notification.innerHTML = lines.map(line => 
+            line ? `<div style="margin-bottom: 5px;">${line}</div>` : ''
+        ).join('');
+    } else {
+        notification.textContent = message;
+    }
+    
+    let container = document.getElementById('notificationContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notificationContainer';
+        container.className = 'notification-container';
+        document.body.appendChild(container);
+    }
+    
+    container.appendChild(notification);
+    
+    // Longer timeout for success messages with multiple lines
+    const timeout = type === 'success' && lines.length > 3 ? 8000 : 5000;
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.style.opacity = '0';
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);
                 }
-            }, 5000);
-            
-            notification.addEventListener('click', () => {
+            }, 300);
+        }
+    }, timeout);
+    
+    notification.addEventListener('click', () => {
+        if (notification.parentNode) {
+            notification.style.opacity = '0';
+            setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);
                 }
-            });
+            }, 300);
         }
+    });
+}
 
-        window.addEventListener('beforeunload', () => {
-            if (usersListener) usersListener();
+// Setup real-time validation for form fields
+function setupRealTimeValidation() {
+    const emailInput = document.getElementById('newAccountEmail');
+    const phoneInput = document.getElementById('newAccountPhone');
+    const nameInput = document.getElementById('newAccountName');
+    const barangaySelect = document.getElementById('newAccountBarangay');
+    
+    console.log('🔄 Setting up real-time validation...');
+    
+    if (emailInput) {
+        emailInput.addEventListener('input', debounce(() => {
+            const email = emailInput.value.trim();
+            if (email && email.length > 3) {
+                checkFieldDuplicate('email', email);
+            } else {
+                clearFieldWarning('email');
+            }
+        }, 800));
+        
+        console.log('✅ Email validation setup');
+    }
+    
+    if (phoneInput) {
+        phoneInput.addEventListener('input', debounce(() => {
+            const phone = phoneInput.value.trim();
+            if (phone && phone.length >= 10) {
+                checkFieldDuplicate('phone', phone);
+            } else {
+                clearFieldWarning('phone');
+            }
+        }, 800));
+        
+        console.log('✅ Phone validation setup');
+    }
+    
+    // Check name+barangay when both are filled
+    if (nameInput && barangaySelect) {
+        const checkNameBarangay = debounce(() => {
+            const name = nameInput.value.trim();
+            const barangay = barangaySelect.value;
+            
+            if (name && barangay && name.length > 2) {
+                checkNameBarangayDuplicate(name, barangay);
+            } else {
+                clearFieldWarning('name');
+            }
+        }, 800);
+        
+        nameInput.addEventListener('input', checkNameBarangay);
+        barangaySelect.addEventListener('change', checkNameBarangay);
+        
+        console.log('✅ Name+Barangay validation setup');
+    }
+    
+    console.log('🎯 Real-time validation setup complete');
+}
+
+// Check individual field for duplicates
+async function checkFieldDuplicate(field, value) {
+    if (!value) return;
+    
+    try {
+        console.log(`🔍 Checking ${field} duplicate:`, value.substring(0, 10) + '...');
+        
+        const result = await checkDuplicateAccount({ [field]: value });
+        
+        if (result.data.hasDuplicates) {
+            const fieldName = field === 'email' ? 'email address' : 
+                            field === 'phone' ? 'phone number' : field;
+            showFieldWarning(field, `This ${fieldName} is already registered in the system`);
+        } else {
+            clearFieldWarning(field);
+        }
+    } catch (error) {
+        console.log(`⚠️ Duplicate check for ${field} failed:`, error.message);
+        // Don't show error to user - fail silently
+    }
+}
+
+// Check name + barangay combination
+async function checkNameBarangayDuplicate(name, barangay) {
+    if (!name || !barangay) return;
+    
+    try {
+        console.log(`🔍 Checking name+barangay duplicate:`, name.substring(0, 10) + '...', barangay);
+        
+        const result = await checkDuplicateAccount({ 
+            name: name, 
+            barangay: barangay 
+        });
+        
+        if (result.data.hasDuplicates) {
+            showFieldWarning('name', `An account with the name "${name}" already exists in ${barangay}`);
+        } else {
+            clearFieldWarning('name');
+        }
+    } catch (error) {
+        console.log('⚠️ Name+Barangay check failed:', error.message);
+    }
+}
+
+// Show warning message for a field
+function showFieldWarning(field, message) {
+    const input = document.getElementById(`newAccount${field.charAt(0).toUpperCase() + field.slice(1)}`);
+    if (!input) {
+        console.log(`❌ Input not found for field: ${field}`);
+        return;
+    }
+    
+    // Remove existing warning first
+    clearFieldWarning(field);
+    
+    // Add warning styling to input
+    input.style.borderColor = '#dc3545';
+    input.style.background = '#fff5f5';
+    input.style.boxShadow = '0 0 0 0.2rem rgba(220, 53, 69, 0.25)';
+    
+    // Create warning message element
+    const warning = document.createElement('div');
+    warning.className = 'duplicate-warning-field mt-1';
+    warning.id = `warning-${field}`;
+    warning.innerHTML = `
+        <small style="color: #dc3545; font-weight: 500;">
+            <i class="fas fa-exclamation-triangle me-1"></i> ${message}
+        </small>
+    `;
+    
+    // Insert after the input
+    input.parentNode.appendChild(warning);
+    
+    console.log(`⚠️ Warning shown for ${field}:`, message);
+}
+
+// Clear warning for a field
+function clearFieldWarning(field) {
+    const input = document.getElementById(`newAccount${field.charAt(0).toUpperCase() + field.slice(1)}`);
+    if (input) {
+        input.style.borderColor = '';
+        input.style.background = '';
+        input.style.boxShadow = '';
+    }
+    
+    const existingWarning = document.getElementById(`warning-${field}`);
+    if (existingWarning) {
+        existingWarning.remove();
+    }
+}
+
+// Check if form has any duplicate warnings
+function hasDuplicateWarnings() {
+    const warnings = document.querySelectorAll('.duplicate-warning-field');
+    return warnings.length > 0;
+}
+
+// Final duplicate check before form submission
+async function performFinalDuplicateCheck(formData) {
+    try {
+        console.log('🔍 Performing final duplicate check before submission...');
+        
+        const result = await checkDuplicateAccount({
+            email: formData.email,
+            phone: formData.phone,
+            name: formData.name,
+            barangay: formData.barangay
         });
 
+        if (result.data.hasDuplicates) {
+            let errorMessage = 'Cannot create account - potential duplicates found:\n\n';
+            
+            result.data.duplicates.existingUsers.forEach(dup => {
+                errorMessage += `• ${dup.matchType.toUpperCase()}: ${dup.name}\n`;
+                errorMessage += `  Email: ${dup.email}\n`;
+                errorMessage += `  Status: ${dup.status}\n\n`;
+            });
+            
+            errorMessage += 'Please use different email, phone number, or name+barangay combination.';
+            
+            return {
+                hasDuplicates: true,
+                message: errorMessage,
+                details: result.data.duplicates
+            };
+        }
+        
+        return { hasDuplicates: false };
+        
+    } catch (error) {
+        console.warn('Final duplicate check failed, but continuing:', error);
+        // Return no duplicates to allow creation (fail-safe)
+        return { hasDuplicates: false };
+    }
+}
     </script>
 </body>
 </html>

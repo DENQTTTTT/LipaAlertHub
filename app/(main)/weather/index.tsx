@@ -4,84 +4,123 @@ import { collection, limit, onSnapshot, orderBy, query, Timestamp, where } from 
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Dimensions,
+  Image,
+  Platform,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { db } from '../../../services/firebase';
+
+const { width } = Dimensions.get('window');
+const isSmallDevice = width < 375;
 
 interface WeatherAlert {
   id: string;
   title: string;
   description: string;
   severity: 'info' | 'watch' | 'warning' | 'danger';
-  type: 'weather' | 'disaster';
+  type: 'weather' | 'earthquake' | 'volcano' | 'flood' | 'disaster';
   approved: boolean;
   isActive: boolean;
   createdAt: Timestamp;
   createdBy: string;
+  source?: string;
   imageUrl?: string;
+  expiresAt?: Timestamp;
 }
 
 const WeatherAlertsScreen = () => {
   const [alerts, setAlerts] = useState<WeatherAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const fetchAlerts = () => {
       try {
+        setError(null);
+        
         const alertsQuery = query(
-          collection(db, 'weather_alerts'),
+          collection(db, 'alerts'),
           where('approved', '==', true),
           where('isActive', '==', true),
           orderBy('createdAt', 'desc'),
-          limit(10)
+          limit(20)
         );
 
-        const unsubscribe = onSnapshot(alertsQuery, (snapshot) => {
-          const alertsData: WeatherAlert[] = [];
-          snapshot.forEach((doc) => {
-            alertsData.push({
-              id: doc.id,
-              ...doc.data(),
-            } as WeatherAlert);
-          });
-          setAlerts(alertsData);
-          setLoading(false);
-          setRefreshing(false);
-        }, (error) => {
-          console.error('Error fetching weather alerts:', error);
-          setLoading(false);
-          setRefreshing(false);
-          Alert.alert('Error', 'Failed to fetch weather alerts');
-        });
+        const unsubscribe = onSnapshot(
+          alertsQuery, 
+          (snapshot) => {
+            const alertsData: WeatherAlert[] = [];
+            const now = new Date();
+            
+            if (snapshot.empty) {
+              setAlerts([]);
+              setLoading(false);
+              setRefreshing(false);
+              return;
+            }
+
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              
+              // Check if alert is expired
+              const expiresAt = data.expiresAt?.toDate?.() || data.expiresAt;
+              const isExpired = expiresAt && expiresAt < now;
+              
+              if (doc.exists() && data.approved && data.isActive && !isExpired) {
+                alertsData.push({
+                  id: doc.id,
+                  title: data.title || 'Alert',
+                  description: data.description || 'No description available',
+                  severity: data.severity || 'info',
+                  type: data.type || 'weather',
+                  approved: data.approved || false,
+                  isActive: data.isActive || false,
+                  createdAt: data.createdAt || Timestamp.now(),
+                  createdBy: data.createdBy || 'system',
+                  source: data.source || 'Unknown',
+                  expiresAt: data.expiresAt,
+                } as WeatherAlert);
+              }
+            });
+            
+            setAlerts(alertsData);
+            setLoading(false);
+            setRefreshing(false);
+          }, 
+          (error) => {
+            console.error('Error fetching weather alerts:', error);
+            setError('Unable to load alerts. Please check your connection.');
+            setLoading(false);
+            setRefreshing(false);
+          }
+        );
 
         return unsubscribe;
       } catch (error) {
         console.error('Error setting up alerts listener:', error);
+        setError('Failed to load alerts');
         setLoading(false);
         setRefreshing(false);
+        return () => {};
       }
     };
 
     const unsubscribe = fetchAlerts();
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
+    return () => unsubscribe();
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    // The onSnapshot listener will automatically update the data
+    setError(null);
   };
 
   const getSeverityColor = (severity: string) => {
@@ -105,304 +144,422 @@ const WeatherAlertsScreen = () => {
   };
 
   const getTypeIcon = (type: string) => {
-    return type === 'weather' ? 'cloud' : 'warning';
+    switch (type) {
+      case 'weather': return 'cloud';
+      case 'earthquake': return 'pulse';
+      case 'volcano': return 'flame';
+      case 'flood': return 'water';
+      default: return 'warning';
+    }
   };
 
-  const formatDate = (timestamp: Timestamp) => {
-    const date = timestamp.toDate();
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const truncateDescription = (description: string, maxLength: number = 100) => {
-    if (description.length <= maxLength) return description;
-    return description.substring(0, maxLength).trim() + '...';
-  };
-
-  const handleAlertPress = (alertId: string) => {
+  const handleAlertPress = (alert: WeatherAlert) => {
     router.push({
       pathname: '/(main)/weather/detailed',
-      params: { alertId }
+      params: { 
+        alertId: alert.id
+      }
     });
   };
 
-  const renderAlert = (alert: WeatherAlert) => (
-    <TouchableOpacity
-      key={alert.id}
-      style={[styles.alertCard, { backgroundColor: getSeverityColor(alert.severity) }]}
-      onPress={() => handleAlertPress(alert.id)}
-      activeOpacity={0.8}
-    >
-      <View style={styles.alertContent}>
+  const renderAlertCard = (alert: WeatherAlert) => {
+    const severityColor = getSeverityColor(alert.severity);
+    
+    return (
+      <TouchableOpacity
+        key={alert.id}
+        style={[styles.alertCard, { borderLeftColor: severityColor }]}
+        onPress={() => handleAlertPress(alert)}
+        activeOpacity={0.7}
+      >
         <View style={styles.alertHeader}>
-          <Text style={styles.alertSeverity}>
-            {alert.severity === 'info' ? 'Blue Information' : 
-             alert.severity === 'watch' ? 'Yellow Warning' :
-             alert.severity === 'warning' ? 'Orange Warning' :
-             'Red Warning'}
-          </Text>
-          <Ionicons name="chevron-forward" size={20} color="white" />
+          <View style={styles.alertTypeContainer}>
+            <View style={[styles.severityBadge, { backgroundColor: severityColor }]}>
+              <Ionicons 
+                name={getSeverityIcon(alert.severity) as any} 
+                size={14} 
+                color="white" 
+              />
+              <Text style={styles.severityText}>
+                {alert.severity.toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.typeContainer}>
+              <Ionicons 
+                name={getTypeIcon(alert.type) as any} 
+                size={12} 
+                color="#666" 
+              />
+              <Text style={styles.typeText}>
+                {alert.type.toUpperCase()}
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#999" />
         </View>
-        <Text style={styles.alertTitle}>{alert.title.toUpperCase()}</Text>
-        <Text style={styles.alertDescription} numberOfLines={3}>
+        
+        <Text style={styles.alertTitle}>{alert.title}</Text>
+        <Text style={styles.alertDescription} numberOfLines={2}>
           {alert.description}
         </Text>
-      </View>
-    </TouchableOpacity>
-  );
+        
+        <View style={styles.alertFooter}>
+          <Text style={styles.sourceText}>
+            Source: {alert.source || 'CDRRMO Lipa'}
+          </Text>
+          <Text style={styles.timeText}>
+            {alert.createdAt.toDate().toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingHeader}>
-          <View style={styles.headerLeft}>
-            <View style={styles.logoContainer}>
-              <Ionicons name="shield" size={24} color="#D32F2F" />
-            </View>
-            <Text style={styles.appName}>LipaAlertHub</Text>
+      <View style={styles.container}>
+        <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('../../../assets/images/logo.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.logoTitle}>LipaAlertHub</Text>
           </View>
-          <Text style={styles.headerTitle}>Weather & Disaster Alerts</Text>
-          <View style={styles.headerRight} />
+          <Text style={styles.pageTitle}>Weather Alerts</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#D32F2F" />
+          <ActivityIndicator size="large" color="#e74c3c" />
           <Text style={styles.loadingText}>Loading alerts...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
+      
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="shield" size={24} color="#D32F2F" />
-          </View>
-          <Text style={styles.appName}>LipaAlertHub</Text>
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('../../../assets/images/logo.png')} 
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+          <Text style={styles.logoTitle}>LipaAlertHub</Text>
         </View>
-        <Text style={styles.headerTitle}>Weather & Disaster Alerts</Text>
-        <View style={styles.headerRight} />
+        <Text style={styles.pageTitle}>Weather Alerts</Text>
       </View>
 
       <ScrollView
         style={styles.content}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#D32F2F']}
-            tintColor="#D32F2F"
+            colors={['#e74c3c']}
+            tintColor="#e74c3c"
           />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {alerts.length === 0 ? (
+        {/* Error State */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Ionicons name="cloud-offline" size={48} color="#e74c3c" />
+            <Text style={styles.errorTitle}>Connection Error</Text>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={onRefresh}
+            >
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Empty State */}
+        {!error && alerts.length === 0 && (
           <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={80} color="#95a5a6" />
+            <Ionicons name="checkmark-circle" size={64} color="#27ae60" />
             <Text style={styles.emptyTitle}>No Active Alerts</Text>
-            <Text style={styles.emptySubtitle}>
-              There are currently no active weather or disaster alerts for your area.
+            <Text style={styles.emptyText}>
+              There are currently no active weather alerts for Lipa City.
             </Text>
           </View>
-        ) : (
-          <>
-            <View style={styles.infoContainer}>
-              <Ionicons name="information-circle" size={20} color="#3498db" />
-              <Text style={styles.infoText}>
-                Stay informed with the latest weather and disaster alerts from CDRRMO.
+        )}
+
+        {/* Alerts List */}
+        {!error && alerts.length > 0 && (
+          <View style={styles.alertsContainer}>
+            <View style={styles.statsRow}>
+              <Text style={styles.alertsCount}>
+                {alerts.length} Active Alert{alerts.length !== 1 ? 's' : ''}
+              </Text>
+              <View style={styles.liveIndicator}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>Live Updates</Text>
+              </View>
+            </View>
+
+            <View style={styles.alertsList}>
+              {alerts.map(renderAlertCard)}
+            </View>
+
+            <View style={styles.footerNote}>
+              <Ionicons name="information-circle-outline" size={14} color="#666" />
+              <Text style={styles.footerText}>
+                Tap on any alert for detailed information
               </Text>
             </View>
-            
-            <View style={styles.alertsList}>
-              {alerts.slice(0, 3).map(renderAlert)}
-              
-              {alerts.length > 3 && (
-                <View style={styles.moreAlertsContainer}>
-                  <Text style={styles.moreAlertsText}>
-                    Showing latest 3 alerts
-                  </Text>
-                  <Text style={styles.totalAlertsText}>
-                    {alerts.length} total active alerts
-                  </Text>
-                </View>
-              )}
-            </View>
-          </>
+          </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#ffffff',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: "#ffffff",
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
+    paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e8ed',
-  },
-  loadingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e8ed',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+    borderBottomColor: "#f0f0f0",
   },
   logoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  logoImage: {
     width: 32,
     height: 32,
-    backgroundColor: 'rgba(211, 47, 47, 0.1)',
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 10,
   },
-  appName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#D32F2F',
+  logoTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
-    flex: 1,
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerRight: {
-    width: 32,
-    height: 32,
+  pageTitle: {
+    fontSize: isSmallDevice ? 24 : 28,
+    fontWeight: "700",
+    color: "#1a1a1a",
   },
   content: {
     flex: 1,
-    padding: 20,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 12,
     fontSize: 16,
     color: '#666',
+    fontWeight: "500",
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 100,
+    paddingHorizontal: 40,
+    paddingTop: 60,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 20,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginTop: 16,
+    marginBottom: 8,
   },
-  emptySubtitle: {
-    fontSize: 16,
+  emptyText: {
+    fontSize: 15,
     color: '#666',
     textAlign: 'center',
-    marginTop: 10,
-    paddingHorizontal: 40,
-    lineHeight: 24,
+    lineHeight: 22,
   },
-  infoContainer: {
-    flexDirection: 'row',
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#e3f2fd',
-    padding: 15,
-    borderRadius: 10,
+    paddingHorizontal: 40,
+    paddingTop: 60,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#e74c3c',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
     marginBottom: 20,
   },
-  infoText: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 14,
-    color: '#1976d2',
-    lineHeight: 20,
+  retryButton: {
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  alertsContainer: {
+    padding: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  alertsCount: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f9ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#22c55e',
+    marginRight: 6,
+  },
+  liveText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#22c55e',
   },
   alertsList: {
-    gap: 12,
+    gap: 16,
   },
   alertCard: {
+    backgroundColor: '#ffffff',
     borderRadius: 12,
-    marginHorizontal: 0,
+    padding: 16,
+    borderLeftWidth: 4,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 3,
     elevation: 3,
-  },
-  alertContent: {
-    padding: 20,
   },
   alertHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  alertSeverity: {
+  alertTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  severityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  severityText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  typeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  typeText: {
+    color: '#666',
+    fontSize: 10,
     fontWeight: '600',
   },
   alertTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
     marginBottom: 8,
-    letterSpacing: 0.5,
+    lineHeight: 20,
   },
   alertDescription: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 20,
-  },
-  moreAlertsContainer: {
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'rgba(211, 47, 47, 0.05)',
-    borderRadius: 10,
-    marginTop: 10,
-  },
-  moreAlertsText: {
-    fontSize: 14,
     color: '#666',
-    fontWeight: '500',
+    lineHeight: 20,
+    marginBottom: 12,
   },
-  totalAlertsText: {
+  alertFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sourceText: {
     fontSize: 12,
-    color: '#999',
-    marginTop: 5,
+    color: '#888',
+  },
+  timeText: {
+    fontSize: 12,
+    color: '#888',
+  },
+  footerNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 8,
+    marginTop: 20,
+  },
+  footerText: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 

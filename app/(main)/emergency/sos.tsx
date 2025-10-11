@@ -1,4 +1,5 @@
-// app/emergency/sos.tsx - SOS Slide to Confirm with Navigation Fix
+// app/(main)/emergency/sos.tsx - SOS Slide to Confirm
+import { useSOSSync } from '@/hooks/useSOSSync';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -19,10 +20,9 @@ const BUTTON_WIDTH = 60;
 const SLIDER_HEIGHT = 60;
 
 export default function SOSSlideToConfirm() {
-  // Only use Animated.Value for the SOS pulse - nothing else
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const { isOnline, unsyncedCount } = useSOSSync();
   
-  // Use regular state for all slider interactions
   const [buttonPosition, setButtonPosition] = useState(0);
   const [buttonScale, setButtonScale] = useState(1);
   const [isSliding, setIsSliding] = useState(false);
@@ -32,7 +32,7 @@ export default function SOSSlideToConfirm() {
 
   const maxSlide = SLIDER_WIDTH - BUTTON_WIDTH;
 
-  // Pulse animation for the SOS text only
+  // Pulse animation for SOS text
   useEffect(() => {
     const pulse = () => {
       Animated.sequence([
@@ -87,7 +87,6 @@ export default function SOSSlideToConfirm() {
       onPanResponderMove: (evt, gestureState) => {
         const { dx } = gestureState;
         
-        // Constrain movement
         let constrainedDx = dx;
         if (dx < 0) {
           constrainedDx = 0;
@@ -95,18 +94,14 @@ export default function SOSSlideToConfirm() {
           constrainedDx = maxSlide;
         }
 
-        // Update all values using state
         setButtonPosition(constrainedDx);
         
-        // Update progress width
         const progress = (constrainedDx / maxSlide) * SLIDER_WIDTH;
         setProgressWidth(progress);
 
-        // Update text opacity
         const opacity = constrainedDx <= maxSlide * 0.5 ? 1 - (constrainedDx / (maxSlide * 0.5)) * 0.7 : 0.3;
         setTextOpacity(opacity);
 
-        // Check completion threshold (90% of the way)
         const completionThreshold = maxSlide * 0.90;
         if (constrainedDx >= completionThreshold && !slideCompleted) {
           setSlideCompleted(true);
@@ -121,28 +116,23 @@ export default function SOSSlideToConfirm() {
         const { dx } = gestureState;
         
         if (dx >= maxSlide * 0.85) {
-          // Slide completed - ensure proper navigation
           setButtonPosition(maxSlide);
           setProgressWidth(SLIDER_WIDTH);
           setTextOpacity(0.3);
           setButtonScale(1.1);
           
-          // Strong vibration feedback
           Vibration.vibrate([150, 80, 150]);
           
-          // Navigate to SOS services with proper error handling
           setTimeout(() => {
             try {
               console.log("Navigating to SOS services...");
               router.replace('/emergency/sos-services');
             } catch (error) {
               console.error("Navigation error:", error);
-              // Fallback navigation
               router.push('/emergency/sos-services');
             }
           }, 200);
         } else {
-          // Reset slider
           resetSlider();
         }
       },
@@ -164,31 +154,40 @@ export default function SOSSlideToConfirm() {
         </View>
       </View>
 
-      {/* Main Content Area */}
+      {/* Connection Status Indicator */}
+      {(!isOnline || unsyncedCount > 0) && (
+        <View style={styles.statusBanner}>
+          {!isOnline ? (
+            <Text style={styles.statusText}>Offline Mode - SOS will still work</Text>
+          ) : unsyncedCount > 0 ? (
+            <Text style={styles.statusText}>Syncing {unsyncedCount} SOS log{unsyncedCount > 1 ? 's' : ''}...</Text>
+          ) : null}
+        </View>
+      )}
+
+      {/* Main Content */}
       <View style={styles.mainContent}>
-        {/* SOS Title - Only animated element */}
         <Animated.Text style={[styles.sosTitle, { transform: [{ scale: pulseAnim }] }]}>
           SOS
         </Animated.Text>
 
-        {/* Emergency Instructions */}
         <View style={styles.instructionsContainer}>
           <Text style={styles.instructionText}>Emergency assistance needed</Text>
           <Text style={styles.instructionSubtext}>Slide to access emergency services</Text>
+          {!isOnline && (
+            <Text style={styles.offlineNote}>Will sync when connection restored</Text>
+          )}
         </View>
 
-        {/* Slide to Confirm Button */}
+        {/* Slide to Confirm */}
         <View style={styles.sliderContainer}>
-          {/* Progress Background */}
           <View style={[styles.progressBar, { width: progressWidth }]} />
           
-          {/* Slide Text */}
           <View style={[styles.textContainer, { opacity: textOpacity }]}>
             <Text style={styles.slideIcon}>🚨</Text>
             <Text style={styles.slideText}>SLIDE TO CONFIRM</Text>
           </View>
 
-          {/* Sliding Button - Using regular View with transform style */}
           <View
             style={[
               styles.sliderButton,
@@ -205,7 +204,6 @@ export default function SOSSlideToConfirm() {
           </View>
         </View>
 
-        {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
       </View>
     </View>
@@ -218,56 +216,79 @@ const styles = StyleSheet.create({
     backgroundColor: "#d73527",
   },
   header: {
-    paddingHorizontal: width * 0.05, // 5% of screen width
-    paddingBottom: height * 0.02, // 2% of screen height
+    paddingHorizontal: width * 0.05,
+    paddingBottom: height * 0.02,
   },
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
   logoImage: {
-    width: width * 0.08, // 8% of screen width
-    height: width * 0.08, // Keep square
+    width: width * 0.08,
+    height: width * 0.08,
     borderRadius: 8,
-    marginRight: width * 0.025, // 2.5% spacing
+    marginRight: width * 0.025,
     resizeMode: 'contain',
   },
   logoTitle: {
-    fontSize: width * 0.045, // Responsive font size
+    fontSize: width * 0.045,
     fontWeight: "600",
     color: "#ffffff",
+  },
+  statusBanner: {
+    backgroundColor: "rgba(0,0,0,0.3)",
+    marginHorizontal: width * 0.05,
+    paddingVertical: height * 0.012,
+    paddingHorizontal: width * 0.04,
+    borderRadius: 8,
+    marginBottom: height * 0.02,
+  },
+  statusText: {
+    color: "#ffffff",
+    fontSize: width * 0.032,
+    textAlign: "center",
+    fontWeight: "500",
   },
   mainContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: width * 0.08, // 8% padding
+    paddingHorizontal: width * 0.08,
   },
   sosTitle: {
-    fontSize: Math.min(width * 0.28, height * 0.15), // Responsive, max based on both dimensions
+    fontSize: Math.min(width * 0.28, height * 0.15),
     fontWeight: "900",
     color: "#ffffff",
     letterSpacing: width * 0.04,
     textAlign: 'center',
-    marginBottom: height * 0.04, // 4% of screen height
+    marginBottom: height * 0.04,
   },
   instructionsContainer: {
     alignItems: 'center',
-    marginBottom: height * 0.06, // 6% of screen height
+    marginBottom: height * 0.06,
   },
   instructionText: {
-    fontSize: width * 0.042, // Responsive font size
+    fontSize: width * 0.042,
     color: "#ffffff",
     textAlign: 'center',
     fontWeight: "500",
     marginBottom: height * 0.01,
   },
   instructionSubtext: {
-    fontSize: width * 0.035, // Responsive font size
+    fontSize: width * 0.035,
     color: "#ffffff",
     textAlign: 'center',
     fontWeight: "400",
     opacity: 0.9,
+  },
+  offlineNote: {
+    fontSize: width * 0.03,
+    color: "#ffffff",
+    textAlign: 'center',
+    fontWeight: "400",
+    opacity: 0.8,
+    marginTop: height * 0.008,
+    fontStyle: 'italic',
   },
   sliderContainer: {
     width: SLIDER_WIDTH,
@@ -278,10 +299,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
@@ -301,39 +319,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   slideIcon: {
-    fontSize: width * 0.04, // Responsive emoji size
+    fontSize: width * 0.04,
     marginRight: width * 0.02,
   },
   slideText: {
-    fontSize: width * 0.035, // Responsive text size
+    fontSize: width * 0.035,
     fontWeight: '600',
     color: '#d73527',
     letterSpacing: 0.5,
   },
   sliderButton: {
     position: 'absolute',
-    left: height * 0.006, // Responsive spacing
-    width: BUTTON_WIDTH - height * 0.012, // Responsive button size
+    left: height * 0.006,
+    width: BUTTON_WIDTH - height * 0.012,
     height: SLIDER_HEIGHT - height * 0.012,
     backgroundColor: '#d73527',
     borderRadius: (SLIDER_HEIGHT - height * 0.012) / 2,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
   },
   buttonArrow: {
-    fontSize: width * 0.045, // Responsive arrow size
+    fontSize: width * 0.045,
     color: '#ffffff',
     fontWeight: 'bold',
   },
   bottomSpacing: {
-    height: height * 0.15, // 15% of screen height for spacing
+    height: height * 0.15,
   },
 });

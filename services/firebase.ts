@@ -1,18 +1,11 @@
-// services/firebase.ts - Simplified version to avoid Firestore internal errors
 import { FirebaseApp, getApp, getApps, initializeApp } from "firebase/app";
 import { Auth, getAuth } from "firebase/auth";
-import {
-  collection,
-  disableNetwork,
-  enableNetwork,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  where
-} from "firebase/firestore";
-import { getFunctions } from "firebase/functions"; // ADD THIS LINE
+import { collection, disableNetwork, enableNetwork, getDocs, getFirestore, onSnapshot, query, setLogLevel, where } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
+
+// Suppress Firestore offline warnings
+setLogLevel('error');
 
 const firebaseConfig = {
   apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
@@ -36,7 +29,7 @@ if (getApps().length === 0) {
 const auth: Auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
-const functions = getFunctions(app, 'asia-southeast1'); // ADD THIS LINE
+const functions = getFunctions(app, 'asia-southeast1');
 
 // Emergency Contact Interface
 export interface EmergencyContact {
@@ -52,72 +45,73 @@ export interface EmergencyContact {
   updatedAt?: any;
 }
 
-// Default fallback emergency contacts
+// UPDATED: Default fallback emergency contacts with CORRECT PHONE NUMBERS
 export const DEFAULT_EMERGENCY_CONTACTS: EmergencyContact[] = [
   {
-    id: "police_department",
-    name: "Police Department",
-    icon: "👮",
-    phoneNumber: "043-702-3832",
+    id: "cdrrmo_medical",
+    name: "CDRRMO Medical",
+    icon: "🏥",
+    phoneNumber: "(043) 756-0127",
     category: "city",
     displayOrder: 1,
     isActive: true
   },
   {
-    id: "fire_department",
-    name: "Fire Department", 
+    id: "lipa_bfp", 
+    name: "LIPA BFP Fire",
     icon: "🔥",
-    phoneNumber: "043-757-4618",
+    phoneNumber: "(043) 757-4618",
     category: "city",
     displayOrder: 2,
     isActive: true
   },
   {
-    id: "medical_services",
-    name: "Medical Services",
-    icon: "🏥",
-    phoneNumber: "043-756-2342",
+    id: "lipa_pnp",
+    name: "LIPA PNP Police",
+    icon: "🚔",
+    phoneNumber: "(043) 702-3832",
     category: "city",
     displayOrder: 3,
     isActive: true
   },
   {
-    id: "disaster_department",
-    name: "Disaster Department",
-    icon: "🚨",
-    phoneNumber: "043-757-5164",
+    id: "cdrrmo_disaster",
+    name: "CDRRMO Disaster",
+    icon: "🌪️",
+    phoneNumber: "(043) 756-0127",
     category: "city",
     displayOrder: 4,
     isActive: true
   }
 ];
 
-// Simplified fetch function to avoid internal assertion errors
-export const fetchEmergencyContacts = async (userBarangay?: string): Promise<EmergencyContact[]> => {
+/**
+ * Fetch emergency contacts from Firestore - Admin can maintain these
+ * NOW WITH REAL-TIME UPDATES
+ */
+export const fetchEmergencyContacts = async (): Promise<EmergencyContact[]> => {
   try {
-    console.log("Fetching emergency contacts for barangay:", userBarangay);
-    
-    // Check network connectivity first
+    console.log('Fetching emergency contacts from Firestore...');
     const isOnline = await checkNetworkConnectivity();
     if (!isOnline) {
-      console.log("Device is offline, using default contacts");
-      return getFilteredDefaultContacts(userBarangay);
+      console.log('Offline: Using default contacts');
+      return DEFAULT_EMERGENCY_CONTACTS;
     }
-    
+
     const emergencyContactsRef = collection(db, "emergency_contacts");
-    
-    // Use simple query to avoid composite filter issues
+    // Fetch active city-level contacts that admin maintains
     const q = query(
       emergencyContactsRef,
-      where("isActive", "==", true)
+      where("isActive", "==", true),
+      where("category", "==", "city")
     );
 
     const querySnapshot = await getDocs(q);
-    const allContacts: EmergencyContact[] = [];
+    const contacts: EmergencyContact[] = [];
     
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      allContacts.push({
+      contacts.push({
         id: doc.id,
         name: data.name,
         icon: data.icon,
@@ -131,55 +125,78 @@ export const fetchEmergencyContacts = async (userBarangay?: string): Promise<Eme
       });
     });
 
-    // Filter in JavaScript based on user's barangay
-    const filteredContacts = allContacts.filter(contact => {
-      if (contact.category === "city") {
-        return true; // Include all city-wide contacts
-      }
-      
-      if (contact.category === "barangay" && userBarangay && contact.barangay === userBarangay) {
-        return true; // Include matching barangay-specific contacts
-      }
-      
-      return false;
-    });
-
     // Sort by display order
-    filteredContacts.sort((a, b) => (a.displayOrder || 999) - (b.displayOrder || 999));
+    contacts.sort((a, b) => (a.displayOrder || 999) - (b.displayOrder || 999));
     
-    console.log(`Successfully fetched and filtered ${filteredContacts.length} emergency contacts`);
-    return filteredContacts.length > 0 ? filteredContacts : getFilteredDefaultContacts(userBarangay);
+    console.log(`Fetched ${contacts.length} emergency contacts from Firestore`);
     
+    // Return Firestore contacts if available, otherwise use defaults
+    return contacts.length > 0 ? contacts : DEFAULT_EMERGENCY_CONTACTS;
   } catch (error) {
-    console.error("Error fetching emergency contacts:", error);
-    
-    // Return filtered default contacts as fallback
-    return getFilteredDefaultContacts(userBarangay);
+    console.error('Error fetching emergency contacts from Firestore:', error);
+    return DEFAULT_EMERGENCY_CONTACTS;
   }
 };
 
-// Helper function to get filtered default contacts
-const getFilteredDefaultContacts = (userBarangay?: string): EmergencyContact[] => {
-  const fallbackContacts = userBarangay 
-    ? DEFAULT_EMERGENCY_CONTACTS.filter(contact => 
-        contact.category === "city" || contact.barangay === userBarangay
-      )
-    : DEFAULT_EMERGENCY_CONTACTS.filter(contact => contact.category === "city");
-  
-  console.log("Using fallback emergency contacts:", fallbackContacts.length);
-  return fallbackContacts;
+/**
+ * NEW: Real-time listener for emergency contacts updates
+ * This ensures phone numbers are always up-to-date
+ */
+export const subscribeToEmergencyContacts = (
+  callback: (contacts: EmergencyContact[]) => void
+): (() => void) => {
+  try {
+    const emergencyContactsRef = collection(db, "emergency_contacts");
+    const q = query(
+      emergencyContactsRef,
+      where("isActive", "==", true),
+      where("category", "==", "city")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const contacts: EmergencyContact[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        contacts.push({
+          id: doc.id,
+          name: data.name,
+          icon: data.icon,
+          phoneNumber: data.phoneNumber,
+          category: data.category,
+          barangay: data.barangay,
+          displayOrder: data.displayOrder || 999,
+          isActive: data.isActive,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
+        });
+      });
+
+      // Sort by display order
+      contacts.sort((a, b) => (a.displayOrder || 999) - (b.displayOrder || 999));
+      
+      console.log(`Real-time update: ${contacts.length} emergency contacts`);
+      callback(contacts.length > 0 ? contacts : DEFAULT_EMERGENCY_CONTACTS);
+    }, (error) => {
+      console.error('Error in real-time contacts listener:', error);
+      callback(DEFAULT_EMERGENCY_CONTACTS);
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error setting up real-time contacts listener:', error);
+    callback(DEFAULT_EMERGENCY_CONTACTS);
+    return () => {}; // Return empty unsubscribe function
+  }
 };
 
 // Check network connectivity
 const checkNetworkConnectivity = async (): Promise<boolean> => {
   try {
-    // Simple connectivity test
     const testCollection = collection(db, "emergency_contacts");
     const testQuery = query(testCollection, where("isActive", "==", true));
     await getDocs(testQuery);
     return true;
   } catch (error) {
-    console.warn("Network connectivity check failed:", error);
     return false;
   }
 };
@@ -187,15 +204,13 @@ const checkNetworkConnectivity = async (): Promise<boolean> => {
 // Safer Firestore connectivity check
 export const checkFirestoreConnectivity = async (): Promise<boolean> => {
   try {
-    // Don't use enableNetwork as it can cause state issues
     const testQuery = query(
-      collection(db, "emergency_contacts"), 
+      collection(db, "emergency_contacts"),
       where("isActive", "==", true)
     );
     await getDocs(testQuery);
     return true;
   } catch (error) {
-    console.warn("Firestore connectivity check failed:", error);
     return false;
   }
 };
@@ -204,18 +219,16 @@ export const checkFirestoreConnectivity = async (): Promise<boolean> => {
 export const enableFirestoreNetwork = async (): Promise<void> => {
   try {
     await enableNetwork(db);
-    console.log("Firestore network enabled");
   } catch (error) {
-    console.error("Failed to enable Firestore network:", error);
+    console.error('Error enabling network:', error);
   }
 };
 
 export const disableFirestoreNetwork = async (): Promise<void> => {
   try {
     await disableNetwork(db);
-    console.log("Firestore network disabled");
   } catch (error) {
-    console.error("Failed to disable Firestore network:", error);
+    console.error('Error disabling network:', error);
   }
 };
 
@@ -232,5 +245,4 @@ export const formatEmergencyContactForDisplay = (contact: EmergencyContact) => {
   };
 };
 
-export { app, auth, db, functions, serverTimestamp, storage }; // ADD functions TO EXPORTS
-
+export { app, auth, db, functions, storage };

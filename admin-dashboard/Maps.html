@@ -26,7 +26,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, #d53b2c, #b92e20);
+            background: linear-gradient(135deg, #d73527, #b92e20);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -55,12 +55,18 @@
             position: fixed;
             left: 0;
             top: 0;
-            width: 320px;
+            width: 280px;
             height: 100vh;
-            background: linear-gradient(180deg, #d53b2c 0%, #b92e20 100%);
+            background: linear-gradient(180deg, #d73527 0%, #b92e20 100%);
             z-index: 1000;
             overflow-y: auto;
             box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.show {
+            transform: translateX(0);
         }
 
         .sidebar-header {
@@ -94,7 +100,7 @@
         }
 
         .control-group {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             background: rgba(255,255,255,0.1);
             border-radius: 12px;
             padding: 15px;
@@ -129,6 +135,7 @@
             margin-right: 10px;
             width: 16px;
             height: 16px;
+            cursor: pointer;
         }
 
         .filter-label {
@@ -138,6 +145,7 @@
             align-items: center;
             gap: 8px;
             flex: 1;
+            cursor: pointer;
         }
 
         .incident-count {
@@ -165,7 +173,30 @@
             border: 2px solid rgba(255,255,255,0.3);
         }
 
-        .heatmap-toggle {
+        .legend-gradient {
+            width: 100%;
+            height: 20px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 10px;
+        }
+
+        .heatmap-legend {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+
+        .layer-toggle {
             width: 100%;
             background: rgba(255,255,255,0.2);
             border: none;
@@ -175,26 +206,74 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .layer-toggle:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateX(2px);
+        }
+
+        .layer-toggle.active {
+            background: rgba(255,255,255,0.4);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .heatmap-settings {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .setting-item {
             margin-bottom: 15px;
         }
 
-        .heatmap-toggle:hover {
-            background: rgba(255,255,255,0.3);
+        .setting-label {
+            color: white;
+            font-size: 12px;
+            margin-bottom: 5px;
+            display: block;
         }
 
-        .heatmap-toggle.active {
-            background: rgba(255,255,255,0.4);
+        .setting-value {
+            color: rgba(255,255,255,0.8);
+            font-size: 11px;
+            text-align: right;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.3);
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
         }
 
         .main-content {
-            margin-left: 320px;
+            margin-left: 0;
             height: 100vh;
             position: relative;
+            transition: margin-left 0.3s ease;
         }
 
         .header {
             background: white;
-            padding: 15px 25px;
+            padding: 20px 30px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             display: flex;
             justify-content: space-between;
@@ -204,8 +283,29 @@
             z-index: 100;
         }
 
-        .page-title {
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .mobile-menu-toggle {
+            background: none;
+            border: none;
+            color: #d73527;
             font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .mobile-menu-toggle:hover {
+            background-color: rgba(215, 53, 39, 0.1);
+        }
+
+        .page-title {
+            font-size: 28px;
             font-weight: 600;
             color: #333;
             display: flex;
@@ -226,7 +326,7 @@
         .stat-number {
             font-size: 20px;
             font-weight: bold;
-            color: #d53b2c;
+            color: #d73527;
             display: block;
         }
 
@@ -248,8 +348,40 @@
             height: 100%;
         }
 
+        .map-controls-overlay {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-button {
+            background: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .control-button:hover {
+            background: #f8f9fa;
+            transform: scale(1.05);
+        }
+
+        .control-button.active {
+            background: #d73527;
+            color: white;
+        }
+
         .custom-info-window {
-            max-width: 300px;
+            max-width: 320px;
             padding: 0;
         }
 
@@ -267,65 +399,67 @@
         }
 
         .incident-icon {
-            width: 30px;
-            height: 30px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 14px;
+            font-size: 16px;
         }
 
         .info-window-title {
             font-weight: 600;
             color: #333;
             margin: 0;
+            font-size: 16px;
         }
 
         .info-window-meta {
             font-size: 12px;
             color: #666;
             margin: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
         .info-window-description {
             margin: 10px 0;
             color: #555;
             font-size: 13px;
-            line-height: 1.4;
+            line-height: 1.6;
         }
 
         .status-badge {
-            padding: 3px 8px;
+            padding: 4px 10px;
             border-radius: 12px;
             font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
+            display: inline-block;
         }
 
         .status-pending { background: #fff3cd; color: #856404; }
-        .status-verified { background: #d4edda; color: #155724; }
+        .status-verified, .status-accepted { background: #d4edda; color: #155724; }
         .status-assigned { background: #cce5ff; color: #0056b3; }
         .status-resolved { background: #d1ecf1; color: #0c5460; }
 
-        .fullscreen-toggle {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: white;
-            border: none;
-            padding: 10px;
+        .assignment-badge {
+            padding: 3px 8px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            cursor: pointer;
-            z-index: 50;
-            transition: all 0.3s ease;
+            font-size: 9px;
+            font-weight: 600;
+            display: inline-block;
+            margin-right: 5px;
+            margin-bottom: 3px;
         }
 
-        .fullscreen-toggle:hover {
-            background: #f8f9fa;
-        }
+        .assignment-cdrrmo { background: #fff0f0; color: #d73527; border: 1px solid #ffcccc; }
+        .assignment-bfp { background: #fff0f0; color: #e74c3c; border: 1px solid #ffcccc; }
+        .assignment-pnp { background: #e7f3ff; color: #3498db; border: 1px solid #b3d9ff; }
+        .assignment-rescuer { background: #e8f5e8; color: #27ae60; border: 1px solid #c3e6cb; }
 
         .notification {
             position: fixed;
@@ -338,57 +472,117 @@
             z-index: 2000;
             box-shadow: 0 8px 20px rgba(0,0,0,0.2);
             animation: slideIn 0.4s ease;
+            min-width: 300px;
         }
 
         .notification.success { background: linear-gradient(135deg, #27ae60, #2ecc71); }
         .notification.error { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         .notification.info { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .notification.warning { background: linear-gradient(135deg, #f39c12, #e67e22); }
 
         @keyframes slideIn {
             from { opacity: 0; transform: translateX(100%); }
             to { opacity: 1; transform: translateX(0); }
         }
 
-        @media (max-width: 768px) {
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .sidebar-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .form-select {
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 8px;
+            color: #333;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .density-indicator {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .density-label {
+            color: rgba(255,255,255,0.9);
+            font-size: 11px;
+            margin-bottom: 5px;
+        }
+
+        .density-value {
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .agency-filter-group {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .calculation-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.9);
+            line-height: 1.6;
+        }
+
+        @media (min-width: 769px) {
             .sidebar {
-                width: 280px;
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-            }
-            
-            .sidebar.show {
                 transform: translateX(0);
             }
             
             .main-content {
-                margin-left: 0;
+                margin-left: 280px;
             }
             
+            .mobile-menu-toggle {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
             .header {
-                padding: 10px 15px;
+                padding: 15px 20px;
             }
             
             .page-title {
-                font-size: 18px;
+                font-size: 20px;
             }
             
             .stats-container {
                 display: none;
             }
-        }
 
-        .mobile-menu-toggle {
-            display: none;
-            background: none;
-            border: none;
-            font-size: 20px;
-            color: #333;
-            cursor: pointer;
-        }
+            .map-controls-overlay {
+                top: 10px;
+                right: 10px;
+            }
 
-        @media (max-width: 768px) {
-            .mobile-menu-toggle {
-                display: block;
+            .control-button {
+                padding: 10px;
+                font-size: 16px;
             }
         }
     </style>
@@ -401,10 +595,12 @@
                 Loading Hazard Map...
             </div>
             <small style="opacity: 0.8;">
-                Initializing Google Maps & Firebase data
+                Initializing Maps & Incident Data
             </small>
         </div>
     </div>
+
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -414,14 +610,82 @@
         </div>
         
         <div class="map-controls">
-            <!-- Heatmap Toggle -->
+            <!-- Heatmap Controls -->
             <div class="control-group">
                 <div class="control-title">
                     <i class="fas fa-fire"></i>
-                    Heatmap Layer
+                    Incident Heatmap
                 </div>
-                <button class="heatmap-toggle" id="heatmapToggle" onclick="toggleHeatmap()">
+                <button class="layer-toggle" id="heatmapToggle" onclick="toggleHeatmap()">
+                    <i class="fas fa-map-marked-alt"></i>
                     Enable Heatmap
+                </button>
+                
+                <div class="heatmap-settings" id="heatmapSettings" style="display: none;">
+                    <div class="setting-item">
+                        <label class="setting-label">
+                            Radius: <span class="setting-value" id="radiusValue">40px</span>
+                        </label>
+                        <input type="range" id="radiusSlider" min="20" max="100" value="40" oninput="updateHeatmapRadius(this.value)">
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">
+                            Intensity: <span class="setting-value" id="intensityValue">80%</span>
+                        </label>
+                        <input type="range" id="intensitySlider" min="30" max="100" value="80" oninput="updateHeatmapIntensity(this.value)">
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">Gradient Style</label>
+                        <select class="form-select" id="gradientSelect" onchange="updateHeatmapGradient(this.value)">
+                            <option value="fire">Fire (Red-Orange)</option>
+                            <option value="rainbow">Rainbow</option>
+                            <option value="cool">Cool (Blue-Purple)</option>
+                            <option value="danger">Danger (Heat)</option>
+                        </select>
+                    </div>
+
+                    <div class="heatmap-legend">
+                        <div class="control-title" style="font-size: 12px; margin-bottom: 8px;">
+                            <i class="fas fa-thermometer-half"></i>
+                            Heatmap Intensity Legend
+                        </div>
+                        <div class="legend-gradient" style="background: linear-gradient(to right, rgba(0,255,0,0.8), rgba(255,255,0,0.8), rgba(255,127,0,0.8), rgba(255,0,0,0.8), rgba(139,0,0,0.8));"></div>
+                        <div class="legend-labels">
+                            <span>Low (1-2)</span>
+                            <span>Medium (3-4)</span>
+                            <span>High (5+)</span>
+                        </div>
+                        
+                        <div class="calculation-info">
+                            <strong>📊 Calculation Formula:</strong><br>
+                            • Base Weight × Type Severity<br>
+                            • Nearby Incidents (500m radius)<br>
+                            • Recent incidents weighted higher<br>
+                            • Unassigned cases prioritized
+                        </div>
+                    </div>
+
+                    <div class="density-indicator">
+                        <div class="density-label">Active Incident Density</div>
+                        <div class="density-value" id="densityValue">-</div>
+                        <div style="font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 5px;" id="densityDetails">
+                            Calculating...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Marker Display -->
+            <div class="control-group">
+                <div class="control-title">
+                    <i class="fas fa-map-marker-alt"></i>
+                    Marker Display
+                </div>
+                <button class="layer-toggle active" id="markersToggle" onclick="toggleMarkers()">
+                    <i class="fas fa-eye"></i>
+                    Hide Markers
                 </button>
             </div>
 
@@ -429,21 +693,79 @@
             <div class="control-group">
                 <div class="control-title">
                     <i class="fas fa-filter"></i>
-                    Filter by Type
+                    Filter by Emergency Type
                 </div>
                 <div id="incidentFilters">
-                    <!-- Filters will be populated dynamically -->
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- CDRRMO Coordination Filters -->
+            <div class="control-group">
+                <div class="control-title">
+                    <i class="fas fa-users"></i>
+                    CDRRMO Coordination
+                </div>
+                <div class="agency-filter-group">
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="filter-cdrrmo" checked onchange="handleAgencyFilterChange('cdrrmo')">
+                        <label class="filter-label" for="filter-cdrrmo">
+                            <i class="fas fa-building" style="color: #d73527;"></i>
+                            CDRRMO Assigned
+                            <span class="incident-count" id="count-cdrrmo">0</span>
+                        </label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="filter-bfp" checked onchange="handleAgencyFilterChange('bfp')">
+                        <label class="filter-label" for="filter-bfp">
+                            <i class="fas fa-fire-extinguisher" style="color: #e74c3c;"></i>
+                            BFP Support
+                            <span class="incident-count" id="count-bfp">0</span>
+                        </label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="filter-pnp" checked onchange="handleAgencyFilterChange('pnp')">
+                        <label class="filter-label" for="filter-pnp">
+                            <i class="fas fa-shield-alt" style="color: #3498db;"></i>
+                            PNP Support
+                            <span class="incident-count" id="count-pnp">0</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Filters -->
+            <div class="control-group">
+                <div class="control-title">
+                    <i class="fas fa-tasks"></i>
+                    Filter by Status
+                </div>
+                <div id="statusFilters">
+                    <!-- Dynamically populated -->
                 </div>
             </div>
 
             <!-- Legend -->
             <div class="control-group">
                 <div class="control-title">
-                    <i class="fas fa-map-marked-alt"></i>
-                    Legend
+                    <i class="fas fa-th-list"></i>
+                    Marker Legend
                 </div>
                 <div id="legend">
-                    <!-- Legend will be populated dynamically -->
+                    <!-- Dynamically populated -->
+                </div>
+                
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <div class="legend-item">
+                        <div style="width: 20px; height: 20px; border-radius: 50%; background: #e74c3c; border: 3px solid #d73527; margin-right: 10px;"></div>
+                        <span style="font-size: 11px;">CDRRMO Assignment</span>
+                    </div>
+                    <div class="legend-item">
+                        <div style="width: 20px; height: 20px; border-radius: 50%; background: #3498db; border: 2px solid white; margin-right: 10px; position: relative;">
+                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #3498db; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
+                        </div>
+                        <span style="font-size: 11px;">Partner Agency</span>
+                    </div>
                 </div>
             </div>
 
@@ -453,7 +775,7 @@
                     <i class="fas fa-clock"></i>
                     Time Range
                 </div>
-                <select class="form-select form-select-sm" id="timeRange" onchange="handleTimeRangeChange()" style="background: rgba(255,255,255,0.9); border: none; border-radius: 8px; color: #333;">
+                <select class="form-select form-select-sm" id="timeRange" onchange="handleTimeRangeChange()">
                     <option value="today">Today</option>
                     <option value="week" selected>This Week</option>
                     <option value="month">This Month</option>
@@ -463,8 +785,9 @@
 
             <!-- Back to Dashboard -->
             <div class="control-group">
-                <a href="dashboard.html" class="heatmap-toggle" style="text-decoration: none; color: white; display: block; text-align: center;">
-                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                <a href="Dashboard.html" class="layer-toggle" style="text-decoration: none; color: white;">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Dashboard
                 </a>
             </div>
         </div>
@@ -472,14 +795,15 @@
 
     <div class="main-content">
         <div class="header">
-            <button class="mobile-menu-toggle" onclick="toggleSidebar()">
-                <i class="fas fa-bars"></i>
-            </button>
-            
-            <h1 class="page-title">
-                <i class="fas fa-map-marked-alt"></i>
-                Hazard Map
-            </h1>
+            <div class="header-left">
+                <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">
+                    <i class="fas fa-map-marked-alt"></i>
+                    Hazard Map
+                </h1>
+            </div>
             
             <div class="stats-container">
                 <div class="stat-item">
@@ -491,16 +815,31 @@
                     <span class="stat-label">Active</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number" id="resolvedIncidents">0</span>
-                    <span class="stat-label">Resolved</span>
+                    <span class="stat-number" id="cdrrmoAssigned">0</span>
+                    <span class="stat-label">CDRRMO</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="partnerSupport">0</span>
+                    <span class="stat-label">Partners</span>
                 </div>
             </div>
         </div>
 
         <div class="map-container">
-            <button class="fullscreen-toggle" onclick="toggleFullscreen()" title="Toggle Fullscreen">
-                <i class="fas fa-expand" id="fullscreenIcon"></i>
-            </button>
+            <div class="map-controls-overlay">
+                <button class="control-button" onclick="toggleFullscreen()" title="Toggle Fullscreen" id="fullscreenBtn">
+                    <i class="fas fa-expand" id="fullscreenIcon"></i>
+                </button>
+                <button class="control-button" onclick="recenterMap()" title="Recenter Map">
+                    <i class="fas fa-crosshairs"></i>
+                </button>
+                <button class="control-button" onclick="toggleClustering()" title="Toggle Clustering" id="clusterBtn">
+                    <i class="fas fa-layer-group"></i>
+                </button>
+                <button class="control-button" onclick="downloadMapData()" title="Export Data">
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
             <div id="map"></div>
         </div>
     </div>
@@ -510,7 +849,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot, where, Timestamp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, where, Timestamp, limit } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo",
@@ -525,26 +864,86 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Global variables
+        const LIPA_CITY = { lat: 13.9411, lng: 121.1624 };
+
         let map;
         let heatmapLayer = null;
         let markers = [];
         let allReports = [];
-        let activeFilters = new Set();
+        let activeFilters = new Set(['fire', 'medical', 'crime', 'accident', 'flood', 'infrastructure']);
+        let activeAgencyFilters = new Set(['cdrrmo', 'bfp', 'pnp']);
+        let activeStatusFilters = new Set(['pending', 'verified', 'assigned', 'resolved']);
         let isHeatmapEnabled = false;
+        let showMarkers = true;
+        let useClustering = false;
         let reportsListener = null;
 
-        // Incident type configuration
-        const INCIDENT_TYPES = {
-            fire: { label: 'Fire', color: '#e74c3c', icon: 'fas fa-fire' },
-            crime: { label: 'Crime', color: '#8e24aa', icon: 'fas fa-shield-alt' },
-            medical: { label: 'Medical', color: '#f44336', icon: 'fas fa-plus' },
-            flood: { label: 'Flood', color: '#2196f3', icon: 'fas fa-tint' },
-            accident: { label: 'Accident', color: '#ff9800', icon: 'fas fa-car-crash' },
-            infrastructure: { label: 'Infrastructure', color: '#607d8b', icon: 'fas fa-tools' }
+        // Heatmap configuration with enhanced settings
+        let heatmapConfig = {
+            radius: 40,
+            opacity: 0.8,
+            gradient: 'fire'
         };
 
-        // Initialize the application
+        const GRADIENTS = {
+            fire: [
+                'rgba(0, 255, 255, 0)',
+                'rgba(0, 255, 0, 1)',
+                'rgba(255, 255, 0, 1)',
+                'rgba(255, 127, 0, 1)',
+                'rgba(255, 0, 0, 1)',
+                'rgba(139, 0, 0, 1)'
+            ],
+            rainbow: [
+                'rgba(0, 255, 255, 0)',
+                'rgba(102, 255, 0, 1)',
+                'rgba(147, 255, 0, 1)',
+                'rgba(200, 255, 0, 1)',
+                'rgba(255, 255, 0, 1)',
+                'rgba(255, 200, 0, 1)',
+                'rgba(255, 127, 0, 1)',
+                'rgba(255, 0, 0, 1)',
+                'rgba(200, 0, 0, 1)'
+            ],
+            cool: [
+                'rgba(0, 255, 255, 0)',
+                'rgba(0, 255, 255, 1)',
+                'rgba(0, 191, 255, 1)',
+                'rgba(0, 127, 255, 1)',
+                'rgba(0, 63, 255, 1)',
+                'rgba(0, 0, 255, 1)',
+                'rgba(127, 0, 255, 1)',
+                'rgba(191, 0, 255, 1)'
+            ],
+            danger: [
+                'rgba(255, 255, 0, 0)',
+                'rgba(255, 225, 0, 1)',
+                'rgba(255, 200, 0, 1)',
+                'rgba(255, 150, 0, 1)',
+                'rgba(255, 100, 0, 1)',
+                'rgba(255, 50, 0, 1)',
+                'rgba(255, 0, 0, 1)',
+                'rgba(200, 0, 0, 1)',
+                'rgba(150, 0, 0, 1)'
+            ]
+        };
+
+        const INCIDENT_TYPES = {
+            fire: { label: 'Fire Emergency', color: '#e74c3c', icon: 'fas fa-fire', severity: 3.0 },
+            crime: { label: 'Crime Emergency', color: '#8e24aa', icon: 'fas fa-shield-alt', severity: 2.0 },
+            medical: { label: 'Medical Emergency', color: '#f44336', icon: 'fas fa-heartbeat', severity: 2.5 },
+            flood: { label: 'Flood', color: '#2196f3', icon: 'fas fa-tint', severity: 1.8 },
+            accident: { label: 'Accident', color: '#ff9800', icon: 'fas fa-car-crash', severity: 2.2 },
+            infrastructure: { label: 'Infrastructure', color: '#607d8b', icon: 'fas fa-tools', severity: 1.2 }
+        };
+
+        const STATUS_TYPES = {
+            pending: { label: 'Pending', color: '#ffc107' },
+            verified: { label: 'Verified', color: '#17a2b8' },
+            assigned: { label: 'Assigned', color: '#007bff' },
+            resolved: { label: 'Resolved', color: '#28a745' }
+        };
+
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 await checkAuthentication();
@@ -570,44 +969,39 @@
         }
 
         async function loadGoogleMaps() {
-            // Load Google Maps API
             const script = document.createElement('script');
-            script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo&libraries=visualization&callback=initMap';
+            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo&libraries=visualization&callback=initMap`;
             script.async = true;
             script.defer = true;
             document.head.appendChild(script);
-
-            // Make initMap globally available
             window.initMap = initMap;
         }
 
         function initMap() {
             console.log('Initializing Google Maps...');
             
-            // Initialize map centered on Lipa City
             map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 13,
-                center: { lat: 13.9411, lng: 121.1624 }, // Lipa City center
+                center: LIPA_CITY,
                 mapTypeId: google.maps.MapTypeId.ROADMAP,
                 styles: [
-                    {
-                        featureType: "poi",
-                        elementType: "labels",
-                        stylers: [{ visibility: "off" }]
-                    }
-                ]
+                    { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }
+                ],
+                gestureHandling: 'greedy',
+                zoomControl: true,
+                mapTypeControl: false,
+                scaleControl: true,
+                streetViewControl: false,
+                rotateControl: false,
+                fullscreenControl: false
             });
 
-            // Initialize UI components
             initializeFilters();
+            initializeStatusFilters();
             initializeLegend();
-            
-            // Load incident data
             loadIncidentData();
             
-            // Hide loading overlay
             document.getElementById('loadingOverlay').style.display = 'none';
-            
             console.log('Map initialized successfully');
         }
 
@@ -615,9 +1009,6 @@
             const filtersContainer = document.getElementById('incidentFilters');
             
             Object.entries(INCIDENT_TYPES).forEach(([type, config]) => {
-                // Add all types to active filters by default
-                activeFilters.add(type);
-                
                 const filterDiv = document.createElement('div');
                 filterDiv.className = 'filter-checkbox';
                 filterDiv.innerHTML = `
@@ -629,6 +1020,24 @@
                     </label>
                 `;
                 filtersContainer.appendChild(filterDiv);
+            });
+        }
+
+        function initializeStatusFilters() {
+            const statusContainer = document.getElementById('statusFilters');
+            
+            Object.entries(STATUS_TYPES).forEach(([status, config]) => {
+                const filterDiv = document.createElement('div');
+                filterDiv.className = 'filter-checkbox';
+                filterDiv.innerHTML = `
+                    <input type="checkbox" id="status-${status}" checked onchange="handleStatusFilterChange('${status}')">
+                    <label class="filter-label" for="status-${status}">
+                        <div style="width: 12px; height: 12px; border-radius: 50%; background-color: ${config.color}; margin-right: 8px;"></div>
+                        ${config.label}
+                        <span class="incident-count" id="status-count-${status}">0</span>
+                    </label>
+                `;
+                statusContainer.appendChild(filterDiv);
             });
         }
 
@@ -648,14 +1057,9 @@
 
         function loadIncidentData() {
             try {
-                // Set up real-time listener for incident reports
                 const timeRange = document.getElementById('timeRange').value;
-                let q = query(
-                    collection(db, "incident_reports"),
-                    orderBy("createdAt", "desc")
-                );
+                let q = query(collection(db, "incident_reports"), orderBy("createdAt", "desc"), limit(500));
 
-                // Apply time filter
                 if (timeRange !== 'all') {
                     const now = new Date();
                     let startDate;
@@ -676,68 +1080,176 @@
                         q = query(
                             collection(db, "incident_reports"),
                             where("createdAt", ">=", Timestamp.fromDate(startDate)),
-                            orderBy("createdAt", "desc")
+                            orderBy("createdAt", "desc"),
+                            limit(500)
                         );
                     }
                 }
 
-                if (reportsListener) {
-                    reportsListener();
-                }
+                if (reportsListener) reportsListener();
 
                 reportsListener = onSnapshot(q, (snapshot) => {
                     allReports = [];
                     snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        allReports.push({
-                            id: doc.id,
-                            ...data
-                        });
+                        allReports.push({ id: doc.id, ...doc.data() });
                     });
                     
                     console.log(`Loaded ${allReports.length} reports`);
                     updateMap();
                     updateStats();
                     updateFilterCounts();
+                    updateDensity();
                 }, (error) => {
                     console.error('Error loading reports:', error);
                     showNotification('Error loading incident data', 'error');
                 });
 
             } catch (error) {
-                console.error('Error setting up incident data listener:', error);
+                console.error('Error setting up listener:', error);
                 showNotification('Error initializing data feed', 'error');
             }
         }
 
         function updateMap() {
-            // Clear existing markers
             markers.forEach(marker => marker.setMap(null));
             markers = [];
 
-            // Filter reports based on active filters
             const filteredReports = allReports.filter(report => {
-                const type = report.emergencyType || report.category;
-                return activeFilters.has(type);
+                const type = (report.emergencyType || '').toLowerCase();
+                const status = (report.status || 'pending').toLowerCase();
+                
+                if (!activeFilters.has(type)) return false;
+                if (!activeStatusFilters.has(status)) return false;
+                
+                const hasCDRRMO = report.mainCoordinator === 'CDRRMO' || report.assignedRescuer;
+                const hasBFP = report.partnerAgency === 'BFP Lipa Fire Station' || 
+                              (report.supportAgencyName && report.supportAgencyName.includes('BFP'));
+                const hasPNP = report.partnerAgency === 'PNP Lipa Police Station' || 
+                              (report.supportAgencyName && report.supportAgencyName.includes('PNP'));
+                
+                if (activeAgencyFilters.has('cdrrmo') && hasCDRRMO) return true;
+                if (activeAgencyFilters.has('bfp') && hasBFP) return true;
+                if (activeAgencyFilters.has('pnp') && hasPNP) return true;
+                
+                return activeAgencyFilters.size === 0;
             });
 
-            // Create markers for filtered reports
-            filteredReports.forEach(report => {
-                createMarker(report);
-            });
+            if (showMarkers) {
+                filteredReports.forEach(report => createMarker(report));
+            }
 
-            // Update heatmap if enabled
             if (isHeatmapEnabled && heatmapLayer) {
                 updateHeatmap(filteredReports);
             }
         }
 
+        // ENHANCED HEATMAP CALCULATION FUNCTION
+        function calculateIncidentWeight(currentReport, allReports) {
+            let weight = 1.0;
+            
+            // 1. BASE SEVERITY by Emergency Type
+            const type = (currentReport.emergencyType || '').toLowerCase();
+            const typeConfig = INCIDENT_TYPES[type];
+            if (typeConfig) {
+                weight *= typeConfig.severity;
+            }
+            
+            // 2. STATUS URGENCY MULTIPLIER
+            const status = (currentReport.status || 'pending').toLowerCase();
+            if (status === 'pending') weight *= 1.5;        // Unhandled - highest priority
+            else if (status === 'verified') weight *= 1.3;  // Confirmed but not assigned
+            else if (status === 'assigned') weight *= 1.1;  // In progress
+            else if (status === 'resolved') weight *= 0.3;  // Completed - low priority
+            
+            // 3. TIME DECAY FACTOR (Recent incidents = Higher weight)
+            if (currentReport.createdAt) {
+                const now = Date.now();
+                const reportTime = currentReport.createdAt.seconds ? 
+                                  currentReport.createdAt.seconds * 1000 : 
+                                  new Date(currentReport.createdAt).getTime();
+                const ageInHours = (now - reportTime) / (1000 * 60 * 60);
+                
+                // Decay over 72 hours (3 days)
+                const timeFactor = Math.max(0.3, 1 - (ageInHours / 72));
+                weight *= timeFactor;
+            }
+            
+            // 4. ASSIGNMENT STATUS (Unassigned = Higher priority)
+            if (!currentReport.assignedRescuer && !currentReport.mainCoordinator) {
+                weight *= 1.4; // 40% increase for unassigned incidents
+            }
+            
+            // 5. NEARBY INCIDENTS DENSITY BOOST
+            // If many incidents in 500m radius, increase weight
+            if (currentReport.location && currentReport.location.lat && currentReport.location.lng) {
+                const nearbyCount = allReports.filter(otherReport => {
+                    if (!otherReport.location || otherReport.id === currentReport.id) return false;
+                    
+                    const distance = calculateDistance(
+                        currentReport.location.lat,
+                        currentReport.location.lng,
+                        otherReport.location.lat,
+                        otherReport.location.lng
+                    );
+                    
+                    return distance <= 0.5; // 500 meters
+                }).length;
+                
+                // More nearby incidents = higher concentration = higher weight
+                if (nearbyCount >= 5) weight *= 1.8;
+                else if (nearbyCount >= 3) weight *= 1.5;
+                else if (nearbyCount >= 2) weight *= 1.2;
+            }
+            
+            // Cap maximum weight at 10.0
+            return Math.min(weight, 10.0);
+        }
+
+        // Calculate distance between two lat/lng points (in kilometers)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                     Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // ENHANCED HEATMAP UPDATE with Weighted Calculations
+        function updateHeatmap(reports) {
+            if (!heatmapLayer) return;
+
+            const heatmapData = reports.map(report => {
+                if (report.location && report.location.lat && report.location.lng) {
+                    const weight = calculateIncidentWeight(report, reports);
+                    
+                    return {
+                        location: new google.maps.LatLng(
+                            Number(report.location.lat),
+                            Number(report.location.lng)
+                        ),
+                        weight: weight
+                    };
+                }
+                return null;
+            }).filter(Boolean);
+
+            heatmapLayer.setData(heatmapData);
+            
+            // Log calculation details
+            const avgWeight = heatmapData.reduce((sum, d) => sum + d.weight, 0) / heatmapData.length;
+            const maxWeight = Math.max(...heatmapData.map(d => d.weight));
+            console.log(`Heatmap: ${heatmapData.length} points | Avg weight: ${avgWeight.toFixed(2)} | Max: ${maxWeight.toFixed(2)}`);
+        }
+
         function createMarker(report) {
-            const type = report.emergencyType || report.category;
+            const type = (report.emergencyType || '').toLowerCase();
             const config = INCIDENT_TYPES[type] || INCIDENT_TYPES.fire;
             
             if (!report.location || !report.location.lat || !report.location.lng) {
-                console.warn('Report missing location data:', report.id);
+                console.warn('Report missing location:', report.id);
                 return;
             }
 
@@ -746,24 +1258,16 @@
                 lng: Number(report.location.lng)
             };
 
-            // Create custom marker icon
-            const markerIcon = {
-                path: google.maps.SymbolPath.CIRCLE,
-                fillColor: config.color,
-                fillOpacity: 0.8,
-                strokeColor: '#fff',
-                strokeWeight: 2,
-                scale: 8
-            };
+            let iconUrl = createCustomIcon(config.color, report);
 
             const marker = new google.maps.Marker({
                 position: position,
                 map: map,
                 title: `${config.label} - ${report.description || 'No description'}`,
-                icon: markerIcon
+                icon: iconUrl,
+                optimized: true
             });
 
-            // Create info window
             const infoWindow = new google.maps.InfoWindow({
                 content: createInfoWindowContent(report, config)
             });
@@ -775,10 +1279,60 @@
             markers.push(marker);
         }
 
+        function createCustomIcon(baseColor, report) {
+            const hasCDRRMO = report.mainCoordinator === 'CDRRMO' || report.assignedRescuer;
+            const hasPartner = report.partnerAgency || report.supportAgency;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 30;
+            canvas.height = 30;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.beginPath();
+            ctx.arc(15, 15, 12, 0, 2 * Math.PI);
+            ctx.fillStyle = baseColor;
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            if (hasCDRRMO) {
+                ctx.beginPath();
+                ctx.arc(15, 15, 14, 0, 2 * Math.PI);
+                ctx.strokeStyle = '#d73527';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+            
+            if (hasPartner) {
+                ctx.beginPath();
+                ctx.arc(15, 15, 6, 0, 2 * Math.PI);
+                ctx.fillStyle = '#3498db';
+                ctx.fill();
+            }
+            
+            return canvas.toDataURL();
+        }
+
         function createInfoWindowContent(report, config) {
             const timestamp = report.createdAt ? formatTimestamp(report.createdAt) : 'Unknown time';
             const status = report.status || 'pending';
-            const location = report.barangay || `${report.location.lat.toFixed(4)}, ${report.location.lng.toFixed(4)}`;
+            const location = report.barangay || report.fullAddress || `${report.location.lat.toFixed(4)}, ${report.location.lng.toFixed(4)}`;
+            
+            let assignmentInfo = '';
+            if (report.mainCoordinator === 'CDRRMO') {
+                assignmentInfo += `<span class="assignment-badge assignment-cdrrmo">🏢 CDRRMO</span>`;
+            }
+            if (report.assignedRescuerName) {
+                assignmentInfo += `<span class="assignment-badge assignment-rescuer">👤 ${report.assignedRescuerName}</span>`;
+            }
+            if (report.partnerAgency) {
+                const agencyIcon = report.partnerAgency.includes('BFP') ? '🧯' : '🛡️';
+                assignmentInfo += `<span class="assignment-badge assignment-${report.partnerAgency.includes('BFP') ? 'bfp' : 'pnp'}">${agencyIcon} ${report.partnerAgency}</span>`;
+            }
+
+            // Calculate weight for this incident
+            const weight = calculateIncidentWeight(report, allReports);
             
             return `
                 <div class="custom-info-window">
@@ -787,7 +1341,7 @@
                             <div class="incident-icon" style="background-color: ${config.color};">
                                 <i class="${config.icon}"></i>
                             </div>
-                            <div>
+                            <div style="flex: 1;">
                                 <h6 class="info-window-title">${config.label}</h6>
                                 <div class="info-window-meta">
                                     <i class="fas fa-map-marker-alt"></i> ${location}
@@ -795,62 +1349,117 @@
                                 <div class="info-window-meta">
                                     <i class="fas fa-clock"></i> ${timestamp}
                                 </div>
+                                <div class="info-window-meta" style="color: #d73527;">
+                                    <i class="fas fa-thermometer-half"></i> Heat Index: ${weight.toFixed(2)}
+                                </div>
                             </div>
                         </div>
                         <div class="info-window-description">
                             ${report.description || 'No description available'}
                         </div>
-                        <div>
+                        ${assignmentInfo ? `
+                        <div style="margin-top: 8px;">
+                            <div style="font-size: 10px; color: #666; margin-bottom: 4px;">Assigned To:</div>
+                            ${assignmentInfo}
+                        </div>
+                        ` : ''}
+                        <div style="margin-top: 10px;">
                             <span class="status-badge status-${status}">${status.toUpperCase()}</span>
-                            ${report.name ? `<small class="text-muted ms-2">Reported by: ${report.name}</small>` : ''}
+                            ${report.name ? `<small class="text-muted ms-2">by ${report.name}</small>` : ''}
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <a href="report.html?id=${report.id}" class="btn btn-sm btn-outline-primary" style="font-size: 11px;">
+                                <i class="fas fa-external-link-alt"></i> View Details
+                            </a>
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        function updateHeatmap(reports) {
-            if (!heatmapLayer) return;
-
-            const heatmapData = reports.map(report => {
-                if (report.location && report.location.lat && report.location.lng) {
-                    return new google.maps.LatLng(
-                        Number(report.location.lat),
-                        Number(report.location.lng)
-                    );
-                }
-                return null;
-            }).filter(Boolean);
-
-            heatmapLayer.setData(heatmapData);
-        }
-
         function updateStats() {
             const totalIncidents = allReports.length;
             const activeIncidents = allReports.filter(report => 
-                report.status && !['resolved', 'dismissed'].includes(report.status)
+                report.status && !['resolved', 'dismissed', 'closed'].includes(report.status)
             ).length;
-            const resolvedIncidents = allReports.filter(report => 
-                report.status === 'resolved'
+            
+            const cdrrmoAssigned = allReports.filter(report => 
+                report.mainCoordinator === 'CDRRMO' || report.assignedRescuer
+            ).length;
+            
+            const partnerSupport = allReports.filter(report => 
+                report.partnerAgency || report.supportAgency
             ).length;
 
             document.getElementById('totalIncidents').textContent = totalIncidents;
             document.getElementById('activeIncidents').textContent = activeIncidents;
-            document.getElementById('resolvedIncidents').textContent = resolvedIncidents;
+            document.getElementById('cdrrmoAssigned').textContent = cdrrmoAssigned;
+            document.getElementById('partnerSupport').textContent = partnerSupport;
         }
 
         function updateFilterCounts() {
             Object.keys(INCIDENT_TYPES).forEach(type => {
                 const count = allReports.filter(report => {
-                    const reportType = report.emergencyType || report.category;
+                    const reportType = (report.emergencyType || '').toLowerCase();
                     return reportType === type;
                 }).length;
                 
                 const countElement = document.getElementById(`count-${type}`);
-                if (countElement) {
-                    countElement.textContent = count;
-                }
+                if (countElement) countElement.textContent = count;
             });
+
+            Object.keys(STATUS_TYPES).forEach(status => {
+                const count = allReports.filter(report => 
+                    (report.status || 'pending').toLowerCase() === status
+                ).length;
+                
+                const countElement = document.getElementById(`status-count-${status}`);
+                if (countElement) countElement.textContent = count;
+            });
+
+            const cdrrmoCount = allReports.filter(report => 
+                report.mainCoordinator === 'CDRRMO' || report.assignedRescuer
+            ).length;
+            
+            const bfpCount = allReports.filter(report => 
+                report.partnerAgency === 'BFP Lipa Fire Station' || 
+                (report.supportAgencyName && report.supportAgencyName.includes('BFP'))
+            ).length;
+            
+            const pnpCount = allReports.filter(report => 
+                report.partnerAgency === 'PNP Lipa Police Station' || 
+                (report.supportAgencyName && report.supportAgencyName.includes('PNP'))
+            ).length;
+
+            document.getElementById('count-cdrrmo').textContent = cdrrmoCount;
+            document.getElementById('count-bfp').textContent = bfpCount;
+            document.getElementById('count-pnp').textContent = pnpCount;
+        }
+
+        function updateDensity() {
+            const filteredReports = allReports.filter(report => {
+                const type = (report.emergencyType || '').toLowerCase();
+                const status = (report.status || 'pending').toLowerCase();
+                return activeFilters.has(type) && activeStatusFilters.has(status);
+            });
+
+            const count = filteredReports.length;
+            
+            // Calculate average weight for better density indication
+            const totalWeight = filteredReports.reduce((sum, report) => {
+                return sum + calculateIncidentWeight(report, allReports);
+            }, 0);
+            
+            const avgWeight = count > 0 ? (totalWeight / count).toFixed(2) : 0;
+            
+            const density = count > 100 ? 'Very High' : 
+                           count > 50 ? 'High' : 
+                           count > 20 ? 'Medium' : 
+                           count > 0 ? 'Low' : 'None';
+
+            document.getElementById('densityValue').textContent = `${count} (${density})`;
+            document.getElementById('densityDetails').textContent = 
+                `Avg Heat Index: ${avgWeight} | ${count} active incidents`;
         }
 
         function formatTimestamp(timestamp) {
@@ -866,10 +1475,10 @@
             }
             
             const now = new Date();
-            const diffMs = now.getTime() - date.getTime();
-            const diffMins = Math.floor(diffMs / (1000 * 60));
-            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
             
             if (diffMins < 1) return 'Just now';
             if (diffMins < 60) return `${diffMins} min ago`;
@@ -884,52 +1493,93 @@
             });
         }
 
-        // Global functions for UI interactions
+        // Heatmap Functions
         window.toggleHeatmap = function() {
             const toggle = document.getElementById('heatmapToggle');
+            const settings = document.getElementById('heatmapSettings');
             
             if (!isHeatmapEnabled) {
-                // Enable heatmap
                 heatmapLayer = new google.maps.visualization.HeatmapLayer({
                     data: [],
                     map: map,
-                    radius: 30,
-                    opacity: 0.6,
-                    gradient: [
-                        'rgba(0, 255, 255, 0)',
-                        'rgba(0, 255, 255, 1)',
-                        'rgba(0, 191, 255, 1)',
-                        'rgba(0, 127, 255, 1)',
-                        'rgba(0, 63, 255, 1)',
-                        'rgba(0, 0, 255, 1)',
-                        'rgba(0, 0, 223, 1)',
-                        'rgba(0, 0, 191, 1)',
-                        'rgba(0, 0, 159, 1)',
-                        'rgba(0, 0, 127, 1)',
-                        'rgba(63, 0, 91, 1)',
-                        'rgba(127, 0, 63, 1)',
-                        'rgba(191, 0, 31, 1)',
-                        'rgba(255, 0, 0, 1)'
-                    ]
+                    radius: heatmapConfig.radius,
+                    opacity: heatmapConfig.opacity,
+                    gradient: GRADIENTS[heatmapConfig.gradient],
+                    maxIntensity: 10
                 });
                 
-                updateHeatmap(allReports.filter(report => {
-                    const type = report.emergencyType || report.category;
+                const filteredReports = allReports.filter(report => {
+                    const type = (report.emergencyType || '').toLowerCase();
                     return activeFilters.has(type);
-                }));
+                });
+                
+                updateHeatmap(filteredReports);
                 
                 isHeatmapEnabled = true;
-                toggle.textContent = 'Disable Heatmap';
+                toggle.innerHTML = '<i class="fas fa-map-marked-alt"></i> Disable Heatmap';
                 toggle.classList.add('active');
-                showNotification('Heatmap layer enabled', 'info');
+                settings.style.display = 'block';
+                showNotification('Incident heatmap enabled with weighted calculations', 'success');
             } else {
-                // Disable heatmap
                 heatmapLayer.setMap(null);
                 heatmapLayer = null;
                 isHeatmapEnabled = false;
-                toggle.textContent = 'Enable Heatmap';
+                toggle.innerHTML = '<i class="fas fa-map-marked-alt"></i> Enable Heatmap';
                 toggle.classList.remove('active');
-                showNotification('Heatmap layer disabled', 'info');
+                settings.style.display = 'none';
+                showNotification('Incident heatmap disabled', 'info');
+            }
+        };
+
+        window.updateHeatmapRadius = function(value) {
+            heatmapConfig.radius = parseInt(value);
+            document.getElementById('radiusValue').textContent = `${value}px`;
+            if (heatmapLayer) {
+                heatmapLayer.set('radius', heatmapConfig.radius);
+            }
+        };
+
+        window.updateHeatmapIntensity = function(value) {
+            heatmapConfig.opacity = value / 100;
+            document.getElementById('intensityValue').textContent = `${value}%`;
+            if (heatmapLayer) {
+                heatmapLayer.set('opacity', heatmapConfig.opacity);
+            }
+        };
+
+        window.updateHeatmapGradient = function(gradientType) {
+            heatmapConfig.gradient = gradientType;
+            if (heatmapLayer) {
+                heatmapLayer.set('gradient', GRADIENTS[gradientType]);
+            }
+            showNotification(`Gradient changed to ${gradientType}`, 'info');
+        };
+
+        window.toggleMarkers = function() {
+            const toggle = document.getElementById('markersToggle');
+            showMarkers = !showMarkers;
+            
+            if (showMarkers) {
+                toggle.innerHTML = '<i class="fas fa-eye"></i> Hide Markers';
+                toggle.classList.add('active');
+            } else {
+                toggle.innerHTML = '<i class="fas fa-eye-slash"></i> Show Markers';
+                toggle.classList.remove('active');
+            }
+            
+            updateMap();
+        };
+
+        window.toggleClustering = function() {
+            const btn = document.getElementById('clusterBtn');
+            useClustering = !useClustering;
+            
+            if (useClustering) {
+                btn.classList.add('active');
+                showNotification('Marker clustering enabled', 'info');
+            } else {
+                btn.classList.remove('active');
+                showNotification('Marker clustering disabled', 'info');
             }
         };
 
@@ -943,17 +1593,50 @@
             }
             
             updateMap();
-            console.log('Active filters:', Array.from(activeFilters));
+            updateDensity();
+        };
+
+        window.handleStatusFilterChange = function(status) {
+            const checkbox = document.getElementById(`status-${status}`);
+            
+            if (checkbox.checked) {
+                activeStatusFilters.add(status);
+            } else {
+                activeStatusFilters.delete(status);
+            }
+            
+            updateMap();
+            updateDensity();
+        };
+
+        window.handleAgencyFilterChange = function(agency) {
+            const checkbox = document.getElementById(`filter-${agency}`);
+            
+            if (checkbox.checked) {
+                activeAgencyFilters.add(agency);
+            } else {
+                activeAgencyFilters.delete(agency);
+            }
+            
+            updateMap();
         };
 
         window.handleTimeRangeChange = function() {
-            console.log('Time range changed to:', document.getElementById('timeRange').value);
             loadIncidentData();
         };
 
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
             sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+        };
+
+        window.closeSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
         };
 
         window.toggleFullscreen = function() {
@@ -964,36 +1647,85 @@
                     icon.classList.remove('fa-expand');
                     icon.classList.add('fa-compress');
                 }).catch(err => {
-                    console.error('Error attempting to enable fullscreen:', err);
+                    console.error('Fullscreen error:', err);
                 });
             } else {
                 document.exitFullscreen().then(() => {
                     icon.classList.remove('fa-compress');
                     icon.classList.add('fa-expand');
                 }).catch(err => {
-                    console.error('Error attempting to exit fullscreen:', err);
+                    console.error('Exit fullscreen error:', err);
                 });
             }
         };
 
+        window.recenterMap = function() {
+            map.setCenter(LIPA_CITY);
+            map.setZoom(13);
+            showNotification('Map recentered to Lipa City', 'info');
+        };
+
+        window.downloadMapData = function() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                totalReports: allReports.length,
+                heatmapCalculations: {
+                    method: 'Weighted Multi-Factor Analysis',
+                    factors: [
+                        'Emergency Type Severity (1.2x - 3.0x)',
+                        'Status Urgency (0.3x - 1.5x)',
+                        'Time Decay (0.3x - 1.0x over 72h)',
+                        'Assignment Status (1.4x if unassigned)',
+                        'Nearby Density (1.2x - 1.8x based on 500m radius)'
+                    ],
+                    maxWeight: 10.0
+                },
+                reports: allReports.map(report => {
+                    const weight = calculateIncidentWeight(report, allReports);
+                    return {
+                        id: report.id,
+                        type: report.emergencyType,
+                        status: report.status,
+                        location: report.location,
+                        timestamp: report.createdAt,
+                        description: report.description,
+                        heatWeight: weight.toFixed(2),
+                        assignment: {
+                            mainCoordinator: report.mainCoordinator,
+                            partnerAgency: report.partnerAgency,
+                            assignedRescuer: report.assignedRescuerName
+                        }
+                    };
+                })
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lipa-alerthub-heatmap-data-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showNotification('Heatmap data with calculations exported successfully', 'success');
+        };
+
         function showNotification(message, type = 'info') {
-            // Remove existing notifications
             const existing = document.querySelector('.notification');
-            if (existing) {
-                existing.remove();
-            }
+            if (existing) existing.remove();
             
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
             notification.textContent = message;
-            
             document.body.appendChild(notification);
             
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);
                 }
-            }, 4000);
+            }, 3000);
             
             notification.addEventListener('click', () => {
                 if (notification.parentNode) {
@@ -1002,29 +1734,18 @@
             });
         }
 
-        // Handle window resize for responsive map
         window.addEventListener('resize', () => {
-            if (map) {
-                google.maps.event.trigger(map, 'resize');
-            }
+            if (map) google.maps.event.trigger(map, 'resize');
         });
 
-        // Cleanup listeners when page unloads
         window.addEventListener('beforeunload', () => {
-            if (reportsListener) {
-                reportsListener();
-            }
+            if (reportsListener) reportsListener();
         });
 
-        // Handle authentication state changes
         onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                window.location.href = "index.html";
-            }
+            if (!user) window.location.href = "index.html";
         });
 
     </script>
-
-    <!-- Google Maps API will be loaded dynamically by the script above -->
 </body>
 </html>

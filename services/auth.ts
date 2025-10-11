@@ -1,4 +1,3 @@
-// services/auth.ts - Enhanced with Suspension & Ban Checking
 import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
@@ -11,9 +10,6 @@ import { collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "./firebase";
 
-/**
- * Register new mobile user with duplicate detection
- */
 export const register = async (
   email: string,
   password: string,
@@ -21,104 +17,142 @@ export const register = async (
   number: string,
   barangay: string
 ) => {
-  // Check for duplicate name in same barangay
-  const duplicateCheck = await checkDuplicateAccount(name, barangay);
-  
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  const user = userCredential.user;
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-  // Determine initial status based on duplicate check
-  const initialStatus = duplicateCheck ? "under_review" : "pending";
+    // Check for duplicate accounts BEFORE creating Firestore document
+    const duplicateCheck = await checkDuplicateAccountAuthenticated(name, barangay, user.uid);
+    const initialStatus = duplicateCheck ? "under_review" : "pending";
 
-  // Save user profile in Firestore with violation fields
-  await setDoc(doc(db, "users", user.uid), {
-    name,
-    email,
-    number,
-    barangay,
-    role: "resident",
-    status: initialStatus,
-    duplicateFlag: duplicateCheck,
-    // Violation tracking
-    warnings: 0,
-    strikes: 0,
-    lastViolationReason: null,
-    lastViolationDate: null,
-    suspensionUntil: null,
-    // Timestamps
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    deviceType: "mobile"
-  });
+    // Create user profile in Firestore
+    await setDoc(doc(db, "users", user.uid), {
+      uid: user.uid,
+      firebaseUID: user.uid,
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      phoneNumber: number.trim(),
+      number: number.trim(),
+      barangay: barangay.trim(),
+      role: "resident",
+      status: initialStatus,
+      duplicateFlag: duplicateCheck,
+      warnings: 0,
+      strikes: 0,
+      lastViolationReason: null,
+      lastViolationDate: null,
+      suspensionUntil: null,
+      termsAccepted: true,
+      termsAcceptedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deviceType: "mobile"
+    });
 
-  return { userCredential, isDuplicate: duplicateCheck };
+    return { userCredential, isDuplicate: duplicateCheck };
+  } catch (error) {
+    console.error("Registration error:", error);
+    
+    // Clean up auth user if Firestore fails
+    if (auth.currentUser?.uid) {
+      try {
+        await auth.currentUser.delete();
+      } catch (deleteError) {
+        console.error("Error deleting auth account:", deleteError);
+      }
+    }
+    
+    throw error;
+  }
 };
 
-/**
- * Check for duplicate accounts (same name + barangay)
- */
-export const checkDuplicateAccount = async (
+export const checkDuplicateAccountAuthenticated = async (
   name: string,
-  barangay: string
+  barangay: string,
+  currentUid: string
 ): Promise<boolean> => {
   try {
     const usersRef = collection(db, "users");
     const q = query(
       usersRef,
-      where("name", "==", name),
-      where("barangay", "==", barangay)
+      where("name", "==", name.trim()),
+      where("barangay", "==", barangay.trim())
     );
+    
     const snapshot = await getDocs(q);
-    return !snapshot.empty;
+    
+    // Check for duplicates excluding current user
+    const duplicates = snapshot.docs.filter(doc => 
+      doc.id !== currentUid && 
+      doc.data().status !== "declined" && // Exclude declined accounts
+      doc.data().status !== "banned"      // Exclude banned accounts
+    );
+    
+    return duplicates.length > 0;
   } catch (error) {
     console.error("Error checking duplicate:", error);
     return false;
   }
 };
 
-/**
- * Login with suspension/ban check
- */
 export const login = async (email: string, password: string) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
-    // Check user status immediately after login
     const userStatus = await getUserStatus(user.uid);
     
     if (!userStatus) {
-      throw new Error("Unable to retrieve account status");
+      await signOut(auth);
+      throw new Error("Account not found. Please register first.");
     }
 
-    // Check if banned
-    if (userStatus.status === "banned") {
-      await signOut(auth); // Log them out immediately
-      throw new Error("ACCOUNT_BANNED");
+    // Check if user is resident
+    if (userStatus.role !== 'resident') {
+      await signOut(auth);
+      throw new Error("This mobile app is for residents only. Staff accounts should use the web admin portal.");
     }
 
-    // Check if suspended
+    // Check suspension
     if (userStatus.suspensionUntil) {
       const suspensionDate = userStatus.suspensionUntil.toDate 
         ? userStatus.suspensionUntil.toDate() 
         : new Date(userStatus.suspensionUntil);
       
       if (suspensionDate > new Date()) {
-        await signOut(auth); // Log them out immediately
+        await signOut(auth);
         throw new Error("ACCOUNT_SUSPENDED");
       }
+    }
+
+    // Check ban status
+    if (userStatus.status === "banned") {
+      await signOut(auth);
+      throw new Error("ACCOUNT_BANNED");
     }
 
     return { userCredential, userStatus };
   } catch (error: any) {
     console.error("Login error:", error);
+    
+    // Re-throw the error with proper handling
+    if (error.message === "ACCOUNT_BANNED" || error.message === "ACCOUNT_SUSPENDED") {
+      throw error;
+    }
+    
+    // Handle Firebase auth errors
+    if (error.code === "auth/invalid-credential" || error.code === "auth/wrong-password") {
+      throw new Error("Invalid email or password");
+    } else if (error.code === "auth/user-not-found") {
+      throw new Error("No account found with this email");
+    } else if (error.code === "auth/too-many-requests") {
+      throw new Error("Too many attempts. Please try again later.");
+    }
+    
     throw error;
   }
 };
 
-/**
- * Get user status with violation data
- */
 export const getUserStatus = async (uid: string) => {
   try {
     const userDoc = await getDoc(doc(db, "users", uid));
@@ -128,10 +162,10 @@ export const getUserStatus = async (uid: string) => {
         status: userData.status || "pending",
         name: userData.name || null,
         email: userData.email || null,
+        phoneNumber: userData.phoneNumber || userData.number || null,
         role: userData.role || "resident",
         declineReason: userData.declineReason || null,
         duplicateFlag: userData.duplicateFlag || false,
-        // Violation data
         warnings: userData.warnings || 0,
         strikes: userData.strikes || 0,
         lastViolationReason: userData.lastViolationReason || null,
@@ -147,9 +181,6 @@ export const getUserStatus = async (uid: string) => {
   }
 };
 
-/**
- * Check if user can access app (not suspended or banned)
- */
 export const checkAccountAccess = async (uid: string): Promise<{
   canAccess: boolean;
   reason?: string;
@@ -164,7 +195,7 @@ export const checkAccountAccess = async (uid: string): Promise<{
       return { canAccess: false, reason: "Account not found" };
     }
 
-    // Check ban
+    // Check ban status
     if (status.status === "banned") {
       return {
         canAccess: false,
@@ -183,7 +214,7 @@ export const checkAccountAccess = async (uid: string): Promise<{
       if (suspensionDate > new Date()) {
         return {
           canAccess: false,
-          reason: status.lastViolationReason || "Account suspended",
+          reason: status.lastViolationReason || "Account temporarily suspended",
           suspensionUntil: suspensionDate,
           strikes: status.strikes,
           warnings: status.warnings
@@ -196,21 +227,31 @@ export const checkAccountAccess = async (uid: string): Promise<{
       return {
         canAccess: false,
         reason: status.duplicateFlag 
-          ? "Account under review due to duplicate name"
-          : "Account pending approval"
+          ? "Account under review due to duplicate name in barangay"
+          : "Account pending admin approval"
       };
     }
 
-    return { canAccess: true };
+    // Check declined status
+    if (status.status === "declined") {
+      return {
+        canAccess: false,
+        reason: status.declineReason || "Account registration declined"
+      };
+    }
+
+    // Active account
+    if (status.status === "active") {
+      return { canAccess: true };
+    }
+
+    return { canAccess: false, reason: "Account status unknown" };
   } catch (error) {
     console.error("Error checking account access:", error);
     return { canAccess: false, reason: "Unable to verify account status" };
   }
 };
 
-/**
- * Logout user
- */
 export const logout = async () => {
   try {
     await signOut(auth);
@@ -220,9 +261,6 @@ export const logout = async () => {
   }
 };
 
-/**
- * Reauthenticate user with current password
- */
 export const reauthenticateUser = async (currentPassword: string): Promise<void> => {
   const user = auth.currentUser;
   
@@ -251,13 +289,10 @@ export const reauthenticateUser = async (currentPassword: string): Promise<void>
     } else if (error.code === "auth/requires-recent-login") {
       throw new Error("For security reasons, please log out and log back in before changing your password");
     }
-    throw new Error(error.message || "Authentication failed. Please try again");
+    throw new Error("Authentication failed. Please try again");
   }
 };
 
-/**
- * Update password for authenticated users
- */
 export const updatePasswordSecure = async (newPassword: string): Promise<void> => {
   const user = auth.currentUser;
   
@@ -298,13 +333,10 @@ export const updatePasswordSecure = async (newPassword: string): Promise<void> =
     } else if (error.code === "auth/too-many-requests") {
       throw new Error("Too many requests. Please wait a moment before trying again");
     }
-    throw new Error(error.message || "Failed to update password. Please try again");
+    throw new Error("Failed to update password. Please try again");
   }
 };
 
-/**
- * Check if email exists using Cloud Function
- */
 export const checkEmailExists = async (email: string): Promise<boolean> => {
   try {
     const checkEmailFunction = httpsCallable(functions, 'checkEmailExists');
@@ -336,9 +368,6 @@ export const checkEmailExists = async (email: string): Promise<boolean> => {
   }
 };
 
-/**
- * Reset password using OTP flow
- */
 export const initiatePasswordReset = async (email: string) => {
   try {
     const emailExists = await checkEmailExists(email);
@@ -361,9 +390,6 @@ export const initiatePasswordReset = async (email: string) => {
   }
 };
 
-/**
- * Update password for logged-in users
- */
 export const updatePassword = async (newPassword: string) => {
   const user = auth.currentUser;
   if (user) {
@@ -385,22 +411,20 @@ export const updatePassword = async (newPassword: string) => {
   }
 };
 
-/**
- * Update password via reset flow
- */
 export const updatePasswordViaReset = async (sessionId: string, newPasswordValue: string) => {
   const { setNewPassword } = await import("./otp");
   return await setNewPassword(sessionId, newPasswordValue);
 };
 
-/**
- * Get user profile by UID
- */
-export const getUserProfile = async (uid: string) => {
+export const getUserProfile = async (uid: string): Promise<any> => {
   try {
     const userDoc = await getDoc(doc(db, "users", uid));
     if (userDoc.exists()) {
-      return userDoc.data();
+      const data = userDoc.data();
+      return {
+        ...data,
+        phoneNumber: data.phoneNumber || data.number || null
+      };
     }
     return null;
   } catch (error) {
@@ -409,9 +433,6 @@ export const getUserProfile = async (uid: string) => {
   }
 };
 
-/**
- * Role-based access check
- */
 export const hasRole = async (requiredRoles: string[]) => {
   const user = auth.currentUser;
   if (!user) return false;
@@ -422,9 +443,6 @@ export const hasRole = async (requiredRoles: string[]) => {
   return requiredRoles.includes(profile.role);
 };
 
-/**
- * Mobile-only authentication guard
- */
 export const requireMobileAuth = (): Promise<{ user: any, profile: any }> => {
   return new Promise(async (resolve, reject) => {
     const user = auth.currentUser;
@@ -461,9 +479,6 @@ export const requireMobileAuth = (): Promise<{ user: any, profile: any }> => {
   });
 };
 
-/**
- * Password strength validation
- */
 export const validatePasswordStrength = (password: string): { isValid: boolean; errors: string[]; score: number } => {
   const errors: string[] = [];
   let score = 0;
@@ -529,9 +544,6 @@ export const validatePasswordStrength = (password: string): { isValid: boolean; 
   };
 };
 
-/**
- * Get password strength label
- */
 export const getPasswordStrength = (password: string): { strength: number; label: string; color: string } => {
   if (!password) return { strength: 0, label: "", color: "#e9ecef" };
 
@@ -543,17 +555,11 @@ export const getPasswordStrength = (password: string): { strength: number; label
   return { strength: score, label: "Strong", color: "#28a745" };
 };
 
-/**
- * Validate email format
- */
 export const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
   return emailRegex.test(email) && email.length <= 254;
 };
 
-/**
- * Security check for password change
- */
 export const performSecurityCheck = async (): Promise<{ canChangePassword: boolean; reason?: string }> => {
   const user = auth.currentUser;
   
@@ -612,4 +618,4 @@ export const performSecurityCheck = async (): Promise<{ canChangePassword: boole
       canChangePassword: true
     };
   }
-}
+};

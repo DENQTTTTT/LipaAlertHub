@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -467,7 +468,7 @@
             <div class="sidebar-header">
                 <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
                 <div class="brand-title">LipaAlertHub</div>
-                <div class="brand-subtitle">Disaster Management System</div>
+                <div class="brand-subtitle">Report Management System</div>
             </div>
             
             <nav class="sidebar-nav">
@@ -557,6 +558,13 @@
                     <a href="Contacts.html" class="nav-link">
                         <i class="fas fa-phone"></i>
                         Contacts
+                    </a>
+                </div>
+                
+                   <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                    <a href="changepassword.html" class="nav-link">
+                        <i class="fas fa-key"></i>
+                        Change Password
                     </a>
                 </div>
             </nav>
@@ -922,7 +930,7 @@
                                     <th>Title</th>
                                     <th>Description</th>
                                     <th>Created By</th>
-                                    <th>Created At</th>
+                                    <th>Created Date</th>   
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -1014,24 +1022,13 @@
                 return;
             }
 
-           const tipData = {
-  category: document.getElementById('tipCategory').value,
-  title: document.getElementById('tipTitle').value.trim(),
-  description: document.getElementById('tipDescription').value.trim(),
-  isActive: true,                        // 🔥 Add this
-  order: Date.now(),                     // 🔥 Add simple order
-  updatedAt: new Date()
-};
+            const tipData = {
+                category: document.getElementById('tipCategory').value,
+                title: document.getElementById('tipTitle').value.trim(),
+                description: document.getElementById('tipDescription').value.trim(),
+                updatedAt: new Date()
+            };
 
-if (editId) {
-  await updateDoc(doc(db, "emergency_tips", editId), tipData);
-} else {
-  tipData.createdAt = new Date();
-  tipData.createdBy = currentUserInfo.user.uid;
-  tipData.createdByName = currentUserInfo.userData?.name || currentUserInfo.user.email;
-
-  await addDoc(collection(db, "emergency_tips"), tipData);
-}
             try {
                 if (editId) {
                     // Update existing tip

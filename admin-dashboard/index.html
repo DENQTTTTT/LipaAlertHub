@@ -14,11 +14,12 @@
 
 body, html {
   height: 100%;
+  overflow-x: hidden;
 }
 
 .container {
   display: flex;
-  height: 100vh;
+  min-height: 100vh;
 }
 
 .left-panel {
@@ -33,10 +34,11 @@ body, html {
   justify-content: center;
   padding: 40px;
   text-align: left;
+  min-height: 400px;
 }
 
 .welcome-text h1 {
-  font-size: 32px;
+  font-size: clamp(24px, 4vw, 32px);
   line-height: 1.4;
   font-weight: bold;
 }
@@ -47,7 +49,7 @@ body, html {
 
 .welcome-text p {
   margin-top: 20px;
-  font-size: 14px;
+  font-size: clamp(12px, 1.5vw, 14px);
   line-height: 1.6;
   font-weight: 500;
 }
@@ -58,22 +60,25 @@ body, html {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 20px;
 }
 
 .login-box {
-  width: 80%;
+  width: 100%;
   max-width: 350px;
   text-align: center;
 }
 
 .logo {
-  width: 170px;
+  width: clamp(120px, 40vw, 170px);
+  max-width: 100%;
+  height: auto;
   margin-bottom: 10px;
 }
 
 h2 {
   margin-bottom: 20px;
-  font-size: 24px;
+  font-size: clamp(20px, 3vw, 24px);
   color: #222;
 }
 
@@ -84,7 +89,7 @@ form {
 }
 
 label {
-  font-size: 12px;
+  font-size: clamp(11px, 1.2vw, 12px);
   font-weight: 600;
   text-align: left;
   margin: 10px 0 5px;
@@ -92,24 +97,31 @@ label {
 }
 
 input {
-  padding: 10px;
+  padding: 12px 15px;
   border: none;
   border-radius: 25px;
   background-color: #e6e6e6;
-  font-size: 14px;
+  font-size: clamp(13px, 1.5vw, 14px);
+  width: 100%;
+}
+
+input:focus {
+  outline: 2px solid #d53b2c;
+  outline-offset: 2px;
 }
 
 button {
   margin-top: 20px;
-  padding: 10px;
+  padding: 12px;
   background-color: #d53b2c;
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: clamp(14px, 1.8vw, 16px);
   font-weight: 600;
   transition: background 0.3s;
+  width: 100%;
 }
 
 button:hover {
@@ -124,7 +136,7 @@ button:disabled {
 .loading {
   display: none;
   margin-top: 10px;
-  font-size: 14px;
+  font-size: clamp(12px, 1.5vw, 14px);
   color: #666;
 }
 
@@ -135,7 +147,7 @@ button:disabled {
   border-radius: 8px;
   padding: 10px;
   margin-top: 15px;
-  font-size: 14px;
+  font-size: clamp(12px, 1.5vw, 14px);
   display: none;
 }
 
@@ -146,11 +158,158 @@ button:disabled {
   border-radius: 8px;
   padding: 10px;
   margin-top: 15px;
-  font-size: 14px;
+  font-size: clamp(12px, 1.5vw, 14px);
   display: none;
 }
 
+/* Tablet and below (landscape tablets, portrait tablets, large phones) */
+@media screen and (max-width: 1024px) {
+  .welcome-text p br {
+    display: none;
+  }
+  
+  .left-panel {
+    padding: 30px;
+  }
+}
 
+/* Tablets and large phones */
+@media screen and (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
+  
+  .left-panel {
+    min-height: 300px;
+    padding: 30px 20px;
+  }
+  
+  .welcome-text {
+    max-width: 100%;
+  }
+  
+  .right-panel {
+    min-height: 400px;
+    padding: 30px 20px;
+  }
+  
+  .login-box {
+    max-width: 400px;
+  }
+}
+
+/* Mobile phones */
+@media screen and (max-width: 480px) {
+  .left-panel {
+    min-height: 250px;
+    padding: 20px 15px;
+  }
+  
+  .welcome-text h1 {
+    font-size: 22px;
+  }
+  
+  .welcome-text p {
+    font-size: 13px;
+    margin-top: 15px;
+  }
+  
+  .right-panel {
+    padding: 20px 15px;
+  }
+  
+  .login-box {
+    width: 100%;
+    padding: 0 10px;
+  }
+  
+  .logo {
+    width: 140px;
+    margin-bottom: 15px;
+  }
+  
+  h2 {
+    font-size: 20px;
+    margin-bottom: 15px;
+  }
+  
+  input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  
+  button {
+    padding: 11px;
+    font-size: 15px;
+  }
+}
+
+/* Small mobile phones */
+@media screen and (max-width: 360px) {
+  .left-panel {
+    min-height: 200px;
+    padding: 15px 10px;
+  }
+  
+  .welcome-text h1 {
+    font-size: 20px;
+  }
+  
+  .welcome-text p {
+    font-size: 12px;
+  }
+  
+  .logo {
+    width: 120px;
+  }
+  
+  h2 {
+    font-size: 18px;
+  }
+}
+
+/* Landscape mode for mobile */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  .container {
+    flex-direction: row;
+  }
+  
+  .left-panel {
+    min-height: 100vh;
+    padding: 20px;
+  }
+  
+  .welcome-text h1 {
+    font-size: 20px;
+  }
+  
+  .welcome-text p {
+    font-size: 11px;
+    margin-top: 10px;
+  }
+  
+  .right-panel {
+    padding: 20px;
+  }
+  
+  .logo {
+    width: 100px;
+    margin-bottom: 5px;
+  }
+  
+  h2 {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+  
+  label {
+    margin: 5px 0 3px;
+  }
+  
+  button {
+    margin-top: 10px;
+  }
+}
   </style>
 </head>
 <body>
@@ -173,7 +332,7 @@ button:disabled {
         <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo" />
         <h2>Admin Login</h2>
         <form id="loginForm">
-          <label for="username">USERNAME</label>
+          <label for="username">EMAIL</label>
           <input type="text" id="username" name="username" placeholder="admin@email.com" required />
 
           <label for="password">PASSWORD</label>
@@ -227,7 +386,6 @@ button:disabled {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  // User roles and status constants
   const USER_ROLES = {
     ADMIN: 'admin',
     MONITOR: 'monitor', 
@@ -254,7 +412,6 @@ button:disabled {
     USER_ROLES.AGENCY
   ];
 
-  // Set login persistence
   try {
     await setPersistence(auth, browserLocalPersistence);
   } catch (error) {
@@ -291,9 +448,7 @@ button:disabled {
     loadingDiv.style.display = isLoading ? 'block' : 'none';
   }
 
-  // Enhanced user lookup function
   async function findUserData(email, firebaseUID) {
-    // Try Firebase UID first (most reliable)
     if (firebaseUID) {
       try {
         const userDoc = await getDoc(doc(db, "users", firebaseUID));
@@ -305,7 +460,6 @@ button:disabled {
       }
     }
     
-    // Search by email
     try {
       const emailQuery = query(collection(db, "users"), where("email", "==", email));
       const emailSnapshot = await getDocs(emailQuery);
@@ -318,7 +472,6 @@ button:disabled {
       console.error('Error searching by email:', error);
     }
     
-    // Check for invite accounts
     try {
       const inviteQuery = query(
         collection(db, "users"), 
@@ -338,7 +491,6 @@ button:disabled {
     return null;
   }
 
-  // Enhanced authentication flow
   async function performLogin(email, password) {
     try {
       let userCredential = null;
@@ -346,17 +498,14 @@ button:disabled {
       let userDocId = null;
       let isNewInviteLogin = false;
       
-      // Try Firebase Auth login first
       try {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
         
-        // Look up user data after successful auth
         const userLookup = await findUserData(email, userCredential.user.uid);
         if (userLookup) {
           userData = userLookup.data;
           userDocId = userLookup.docId;
           
-          // Link Firebase UID if missing
           if (!userData.firebaseUID || userData.firebaseUID !== userCredential.user.uid) {
             try {
               await updateDoc(doc(db, "users", userDocId), {
@@ -367,33 +516,27 @@ button:disabled {
               userData.firebaseUID = userCredential.user.uid;
             } catch (linkError) {
               console.warn('Could not link Firebase UID:', linkError);
-              // Continue login even if linking fails
             }
           }
         }
         
       } catch (authError) {
-        // Handle admin-created accounts or accounts with tempPassword
         if (authError.code === 'auth/invalid-credential' || authError.code === 'auth/user-not-found') {
           const userLookup = await findUserData(email, null);
           
-          // Check if user exists and has a tempPassword
           if (userLookup && userLookup.data && userLookup.data.tempPassword) {
             const existingUserData = userLookup.data;
             
-            // Verify temp password matches
             if (existingUserData.tempPassword === password) {
               console.log('✅ Found admin-created account with matching tempPassword');
               
-              // Create Firebase Auth account
               userCredential = await createUserWithEmailAndPassword(auth, email, password);
               
-              // Update the existing document - remove tempPassword, link Firebase UID
               await updateDoc(doc(db, "users", userLookup.docId), {
                 firebaseUID: userCredential.user.uid,
                 firstLoginAt: serverTimestamp(),
                 lastLoginAt: serverTimestamp(),
-                tempPassword: null, // Remove temp password after successful login
+                tempPassword: null,
                 accountActivatedAt: serverTimestamp()
               });
               
@@ -418,13 +561,11 @@ button:disabled {
         }
       }
       
-      // Validate user data exists
       if (!userData) {
         if (userCredential) await auth.signOut();
         throw new Error('Account not found in system. Please contact administrator.');
       }
       
-      // RBAC checks
       return validateUserAccess(userData, userCredential.user, isNewInviteLogin);
       
     } catch (error) {
@@ -432,12 +573,10 @@ button:disabled {
     }
   }
   
-  // RBAC validation
   function validateUserAccess(userData, firebaseUser, isNewInviteLogin) {
     const userRole = userData.role?.toLowerCase();
     const userStatus = userData.status?.toLowerCase();
     
-    // Block residents from admin portal
     if (userRole === USER_ROLES.RESIDENT) {
       return {
         success: false,
@@ -446,7 +585,6 @@ button:disabled {
       };
     }
     
-    // Check if role is allowed in admin portal
     if (!ALLOWED_ADMIN_ROLES.includes(userRole)) {
       return {
         success: false,
@@ -455,7 +593,6 @@ button:disabled {
       };
     }
     
-    // Status checks
     if (userStatus === USER_STATUS.PENDING) {
       return {
         success: false,
@@ -481,7 +618,6 @@ button:disabled {
       };
     }
     
-    // Success
     const roleDisplayNames = {
       [USER_ROLES.ADMIN]: 'Administrator',
       [USER_ROLES.MONITOR]: 'Moderator',
@@ -499,7 +635,6 @@ button:disabled {
     };
   }
 
-  // MAIN LOGIN HANDLER
   document.getElementById("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = document.getElementById("username").value.trim();
@@ -519,7 +654,6 @@ button:disabled {
       if (result.success) {
         showSuccess(result.message);
         
-        // Redirect after successful login
         setTimeout(() => {
           window.location.href = "Dashboard.html";
         }, 1000);
@@ -556,7 +690,6 @@ button:disabled {
       
       showError(errorMessage);
       
-      // Clean up auth state
       try {
         if (auth.currentUser) {
           await auth.signOut();

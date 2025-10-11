@@ -8,7 +8,8 @@ export default function AuthLayout() {
       <Stack.Screen name="reset-password/index" />
       <Stack.Screen name="reset-password/otp" />
       <Stack.Screen name="reset-password/new-password" />
-      <Stack.Screen name="id-verification" />
+      <Stack.Screen name="terms" />
+        <Stack.Screen name="suspended" />
       <Stack.Screen name="account-status" />
     </Stack>
   );

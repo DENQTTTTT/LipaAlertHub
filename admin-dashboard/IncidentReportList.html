@@ -140,12 +140,15 @@
 
         .header {
             background: white;
-            padding: 20px 30px;
+            padding: 15px 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .header-left {
@@ -158,11 +161,14 @@
             background: none;
             border: none;
             color: #d73527;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
-            padding: 10px;
+            padding: 8px;
             border-radius: 8px;
             transition: background-color 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .mobile-menu-toggle:hover {
@@ -170,7 +176,7 @@
         }
 
         .page-title {
-            font-size: 28px;
+            font-size: 20px;
             font-weight: 600;
             color: #333;
             margin: 0;
@@ -179,28 +185,30 @@
         .user-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
         }
 
         .user-details {
             text-align: right;
+            display: none;
         }
 
         .user-name {
             font-weight: 600;
             color: #333;
+            font-size: 14px;
         }
 
         .user-role {
-            font-size: 12px;
+            font-size: 11px;
             color: #666;
             text-transform: uppercase;
         }
 
         .role-badge {
-            padding: 0.25rem 0.75rem;
+            padding: 0.2rem 0.6rem;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
             color: white;
@@ -223,30 +231,49 @@
         }
 
         .content {
-            padding: 30px;
+            padding: 20px 15px;
         }
 
         .content-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
+            align-items: flex-start;
+            margin-bottom: 20px;
             flex-wrap: wrap;
             gap: 15px;
+        }
+
+        .content-header-text {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .content-header h2 {
+            margin: 0 0 5px 0;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .content-header p {
+            margin: 0;
+            color: #666;
+            font-size: 13px;
         }
 
         .create-button {
             background: linear-gradient(135deg, #28a745, #20c997);
             color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 10px 18px;
             border-radius: 8px;
             font-weight: 600;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             transition: all 0.3s ease;
+            font-size: 13px;
+            white-space: nowrap;
         }
 
         .create-button:hover {
@@ -260,41 +287,93 @@
             display: none;
         }
 
-        .filters-section {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-            border: 1px solid #e9ecef;
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
-        .filters-row {
-            display: flex;
-            gap: 20px;
-            align-items: end;
-            flex-wrap: wrap;
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #d73527;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .cdrrmo-stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .cdrrmo-stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+            text-align: center;
+            border-left: 4px solid #d73527;
+        }
+
+        .cdrrmo-stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #d73527;
+            margin-bottom: 5px;
+        }
+
+        .cdrrmo-stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .report-filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
         .filter-group {
-            flex: 1;
-            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
         }
 
-        .filter-label {
-            font-size: 14px;
+        .filter-group label {
+            font-size: 12px;
             font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-            display: block;
+            color: #666;
+            margin-bottom: 0;
         }
 
         .filter-input, .filter-select {
             width: 100%;
-            padding: 10px 15px;
+            padding: 10px 12px;
             border: 1px solid #dee2e6;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 13px;
             transition: all 0.3s ease;
         }
 
@@ -304,16 +383,45 @@
             box-shadow: 0 0 0 0.2rem rgba(215, 53, 39, 0.25);
         }
 
+        .filters-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .filters-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+
+        .filter-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+            display: block;
+        }
+
         .clear-filters-btn {
             background: linear-gradient(135deg, #6c757d, #495057);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 10px 16px;
             border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             height: fit-content;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            justify-self: start;
         }
 
         .clear-filters-btn:hover {
@@ -321,41 +429,63 @@
             transform: translateY(-1px);
         }
 
+        /* ✅ COMPLETELY REDESIGNED TABLE - NO HORIZONTAL SCROLLING */
         .table-container {
             background: white;
-            border-radius: 15px;
-            padding: 25px;
+            border-radius: 12px;
+            padding: 20px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.08);
             border: 1px solid #e9ecef;
-            overflow-x: auto;
+            overflow: visible;
         }
 
         .reports-table {
             width: 100%;
             margin-bottom: 0;
-            min-width: 800px;
+            border-collapse: collapse;
         }
 
-        .reports-table thead th {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            border: none;
-            color: #333;
-            font-weight: 600;
-            padding: 15px 12px;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
+        .reports-table thead {
+            display: none;
+        }
+
+        .reports-table tbody tr {
+            display: block;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .reports-table tbody td {
-            padding: 15px 12px;
-            border-top: 1px solid #e9ecef;
-            vertical-align: middle;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border: none;
+            border-bottom: 1px solid #f8f9fa;
         }
 
-        .reports-table tbody tr:hover {
-            background: #f8f9fa;
+        .reports-table tbody td:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .reports-table tbody td:before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #333;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-right: 10px;
+            flex: 0 0 120px;
+        }
+
+        .reports-table tbody td > div {
+            flex: 1;
+            text-align: right;
         }
 
         .report-id {
@@ -365,22 +495,44 @@
             font-weight: 600;
         }
 
+        .type-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+
+        .type-badge.report {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .type-badge.sos {
+            background: #ffebee;
+            color: #c62828;
+        }
+
         .emergency-type {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             font-weight: 600;
+            font-size: 12px;
+            justify-content: flex-end;
         }
 
         .emergency-icon {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
+            font-size: 9px;
             color: white;
+            flex-shrink: 0;
         }
 
         .emergency-icon.fire { background: #e74c3c; }
@@ -391,9 +543,9 @@
         .emergency-icon.infrastructure { background: #607d8b; }
 
         .status-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
             border: none;
@@ -425,108 +577,102 @@
             color: #721c24;
         }
 
-        .view-btn {
+        .status-badge.closed {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #28a745;
+        }
+
+        .view-btn, .patient-form-btn {
             background: linear-gradient(135deg, #007bff, #0056b3);
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             transition: all 0.3s ease;
+            margin-right: 4px;
+            margin-bottom: 4px;
         }
 
-        .view-btn:hover {
+        .view-btn:hover, .patient-form-btn:hover {
             background: linear-gradient(135deg, #0056b3, #004085);
             transform: scale(1.05);
             color: white;
         }
 
+        .patient-form-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+
+        .patient-form-btn:hover {
+            background: linear-gradient(135deg, #20c997, #17a2b8);
+        }
+
+        .view-pdf-btn {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .view-pdf-btn:hover {
+            background: linear-gradient(135deg, #c82333, #bd2130);
+        }
+
         .loading-content, .error-content, .no-data {
             text-align: center;
-            padding: 60px 20px;
+            padding: 40px 15px;
             color: #666;
         }
 
         .loading-spinner-small {
-            width: 30px;
-            height: 30px;
+            width: 25px;
+            height: 25px;
             border: 3px solid #f3f3f3;
             border-top: 3px solid #d73527;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto 15px;
         }
 
         .error-content {
             color: #dc3545;
             background: #f8d7da;
-            border-radius: 10px;
+            border-radius: 8px;
             border: 1px solid #f5c6cb;
         }
 
         .no-data {
             background: #f8f9fa;
-            border-radius: 10px;
+            border-radius: 8px;
             border: 1px dashed #dee2e6;
-        }
-
-        .stats-row {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-        }
-
-        .stat-card {
-            flex: 1;
-            min-width: 200px;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            border: 1px solid #e9ecef;
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 32px;
-            font-weight: 700;
-            color: #d73527;
-            margin-bottom: 8px;
-        }
-
-        .stat-label {
-            font-size: 14px;
-            color: #666;
-            text-transform: uppercase;
-            font-weight: 600;
         }
 
         .notification-container {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 15px;
+            right: 15px;
             z-index: 1500;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
 
         .notification {
-            padding: 15px 25px;
-            border-radius: 12px;
+            padding: 12px 18px;
+            border-radius: 10px;
             color: white;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-            min-width: 320px;
+            min-width: 280px;
+            max-width: 90vw;
             animation: slideIn 0.4s ease;
+            font-size: 13px;
         }
 
         .notification.success {
@@ -568,8 +714,299 @@
             visibility: visible;
         }
 
-        /* Mobile responsiveness */
-        @media (min-width: 769px) {
+        /* ✅ NEW: Assignment status styles */
+        .assignment-status {
+            font-size: 10px;
+            padding: 3px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 2px;
+        }
+
+        .assignment-status.assigned {
+            background: #e7f3ff;
+            color: #0066cc;
+            border: 1px solid #b3d9ff;
+        }
+
+        .assignment-status.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .assignment-status.suggested {
+            background: #e2f4e8;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .assignment-status.cdrrmo {
+            background: #fff0f0;
+            color: #d73527;
+            border: 1px solid #ffcccc;
+        }
+
+        .assignment-status.support {
+            background: #f0f8ff;
+            color: #007bff;
+            border: 1px solid #b3d9ff;
+        }
+
+        /* ✅ NEW: Status Tracking Styles */
+        .status-tracking {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 10px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 6px;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+
+        .status-item.rescuer-status {
+            border-left: 2px solid #17a2b8;
+        }
+
+        .status-item.agency-status {
+            border-left: 2px solid #fd7e14;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .status-value {
+            font-weight: 600;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 9px;
+        }
+
+        .status-value.assigned { background: #cce5ff; color: #0056b3; }
+        .status-value.dispatched { background: #fff3cd; color: #856404; }
+        .status-value.on_the_way { background: #ffeaa7; color: #856404; }
+        .status-value.on_scene { background: #d1ecf1; color: #0c5460; }
+        .status-value.completed { background: #d4edda; color: #155724; }
+        .status-value.resolved { background: #d4edda; color: #155724; }
+
+        /* ✅ NEW: Pagination Styles */
+        .pagination-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 15px 0;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+        }
+
+        .pagination-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pagination-btn {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            background: white;
+            color: #333;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #d73527;
+            color: white;
+            border-color: #d73527;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-pages {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .page-number {
+            min-width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .page-number:hover {
+            background: #f8f9fa;
+        }
+
+        .page-number.active {
+            background: #d73527;
+            color: white;
+            border-color: #d73527;
+        }
+
+        /* ✅ NEW: Desktop table styles */
+        @media (min-width: 1024px) {
+            .reports-table {
+                display: table;
+                border-collapse: collapse;
+            }
+
+            .reports-table thead {
+                display: table-header-group;
+            }
+
+            .reports-table thead th {
+                background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+                border: none;
+                color: #333;
+                font-weight: 600;
+                padding: 12px 8px;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                white-space: nowrap;
+                text-align: left;
+            }
+
+            .reports-table tbody tr {
+                display: table-row;
+                margin-bottom: 0;
+                border: none;
+                border-radius: 0;
+                padding: 0;
+                background: transparent;
+                box-shadow: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+
+            .reports-table tbody tr:hover {
+                background: #f8f9fa;
+            }
+
+            .reports-table tbody td {
+                display: table-cell;
+                padding: 12px 8px;
+                border-top: none;
+                border-bottom: 1px solid #e9ecef;
+                text-align: left;
+            }
+
+            .reports-table tbody td:before {
+                display: none;
+            }
+
+            .reports-table tbody td > div {
+                text-align: left;
+            }
+
+            .emergency-type {
+                justify-content: flex-start;
+            }
+        }
+
+        /* Mobile-first responsive design */
+        @media (min-width: 576px) {
+            .header {
+                padding: 15px 25px;
+            }
+            
+            .page-title {
+                font-size: 22px;
+            }
+            
+            .content {
+                padding: 25px 20px;
+            }
+            
+            .user-details {
+                display: block;
+            }
+            
+            .pagination-container {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .pagination-info {
+                text-align: left;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .header {
+                padding: 20px 30px;
+            }
+            
+            .page-title {
+                font-size: 24px;
+            }
+            
+            .content {
+                padding: 30px 25px;
+            }
+            
+            .stats-row, .cdrrmo-stats-row {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .report-filters {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .filters-row {
+                grid-template-columns: 2fr 1fr 1fr auto;
+            }
+            
+            .user-name {
+                font-size: 16px;
+            }
+            
+            .user-role {
+                font-size: 12px;
+            }
+            
+            .role-badge {
+                font-size: 11px;
+                padding: 0.25rem 0.75rem;
+            }
+        }
+
+        @media (min-width: 992px) {
             .sidebar {
                 transform: translateX(0);
             }
@@ -581,99 +1018,116 @@
             .mobile-menu-toggle {
                 display: none;
             }
-        }
-
-        @media (max-width: 768px) {
-            .header {
-                padding: 15px 20px;
-            }
-
-            .page-title {
-                font-size: 24px;
-            }
-
-            .content {
-                padding: 20px 15px;
-            }
-
-            .content-header {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .filters-row {
-                flex-direction: column;
-            }
-
-            .filter-group {
-                min-width: 100%;
-            }
-
-            .stats-row {
-                flex-direction: column;
-            }
-
-            .stat-card {
-                min-width: 100%;
-            }
-
-            .table-container {
-                padding: 15px;
-                overflow-x: auto;
-            }
-
-            .reports-table {
-                font-size: 13px;
-            }
-
-            .reports-table thead th,
-            .reports-table tbody td {
-                padding: 10px 8px;
-            }
-
-            .user-details {
-                display: none;
-            }
-
-            .notification {
-                min-width: 280px;
-                font-size: 14px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .header {
-                padding: 10px 15px;
-            }
-
-            .page-title {
+            
+            .content-header h2 {
                 font-size: 20px;
             }
+            
+            .content-header p {
+                font-size: 14px;
+            }
+            
+            .create-button {
+                padding: 12px 24px;
+                font-size: 14px;
+            }
+            
+            .stat-number, .cdrrmo-stat-number {
+                font-size: 28px;
+            }
+            
+            .stat-label, .cdrrmo-stat-label {
+                font-size: 13px;
+            }
+        }
 
+        @media (min-width: 1200px) {
+            .content {
+                padding: 30px;
+            }
+            
+            .stat-number, .cdrrmo-stat-number {
+                font-size: 32px;
+            }
+            
+            .reports-table {
+                font-size: 14px;
+            }
+            
+            .reports-table thead th {
+                font-size: 12px;
+                padding: 15px 12px;
+            }
+            
+            .reports-table tbody td {
+                padding: 15px 12px;
+            }
+        }
+
+        /* Extra small devices */
+        @media (max-width: 375px) {
+            .header {
+                padding: 12px 15px;
+            }
+            
+            .page-title {
+                font-size: 18px;
+            }
+            
             .content {
                 padding: 15px 10px;
             }
-
-            .stat-card {
-                padding: 15px;
+            
+            .stats-row, .cdrrmo-stats-row {
+                grid-template-columns: 1fr 1fr;
             }
-
-            .stat-number {
-                font-size: 24px;
+            
+            .report-filters {
+                grid-template-columns: 1fr;
             }
-
-            .filters-section {
-                padding: 15px;
+            
+            .filters-row {
+                grid-template-columns: 1fr;
             }
-
+            
+            .filter-group {
+                min-width: 100%;
+            }
+            
             .table-container {
-                padding: 10px;
+                padding: 15px;
             }
-
-            .reports-table thead th,
-            .reports-table tbody td {
-                padding: 8px 6px;
+            
+            .notification {
+                min-width: 250px;
                 font-size: 12px;
+            }
+            
+            .pagination-btn {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+            
+            .page-number {
+                min-width: 28px;
+                height: 28px;
+                font-size: 11px;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            .sidebar, .header, .create-button, .pagination-container {
+                display: none !important;
+            }
+            
+            .main-content {
+                margin-left: 0 !important;
+            }
+            
+            .table-container {
+                box-shadow: none;
+                border: 1px solid #000;
             }
         }
     </style>
@@ -682,20 +1136,19 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="loading-spinner"></div>
         <div style="text-align: center;">
-            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">
                 Loading Incident Reports...
             </div>
         </div>
     </div>
 
-    <!-- Sidebar Overlay -->
     <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
             <div class="brand-title">LipaAlertHub</div>
-            <div class="brand-subtitle">Disaster Management System</div>
+            <div class="brand-subtitle">Report Management System</div>
         </div>
         
         <nav class="sidebar-nav">
@@ -756,7 +1209,7 @@
             </div>
             
             <div class="nav-item" data-role="admin,monitor">
-                <a href="AccountVerification.html" class="nav-link">
+                <a href="Accounts.html" class="nav-link">
                     <i class="fas fa-users"></i>
                     Accounts
                 </a>
@@ -782,6 +1235,13 @@
                     Contacts
                 </a>
             </div>
+
+            <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                <a href="changepassword.html" class="nav-link">
+                    <i class="fas fa-key"></i>
+                    Change Password
+                </a>
+            </div>
         </nav>
     </div>
 
@@ -802,7 +1262,7 @@
                 <div class="role-badge" id="userRole">Loading...</div>
                 <div class="dropdown">
                     <button class="btn btn-link" type="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-user-circle fa-2x" style="color: #d73527;"></i>
+                        <i class="fas fa-user-circle fa-lg" style="color: #d73527;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="#" onclick="logoutUser()">
@@ -815,9 +1275,9 @@
 
         <div class="content">
             <div class="content-header">
-                <div>
-                    <h2 style="margin: 0; color: #333; font-size: 20px;">Emergency Reports Management</h2>
-                    <p style="margin: 0; color: #666; font-size: 14px;" id="reportDescription">View and manage all submitted incident reports</p>
+                <div class="content-header-text">
+                    <h2>Emergency Reports Management</h2>
+                    <p id="reportDescription">View and manage all submitted incident reports</p>
                 </div>
                 <a href="ReportForm.html" class="create-button" id="createButton">
                     <i class="fas fa-plus"></i>
@@ -825,7 +1285,27 @@
                 </a>
             </div>
 
-            <!-- Statistics Cards -->
+            <!-- CDRRMO Coordination Statistics -->
+            <div class="cdrrmo-stats-row" id="cdrrmoStatsRow" style="display: none;">
+                <div class="cdrrmo-stat-card">
+                    <div class="cdrrmo-stat-number" id="cdrrmoAssignments">-</div>
+                    <div class="cdrrmo-stat-label">CDRRMO Assignments</div>
+                </div>
+                <div class="cdrrmo-stat-card">
+                    <div class="cdrrmo-stat-number" id="partnerAssignments">-</div>
+                    <div class="cdrrmo-stat-label">With Partners</div>
+                </div>
+                <div class="cdrrmo-stat-card">
+                    <div class="cdrrmo-stat-number" id="bfpAssignments">-</div>
+                    <div class="cdrrmo-stat-label">BFP Support</div>
+                </div>
+                <div class="cdrrmo-stat-card">
+                    <div class="cdrrmo-stat-number" id="pnpAssignments">-</div>
+                    <div class="cdrrmo-stat-label">PNP Support</div>
+                </div>
+            </div>
+
+            <!-- Main Statistics -->
             <div class="stats-row" id="statsRow">
                 <div class="stat-card">
                     <div class="stat-number" id="totalCount">-</div>
@@ -845,26 +1325,54 @@
                 </div>
             </div>
 
-            <!-- Filters Section -->
+            <!-- Enhanced Filter Controls -->
+            <div class="report-filters">
+                <div class="filter-group">
+                    <label>Status:</label>
+                    <select id="statusFilter" class="filter-select">
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="verified">Verified</option>
+                        <option value="assigned">Assigned</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Agency:</label>
+                    <select id="agencyFilter" class="filter-select">
+                        <option value="all">All Agencies</option>
+                        <option value="CDRRMO">CDRRMO</option>
+                        <option value="BFP">BFP</option>
+                        <option value="PNP">PNP</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Search:</label>
+                    <input type="text" id="searchReports" class="filter-input" placeholder="Search by Report ID...">
+                </div>
+            </div>
+
+            <!-- Main Filters Section -->
             <div class="filters-section">
                 <div class="filters-row">
                     <div class="filter-group">
                         <label class="filter-label">Search Reports</label>
                         <input type="text" id="searchInput" class="filter-input" 
-                               placeholder="Search by address, type, reporter name...">
+                               placeholder="Search by Report ID...">
                     </div>
                     
                     <div class="filter-group">
                         <label class="filter-label">Filter by Status</label>
-                        <select id="statusFilter" class="filter-select">
+                        <select id="statusFilterOld" class="filter-select">
                             <option value="">All Statuses</option>
                             <option value="pending">Pending</option>
-                            <option value="accepted">Accepted</option>
-                            <option value="approved">Approved</option>
                             <option value="assigned">Assigned</option>
                             <option value="resolved">Resolved</option>
                             <option value="dismissed">Dismissed</option>
                             <option value="rejected">Rejected</option>
+                            <option value="closed">Closed</option>
                         </select>
                     </div>
                     
@@ -872,12 +1380,8 @@
                         <label class="filter-label">Filter by Type</label>
                         <select id="typeFilter" class="filter-select">
                             <option value="">All Types</option>
-                            <option value="fire">Fire Emergency</option>
-                            <option value="medical">Medical Emergency</option>
-                            <option value="crime">Crime Emergency</option>
-                            <option value="flood">Flood</option>
-                            <option value="accident">Accident</option>
-                            <option value="infrastructure">Infrastructure</option>
+                            <option value="report">Report</option>
+                            <option value="sos">SOS</option>
                         </select>
                     </div>
                     
@@ -887,12 +1391,28 @@
                 </div>
             </div>
 
-            <!-- Reports Table -->
+            <!-- Table Container -->
             <div class="table-container">
                 <div id="tableContent">
                     <div class="loading-content">
                         <div class="loading-spinner-small"></div>
                         <p>Loading incident reports...</p>
+                    </div>
+                </div>
+                
+                <!-- Pagination Controls -->
+                <div id="paginationContainer" class="pagination-container" style="display: none;">
+                    <div class="pagination-info" id="paginationInfo">
+                        Showing 0 of 0 reports
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" id="prevPageBtn" disabled>
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        <div class="pagination-pages" id="pageNumbers"></div>
+                        <button class="pagination-btn" id="nextPageBtn" disabled>
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -912,7 +1432,8 @@
             onSnapshot, 
             doc, 
             getDoc,
-            where
+            where,
+            or
         } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -934,22 +1455,41 @@
         let filteredReports = [];
         let reportsListener = null;
 
-        // DOM Elements
+        // Pagination variables
+        let currentPage = 1;
+        const reportsPerPage = 10;
+        let totalPages = 1;
+
         const searchInput = document.getElementById('searchInput');
         const statusFilter = document.getElementById('statusFilter');
+        const agencyFilter = document.getElementById('agencyFilter');
+        const searchReports = document.getElementById('searchReports');
+        const statusFilterOld = document.getElementById('statusFilterOld');
         const typeFilter = document.getElementById('typeFilter');
         const clearFiltersBtn = document.getElementById('clearFiltersBtn');
         const tableContent = document.getElementById('tableContent');
         const reportDescription = document.getElementById('reportDescription');
         const createButton = document.getElementById('createButton');
 
-        // Statistics elements
+        // Pagination elements
+        const paginationContainer = document.getElementById('paginationContainer');
+        const paginationInfo = document.getElementById('paginationInfo');
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        const pageNumbers = document.getElementById('pageNumbers');
+
         const totalCount = document.getElementById('totalCount');
         const pendingCount = document.getElementById('pendingCount');
         const assignedCount = document.getElementById('assignedCount');
         const resolvedCount = document.getElementById('resolvedCount');
 
-        // Emergency type mapping
+        // CDRRMO Coordination Stats Elements
+        const cdrrmoStatsRow = document.getElementById('cdrrmoStatsRow');
+        const cdrrmoAssignments = document.getElementById('cdrrmoAssignments');
+        const partnerAssignments = document.getElementById('partnerAssignments');
+        const bfpAssignments = document.getElementById('bfpAssignments');
+        const pnpAssignments = document.getElementById('pnpAssignments');
+
         const emergencyTypeMapping = {
             'fire': 'Fire Emergency',
             'medical': 'Medical Emergency',
@@ -968,7 +1508,133 @@
             'infrastructure': 'fa-tools'
         };
 
-        // Role-based navigation visibility
+        // Role-based Filtering Function
+        function filterReportsByRole(reports, userRole, userData) {
+            if (userRole === 'admin' || userRole === 'monitor') {
+                return reports; // See ALL reports
+            }
+            
+            if (userRole === 'rescuer') {
+                return reports.filter(report => 
+                    report.assignedRescuer === userData.uid || 
+                    report.status === 'pending' ||
+                    report.status === 'verified'
+                );
+            }
+            
+            if (userRole === 'agency') {
+                const userAgency = userData.agencyName || userData.agency;
+                return reports.filter(report => 
+                    report.partnerAgency === userAgency ||
+                    report.status === 'pending' || 
+                    report.status === 'verified'
+                );
+            }
+            
+            if (userRole === 'resident') {
+                return reports.filter(report => 
+                    report.userId === userData.uid ||
+                    report.reporterId === userData.uid
+                );
+            }
+            
+            return [];
+        }
+
+        // Enhanced Status Tracking Display
+        function displayReportItem(report) {
+            const mainCoordinator = report.mainCoordinator;
+            const partnerAgency = report.partnerAgency;
+            const rescuerStatus = report.rescuerStatus;
+            const agencyStatus = report.partnerAgencyStatus;
+            
+            let statusHTML = '';
+            
+            // CDRRMO Rescuer Status
+            if (rescuerStatus) {
+                statusHTML += `<div class="status-item rescuer-status">
+                    <span class="status-label">CDRRMO:</span>
+                    <span class="status-value ${rescuerStatus}">${rescuerStatus}</span>
+                </div>`;
+            }
+            
+            // Partner Agency Status
+            if (agencyStatus) {
+                statusHTML += `<div class="status-item agency-status">
+                    <span class="status-label">${partnerAgency}:</span>
+                    <span class="status-value ${agencyStatus}">${agencyStatus}</span>
+                </div>`;
+            }
+            
+            return statusHTML;
+        }
+
+        // Search and Filter Setup
+        function setupSearchFilters() {
+            const statusFilter = document.getElementById('statusFilter');
+            const agencyFilter = document.getElementById('agencyFilter');
+            const searchInput = document.getElementById('searchReports');
+            
+            if (statusFilter) {
+                statusFilter.addEventListener('change', filterReports);
+            }
+            if (agencyFilter) {
+                agencyFilter.addEventListener('change', filterReports);
+            }
+            if (searchInput) {
+                searchInput.addEventListener('input', filterReports);
+            }
+        }
+
+        // Enhanced Filter Function
+        function filterReports() {
+            const statusFilter = document.getElementById('statusFilter')?.value;
+            const agencyFilter = document.getElementById('agencyFilter')?.value;
+            const searchTerm = document.getElementById('searchReports')?.value.toLowerCase();
+            
+            filteredReports = allReports.filter(report => {
+                // Status filter
+                if (statusFilter && statusFilter !== 'all') {
+                    const reportStatus = (report.status || 'pending').toLowerCase();
+                    if (reportStatus !== statusFilter.toLowerCase()) {
+                        return false;
+                    }
+                }
+                
+                // Agency filter
+                if (agencyFilter && agencyFilter !== 'all') {
+                    if (agencyFilter === 'CDRRMO') {
+                        if (!report.mainCoordinator || report.mainCoordinator !== 'CDRRMO') {
+                            return false;
+                        }
+                    } else if (agencyFilter === 'BFP') {
+                        if (!report.partnerAgency || !report.partnerAgency.includes('BFP')) {
+                            return false;
+                        }
+                    } else if (agencyFilter === 'PNP') {
+                        if (!report.partnerAgency || !report.partnerAgency.includes('PNP')) {
+                            return false;
+                        }
+                    }
+                }
+                
+                // Search by Report ID
+                if (searchTerm) {
+                    const reportId = generateShortId(report.id).toLowerCase();
+                    if (!reportId.includes(searchTerm)) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+
+            // Reset to first page when filtering
+            currentPage = 1;
+            renderTable();
+            updatePagination();
+        }
+
         function updateNavigationVisibility(userRole) {
             const navItems = document.querySelectorAll('.nav-item[data-role]');
             
@@ -982,13 +1648,18 @@
             });
         }
 
-        // Update UI based on user role
         function updateUIForRole(userRole) {
-            // Hide create button for rescuers and agencies
             if (userRole === 'rescuer' || userRole === 'agency') {
                 createButton.classList.add('hidden');
             } else {
                 createButton.classList.remove('hidden');
+            }
+
+            // Show CDRRMO stats only for admin/monitor
+            if (userRole === 'admin' || userRole === 'monitor') {
+                cdrrmoStatsRow.style.display = 'grid';
+            } else {
+                cdrrmoStatsRow.style.display = 'none';
             }
         }
 
@@ -1048,15 +1719,12 @@
         function getEmergencyTypeDisplay(type) {
             if (!type) return 'Unknown';
             
-            // Handle both the key (fire, medical) and full name (Fire Emergency)
             const lowerType = type.toLowerCase();
             
-            // Check if it's already a full emergency type name
             if (type.includes('Emergency') || type.includes('Accident') || type.includes('Flood') || type.includes('Infrastructure')) {
                 return type;
             }
             
-            // Map short names to full names
             return emergencyTypeMapping[lowerType] || type;
         }
 
@@ -1065,7 +1733,6 @@
             
             const lowerType = type.toLowerCase();
             
-            // Handle full emergency type names
             if (type.includes('Fire')) return 'fa-fire';
             if (type.includes('Medical')) return 'fa-heartbeat';
             if (type.includes('Crime')) return 'fa-shield-alt';
@@ -1073,7 +1740,6 @@
             if (type.includes('Accident')) return 'fa-car-crash';
             if (type.includes('Infrastructure')) return 'fa-tools';
             
-            // Handle short names
             return emergencyIcons[lowerType] || 'fa-exclamation-triangle';
         }
 
@@ -1082,7 +1748,6 @@
             
             const lowerType = type.toLowerCase();
             
-            // Handle full emergency type names
             if (type.includes('Fire')) return 'fire';
             if (type.includes('Medical')) return 'medical';
             if (type.includes('Crime')) return 'crime';
@@ -1090,9 +1755,54 @@
             if (type.includes('Accident')) return 'accident';
             if (type.includes('Infrastructure')) return 'infrastructure';
             
-            // Handle short names
             return ['fire', 'medical', 'crime', 'flood', 'accident', 'infrastructure'].includes(lowerType) 
                 ? lowerType : 'infrastructure';
+        }
+
+        // Enhanced assignment display for CDRRMO workflow
+        function getAssignmentInfo(report) {
+            const mainCoordinator = report.mainCoordinator;
+            const partnerAgency = report.partnerAgency;
+            const assignedRescuerName = report.assignedRescuerName;
+            const partnerAgencyStatus = report.partnerAgencyStatus;
+
+            // CDRRMO is always the main coordinator
+            if (mainCoordinator === 'CDRRMO') {
+                let assignmentHtml = `<span class="assignment-status cdrrmo">🏢 CDRRMO (Main)</span>`;
+                
+                // Add partner agency if present
+                if (partnerAgency) {
+                    const partnerStatus = partnerAgencyStatus ? ` (${partnerAgencyStatus})` : '';
+                    assignmentHtml += `<br><span class="assignment-status support">🤝 ${partnerAgency}${partnerStatus}</span>`;
+                }
+                
+                // Add assigned rescuer if present
+                if (assignedRescuerName) {
+                    assignmentHtml += `<br><span class="assignment-status assigned">👤 ${assignedRescuerName}</span>`;
+                }
+                
+                return assignmentHtml;
+            }
+            
+            // Default pending assignment
+            return `<span class="assignment-status pending">Not assigned</span>`;
+        }
+
+        // CDRRMO Coordination Statistics
+        function updateCDRRMOStatistics() {
+            const stats = {
+                totalAssigned: allReports.filter(r => r.assignedRescuer || r.partnerAgency).length,
+                cdrrmoOnly: allReports.filter(r => r.assignedRescuer && !r.partnerAgency).length,
+                withPartner: allReports.filter(r => r.partnerAgency).length,
+                bfpAssignments: allReports.filter(r => r.partnerAgency === 'BFP Lipa Fire Station').length,
+                pnpAssignments: allReports.filter(r => r.partnerAgency === 'PNP Lipa Police Station').length,
+                partnerActive: allReports.filter(r => r.partnerAgency && r.partnerAgencyStatus !== 'completed').length
+            };
+
+            cdrrmoAssignments.textContent = stats.totalAssigned;
+            partnerAssignments.textContent = stats.withPartner;
+            bfpAssignments.textContent = stats.bfpAssignments;
+            pnpAssignments.textContent = stats.pnpAssignments;
         }
 
         function updateStatistics() {
@@ -1107,19 +1817,22 @@
                 const status = report.status || 'pending';
                 if (status === 'pending') stats.pending++;
                 else if (status === 'assigned') stats.assigned++;
-                else if (status === 'resolved') stats.resolved++;
+                else if (status === 'resolved' || status === 'closed') stats.resolved++;
             });
 
             totalCount.textContent = stats.total;
             pendingCount.textContent = stats.pending;
             assignedCount.textContent = stats.assigned;
             resolvedCount.textContent = stats.resolved;
+
+            // Update CDRRMO statistics
+            updateCDRRMOStatistics();
         }
 
-        function updateReportDescription(userRole) {
-            if (userRole === 'rescuer') {
-                reportDescription.textContent = 'View and manage incident reports assigned to you';
-            } else if (userRole === 'agency') {
+       function updateReportDescription(userRole) {
+    if (userRole === 'rescuer') {
+        reportDescription.textContent = 'View pending reports and manage assigned incident reports';
+    } else if (userRole === 'agency') {
                 reportDescription.textContent = 'View and manage incident reports assigned to your agency';
             } else if (userRole === 'monitor') {
                 reportDescription.textContent = 'Monitor and manage all submitted incident reports';
@@ -1130,34 +1843,25 @@
 
         function applyFilters() {
             const searchTerm = searchInput.value.toLowerCase().trim();
-            const statusValue = statusFilter.value.toLowerCase();
+            const statusValue = statusFilterOld.value.toLowerCase();
             const typeValue = typeFilter.value.toLowerCase();
 
             filteredReports = allReports.filter(report => {
-                // Search filter
+                // Search by Report ID
                 if (searchTerm) {
-                    const searchFields = [
-                        report.name || '',
-                        report.fullAddress || report.addressLine || report.barangay || '',
-                        report.emergencyType || '',
-                        report.subCategory || '',
-                        report.reporterId || ''
-                    ].join(' ').toLowerCase();
-                    
-                    if (!searchFields.includes(searchTerm)) {
+                    const reportId = generateShortId(report.id).toLowerCase();
+                    if (!reportId.includes(searchTerm)) {
                         return false;
                     }
                 }
 
-                // Status filter
                 if (statusValue && statusValue !== (report.status || 'pending').toLowerCase()) {
                     return false;
                 }
 
-                // Type filter
                 if (typeValue) {
-                    const reportType = (report.emergencyType || '').toLowerCase();
-                    if (reportType !== typeValue && !reportType.includes(typeValue)) {
+                    const reportType = (report.type || 'report').toLowerCase();
+                    if (reportType !== typeValue) {
                         return false;
                     }
                 }
@@ -1165,7 +1869,101 @@
                 return true;
             });
 
+            // Reset to first page when filtering
+            currentPage = 1;
             renderTable();
+            updatePagination();
+        }
+
+        // Patient form function
+        window.openPatientForm = function(reportId) {
+            localStorage.setItem('patientReportId', reportId);
+            window.location.href = 'PatientForm.html';
+        };
+
+        // Pagination functions
+        function updatePagination() {
+            totalPages = Math.ceil(filteredReports.length / reportsPerPage);
+            
+            if (filteredReports.length === 0) {
+                paginationContainer.style.display = 'none';
+                return;
+            }
+            
+            paginationContainer.style.display = 'flex';
+            
+            // Update pagination info
+            const startIndex = (currentPage - 1) * reportsPerPage + 1;
+            const endIndex = Math.min(currentPage * reportsPerPage, filteredReports.length);
+            paginationInfo.textContent = `Showing ${startIndex} to ${endIndex} of ${filteredReports.length} reports`;
+            
+            // Update pagination buttons
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages;
+            
+            // Update page numbers
+            pageNumbers.innerHTML = '';
+            
+            // Show first page, current page, and last page with ellipsis if needed
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            // Adjust if we're at the end
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            // Add first page if needed
+            if (startPage > 1) {
+                addPageNumber(1);
+                if (startPage > 2) {
+                    pageNumbers.innerHTML += '<span class="page-number">...</span>';
+                }
+            }
+            
+            // Add page numbers
+            for (let i = startPage; i <= endPage; i++) {
+                addPageNumber(i);
+            }
+            
+            // Add last page if needed
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    pageNumbers.innerHTML += '<span class="page-number">...</span>';
+                }
+                addPageNumber(totalPages);
+            }
+        }
+        
+        function addPageNumber(page) {
+            const pageElement = document.createElement('span');
+            pageElement.className = `page-number ${page === currentPage ? 'active' : ''}`;
+            pageElement.textContent = page;
+            pageElement.addEventListener('click', () => {
+                if (page !== currentPage) {
+                    currentPage = page;
+                    renderTable();
+                    updatePagination();
+                }
+            });
+            pageNumbers.appendChild(pageElement);
+        }
+        
+        function goToPreviousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+                updatePagination();
+            }
+        }
+        
+        function goToNextPage() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+                updatePagination();
+            }
         }
 
         function renderTable() {
@@ -1184,45 +1982,178 @@
                         <p>${noDataMessage}</p>
                     </div>
                 `;
+                paginationContainer.style.display = 'none';
                 return;
             }
 
-            // Build table headers based on user role
-            let tableHeaders = `
-                <th>Report ID</th>
-                <th>Emergency Type</th>
-                <th>Subcategory</th>
-                <th>Full Address</th>
-                <th>Status</th>
-                <th>Timestamp</th>
-            `;
+            // Calculate pagination
+            const startIndex = (currentPage - 1) * reportsPerPage;
+            const endIndex = Math.min(startIndex + reportsPerPage, filteredReports.length);
+            const paginatedReports = filteredReports.slice(startIndex, endIndex);
 
-            // Add "Assigned To" column for admins and monitors only
-            if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor')) {
-                tableHeaders += `<th>Assigned To</th>`;
-            }
+            // Check if we're on desktop (1024px+)
+            const isDesktop = window.innerWidth >= 1024;
 
-            tableHeaders += `<th>Actions</th>`;
+            if (isDesktop) {
+                // Desktop table layout
+                let tableHeaders = `
+                    <th>Report ID</th>
+                    <th>Type</th>
+                    <th>Emergency Type</th>
+                    <th>Subcategory</th>
+                    <th>Full Address</th>
+                    <th>Status</th>
+                    <th>Timestamp</th>
+                `;
 
-            const tableHtml = `
-                <table class="table reports-table">
-                    <thead>
-                        <tr>
-                            ${tableHeaders}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${filteredReports.map(report => {
-                            let assignedColumn = '';
-                            if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor')) {
-                                const assignedTo = report.assignedRescuerName || report.assignedAgencyName || 'Not assigned';
-                                assignedColumn = `<td><small>${assignedTo}</small></td>`;
-                            }
+                if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor')) {
+                    tableHeaders += `<th>Assigned To</th>`;
+                    tableHeaders += `<th>Status Tracking</th>`;
+                }
 
-                            return `
+                tableHeaders += `<th>Actions</th>`;
+
+                const tableHtml = `
+                    <table class="table reports-table">
+                        <thead>
+                            <tr>
+                                ${tableHeaders}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${paginatedReports.map(report => {
+                                let assignedColumn = '';
+                                let statusTrackingColumn = '';
+                                
+                                if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor')) {
+                                    assignedColumn = `<td>${getAssignmentInfo(report)}</td>`;
+                                    statusTrackingColumn = `<td class="status-tracking">${displayReportItem(report)}</td>`;
+                                }
+
+                                const reportType = report.type || 'report';
+                                const reportStatus = report.status || 'pending';
+                                const detailsPage = reportType === 'sos' ? 'sos.html' : 'report.html';
+
+                                let actionButtons = `
+                                    <a href="${detailsPage}?id=${report.id}" class="view-btn">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                `;
+
+                                if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor' || currentUserData.role === 'rescuer')) {
+                                    if (reportStatus === 'resolved' && !report.hasPatientForm) {
+                                        actionButtons += `
+                                            <button class="patient-form-btn" onclick="openPatientForm('${report.id}')">
+                                                <i class="fas fa-file-medical"></i> Patient Form
+                                            </button>
+                                        `;
+                                    } else if (report.hasPatientForm && report.patientFormURL) {
+                                        actionButtons += `
+                                            <a href="${report.patientFormURL}" target="_blank" class="view-pdf-btn">
+                                                <i class="fas fa-file-pdf"></i> View PDF
+                                            </a>
+                                        `;
+                                    }
+                                }
+
+                                return `
+                                    <tr>
+                                        <td><div class="report-id">${generateShortId(report.id)}</div></td>
+                                        <td><span class="type-badge ${reportType}">${reportType.toUpperCase()}</span></td>
+                                        <td>
+                                            <div class="emergency-type">
+                                                <div class="emergency-icon ${getEmergencyClass(report.emergencyType)}">
+                                                    <i class="fas ${getEmergencyIcon(report.emergencyType)}"></i>
+                                                </div>
+                                                ${getEmergencyTypeDisplay(report.emergencyType)}
+                                            </div>
+                                        </td>
+                                        <td>${report.subCategory || report.subcategory || report.incidentType || 'Not specified'}</td>
+                                        <td>
+                                            <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
+                                                 title="${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}">
+                                                ${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="status-badge ${reportStatus.toLowerCase()}">
+                                                ${reportStatus.toUpperCase()}
+                                            </span>
+                                        </td>
+                                        <td>${formatTimestamp(report.createdAt || report.timestamp)}</td>
+                                        ${assignedColumn}
+                                        ${statusTrackingColumn}
+                                        <td>
+                                            ${actionButtons}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                tableContent.innerHTML = tableHtml;
+            } else {
+                // Mobile card layout - NO HORIZONTAL SCROLLING
+                const cardsHtml = paginatedReports.map(report => {
+                    const reportType = report.type || 'report';
+                    const reportStatus = report.status || 'pending';
+                    const detailsPage = reportType === 'sos' ? 'sos.html' : 'report.html';
+
+                    let actionButtons = `
+                        <a href="${detailsPage}?id=${report.id}" class="view-btn">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    `;
+
+                    if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor' || currentUserData.role === 'rescuer')) {
+                        if (reportStatus === 'resolved' && !report.hasPatientForm) {
+                            actionButtons += `
+                                <button class="patient-form-btn" onclick="openPatientForm('${report.id}')">
+                                    <i class="fas fa-file-medical"></i> Patient Form
+                                </button>
+                            `;
+                        } else if (report.hasPatientForm && report.patientFormURL) {
+                            actionButtons += `
+                                <a href="${report.patientFormURL}" target="_blank" class="view-pdf-btn">
+                                    <i class="fas fa-file-pdf"></i> View PDF
+                                </a>
+                            `;
+                        }
+                    }
+
+                    let assignedInfo = '';
+                    let statusTracking = '';
+
+                    if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor')) {
+                        assignedInfo = `
+                            <td data-label="Assigned To">
+                                <div>${getAssignmentInfo(report)}</div>
+                            </td>
+                        `;
+                        statusTracking = `
+                            <td data-label="Status Tracking">
+                                <div>${displayReportItem(report)}</div>
+                            </td>
+                        `;
+                    }
+
+                    return `
+                        <table class="reports-table">
+                            <tbody>
                                 <tr>
-                                    <td><div class="report-id">${generateShortId(report.id)}</div></td>
-                                    <td>
+                                    <td data-label="Report ID">
+                                        <div class="report-id">${generateShortId(report.id)}</div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Type">
+                                        <div><span class="type-badge ${reportType}">${reportType.toUpperCase()}</span></div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Emergency Type">
                                         <div class="emergency-type">
                                             <div class="emergency-icon ${getEmergencyClass(report.emergencyType)}">
                                                 <i class="fas ${getEmergencyIcon(report.emergencyType)}"></i>
@@ -1230,82 +2161,118 @@
                                             ${getEmergencyTypeDisplay(report.emergencyType)}
                                         </div>
                                     </td>
-                                    <td>${report.subCategory || report.subcategory || report.incidentType || 'Not specified'}</td>
-                                    <td>
-                                        <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
-                                             title="${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}">
-                                            ${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="status-badge ${(report.status || 'pending').toLowerCase()}">
-                                            ${(report.status || 'Pending').toUpperCase()}
-                                        </span>
-                                    </td>
-                                    <td>${formatTimestamp(report.createdAt || report.timestamp)}</td>
-                                    ${assignedColumn}
-                                    <td>
-                                        <a href="report.html?id=${report.id}" class="view-btn">
-                                            <i class="fas fa-eye"></i> View
-                                        </a>
+                                </tr>
+                                <tr>
+                                    <td data-label="Subcategory">
+                                        <div>${report.subCategory || report.subcategory || report.incidentType || 'Not specified'}</div>
                                     </td>
                                 </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            `;
+                                <tr>
+                                    <td data-label="Full Address">
+                                        <div>${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}</div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Status">
+                                        <div><span class="status-badge ${reportStatus.toLowerCase()}">${reportStatus.toUpperCase()}</span></div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Timestamp">
+                                        <div>${formatTimestamp(report.createdAt || report.timestamp)}</div>
+                                    </td>
+                                </tr>
+                                ${assignedInfo}
+                                ${statusTracking}
+                                <tr>
+                                    <td data-label="Actions">
+                                        <div>${actionButtons}</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                }).join('');
 
-            tableContent.innerHTML = tableHtml;
-        }
-
-        // FIXED: Role-based query function that matches security rules exactly
-        function createReportQuery(userRole, userId) {
-            const baseCollection = collection(db, "incident_reports");
-            
-            if (userRole === 'admin' || userRole === 'monitor') {
-                // Admin and Monitor can see ALL reports - NO WHERE CLAUSE NEEDED
-                console.log(`Creating query for ${userRole}: All reports (no restrictions)`);
-                return query(baseCollection, orderBy("createdAt", "desc"));
-            } else if (userRole === 'rescuer') {
-                // Rescuers can only see reports assigned to them
-                // Use the EXACT field name that matches security rules: assignedRescuer
-                console.log(`Creating query for rescuer: Reports where assignedRescuer == ${userId}`);
-                return query(
-                    baseCollection, 
-                    where("assignedRescuer", "==", userId),
-                    orderBy("createdAt", "desc")
-                );
-            } else if (userRole === 'agency') {
-                // Agencies can only see reports assigned to them
-                // Use the EXACT field name that matches security rules: assignedAgency
-                console.log(`Creating query for agency: Reports where assignedAgency == ${userId}`);
-                return query(
-                    baseCollection, 
-                    where("assignedAgency", "==", userId),
-                    orderBy("createdAt", "desc")
-                );
-            } else {
-                // Fallback for other roles - empty result
-                console.log(`Creating fallback query for role: ${userRole}`);
-                return query(
-                    baseCollection, 
-                    where("__name__", "==", "non-existent-document-id")
-                );
+                tableContent.innerHTML = cardsHtml;
             }
         }
 
-        function loadReports() {
-            console.log(`Loading reports for user role: ${currentUserData.role}, userId: ${currentUser.uid}`);
-            
-            const reportQuery = createReportQuery(currentUserData.role, currentUser.uid);
+        // Agency query for incident reports list
+       function createReportQuery(userRole, userId) {
+    const baseCollection = collection(db, "incident_reports");
+    
+    if (userRole === 'admin' || userRole === 'monitor') {
+        // ✅ ADMIN/MONITOR: See ALL reports including SOS
+        return query(baseCollection, orderBy("createdAt", "desc"));
+    } else if (userRole === 'rescuer') {
+        // ✅ RESCUER: See ONLY assigned reports (both regular reports and SOS)
+        return query(
+            baseCollection,
+            where("assignedRescuer", "==", userId),
+            orderBy("createdAt", "desc")
+        );
+    } else if (userRole === 'agency') {
+        return new Promise(async (resolve) => {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    const userAgency = userData.agency || userData.agencyName || userData.organization;
+                    
+                    if (userAgency) {
+                        // ✅ AGENCY: See ONLY agency-assigned reports (both regular reports and SOS)
+                        const agencyQuery = query(
+                            baseCollection, 
+                            or(
+                                where("supportAgency", "==", userAgency),
+                                where("assignedAgency", "==", userAgency),
+                                where("supportAgencyName", "==", userAgency),
+                                where("assignedAgencyName", "==", userAgency),
+                                where("mainCoordinator", "==", userAgency),
+                                where("partnerAgency", "==", userAgency)
+                            ),
+                            orderBy("createdAt", "desc")
+                        );
+                        resolve(agencyQuery);
+                    } else {
+                        // ❌ No agency specified - show nothing
+                        resolve(query(baseCollection, where("__name__", "==", "non-existent-document-id")));
+                    }
+                } else {
+                    resolve(query(baseCollection, where("__name__", "==", "non-existent-document-id")));
+                }
+            } catch (error) {
+                console.error('Error getting agency user data:', error);
+                resolve(query(baseCollection, where("__name__", "==", "non-existent-document-id")));
+            }
+        });
+    } else {
+        // ❌ Other roles - no access
+        return query(baseCollection, where("__name__", "==", "non-existent-document-id"));
+    }
+}
 
+        function loadReports() {
+            if (currentUserData.role === 'agency') {
+                createReportQuery(currentUserData.role, currentUser.uid).then(reportQuery => {
+                    setupReportsListener(reportQuery);
+                }).catch(error => {
+                    console.error('Error creating agency query:', error);
+                    showNotification('Error setting up reports query', 'error');
+                });
+            } else {
+                const reportQuery = createReportQuery(currentUserData.role, currentUser.uid);
+                setupReportsListener(reportQuery);
+            }
+        }
+
+        function setupReportsListener(reportQuery) {
             if (reportsListener) {
                 reportsListener();
             }
 
             reportsListener = onSnapshot(reportQuery, (snapshot) => {
-                console.log(`Query snapshot received: ${snapshot.size} documents`);
                 allReports = [];
                 
                 snapshot.forEach((doc) => {
@@ -1314,38 +2281,23 @@
                         id: doc.id,
                         ...data
                     });
-                    
-                    // Debug: Log first few reports to see field structure
-                    if (allReports.length <= 3) {
-                        console.log(`Report ${doc.id}:`, {
-                            assignedRescuer: data.assignedRescuer || 'not set',
-                            assignedAgency: data.assignedAgency || 'not set',
-                            assignedTo: data.assignedTo || 'not set',
-                            status: data.status || 'pending'
-                        });
-                    }
                 });
 
-                console.log(`Successfully loaded ${allReports.length} reports for role: ${currentUserData.role}`);
+                // Apply role-based filtering
+                allReports = filterReportsByRole(allReports, currentUserData.role, currentUserData);
+
                 updateStatistics();
                 applyFilters();
+                filterReports();
             }, (error) => {
                 console.error("Error loading reports:", error);
                 
                 let errorMessage = "Failed to load incident reports. Please refresh the page.";
-                let errorDetails = error.message;
                 
                 if (error.code === 'permission-denied') {
                     errorMessage = "Permission denied. You don't have access to view these reports.";
-                    errorDetails = "This could be due to missing composite indexes or security rule restrictions.";
-                    
-                    // Check for missing index error
-                    if (error.message.includes('index')) {
-                        errorDetails = "Missing Firestore composite index. Please check the console for index creation links.";
-                    }
                 } else if (error.code === 'failed-precondition') {
                     errorMessage = "Database index required for this query.";
-                    errorDetails = "Please check the Firestore console for required index creation.";
                 }
                 
                 tableContent.innerHTML = `
@@ -1354,7 +2306,6 @@
                         <h5>Error Loading Reports</h5>
                         <p>${errorMessage}</p>
                         <p><small>Error Code: ${error.code}</small></p>
-                        <p><small>Details: ${errorDetails}</small></p>
                         <button class="btn btn-primary mt-3" onclick="window.location.reload()">Reload Page</button>
                     </div>
                 `;
@@ -1365,12 +2316,15 @@
 
         function clearFilters() {
             searchInput.value = '';
-            statusFilter.value = '';
+            statusFilterOld.value = '';
             typeFilter.value = '';
+            statusFilter.value = 'all';
+            agencyFilter.value = 'all';
+            searchReports.value = '';
             applyFilters();
+            filterReports();
         }
 
-        // Sidebar toggle functions
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
@@ -1387,13 +2341,21 @@
             overlay.classList.remove('show');
         };
 
-        // Event listeners
         searchInput.addEventListener('input', applyFilters);
-        statusFilter.addEventListener('change', applyFilters);
+        statusFilterOld.addEventListener('change', applyFilters);
         typeFilter.addEventListener('change', applyFilters);
         clearFiltersBtn.addEventListener('click', clearFilters);
 
-        // Close sidebar when clicking on nav links on mobile
+        // Setup enhanced search filters
+        setupSearchFilters();
+
+        // Add pagination event listeners
+        prevPageBtn.addEventListener('click', goToPreviousPage);
+        nextPageBtn.addEventListener('click', goToNextPage);
+
+        // Add resize listener to update table layout
+        window.addEventListener('resize', renderTable);
+
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', () => {
                 if (window.innerWidth <= 768) {
@@ -1415,43 +2377,29 @@
             }
         };
 
-        // ENHANCED: Authentication and initialization with better error handling
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                console.log("No authenticated user, redirecting to login");
                 window.location.href = "index.html";
                 return;
             }
 
             try {
-                console.log("Authenticated user:", user.email, "UID:", user.uid);
-                
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
                 if (!userDoc.exists()) {
-                    console.error("User profile not found for UID:", user.uid);
                     showNotification("User profile not found", "error");
                     window.location.href = "index.html";
                     return;
                 }
 
                 const userData = userDoc.data();
-                console.log("User data loaded:", {
-                    role: userData.role,
-                    status: userData.status,
-                    name: userData.name
-                });
                 
-                // Check if user has access to reports
                 if (!['admin', 'monitor', 'rescuer', 'agency'].includes(userData.role)) {
-                    console.error("Access denied for role:", userData.role);
                     showNotification("Access denied. Admin, Moderator, Rescuer, or Agency role required.", "error");
                     window.location.href = "Dashboard.html";
                     return;
                 }
 
-                // Check user status
                 if (userData.status !== 'active') {
-                    console.error("User account not active:", userData.status);
                     showNotification("Account not active. Please contact administrator.", "error");
                     window.location.href = "index.html";
                     return;
@@ -1460,64 +2408,32 @@
                 currentUser = user;
                 currentUserData = userData;
                 
-                // Update UI with user info
                 document.getElementById('userName').textContent = userData.name || user.displayName || user.email;
                 document.getElementById('userEmail').textContent = user.email;
                 
                 const roleElement = document.getElementById('userRole');
-                // Display "Moderator" instead of "Monitor"
                 const displayRole = userData.role === 'monitor' ? 'Moderator' : userData.role.charAt(0).toUpperCase() + userData.role.slice(1);
                 roleElement.textContent = displayRole;
                 roleElement.className = `role-badge ${userData.role}`;
                 
-                // Update navigation visibility based on user role
                 updateNavigationVisibility(userData.role);
-                
-                // Update UI based on role (hide create button for rescuers/agencies)
                 updateUIForRole(userData.role);
-                
-                // Update report description based on role
                 updateReportDescription(userData.role);
                 
-                // Hide loading overlay and start loading data
                 document.getElementById('loadingOverlay').style.display = 'none';
                 
-                // Load reports with error handling
                 loadReports();
-                
-                let welcomeMessage = `Welcome back, ${userData.name || user.email}!`;
-                if (userData.role === 'rescuer') {
-                    welcomeMessage += " You can see reports assigned to you.";
-                } else if (userData.role === 'agency') {
-                    welcomeMessage += " You can see reports assigned to your agency.";
-                } else if (userData.role === 'monitor') {
-                    welcomeMessage += " You can view and manage all reports.";
-                } else if (userData.role === 'admin') {
-                    welcomeMessage += " You have full access to all reports.";
-                }
-                
-                showNotification(welcomeMessage, "success");
                 
             } catch (error) {
                 console.error('Authentication/setup error:', error);
+                showNotification("Authentication error", "error");
                 
-                let errorMessage = "Authentication error";
-                if (error.code === 'permission-denied') {
-                    errorMessage = "Permission denied. Please check your account permissions.";
-                } else if (error.code === 'unavailable') {
-                    errorMessage = "Service temporarily unavailable. Please try again.";
-                }
-                
-                showNotification(errorMessage, "error");
-                
-                // Don't redirect immediately in case it's a temporary issue
                 setTimeout(() => {
                     window.location.href = "index.html";
                 }, 3000);
             }
         });
 
-        // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
             if (reportsListener) {
                 reportsListener();
