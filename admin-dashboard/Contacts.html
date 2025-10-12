@@ -276,6 +276,7 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+            position: relative;
         }
 
         .contact-card:hover {
@@ -346,6 +347,50 @@
         .phone-number {
             font-weight: 600;
             color: #2c3e50;
+        }
+
+        .contact-actions {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-action {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+
+        .btn-delete {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .btn-add {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+
+        .btn-action:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
         .loading-content, .error-content, .no-data {
@@ -444,6 +489,133 @@
             visibility: visible;
         }
 
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .close-modal:hover {
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: #d73527;
+            box-shadow: 0 0 0 3px rgba(215, 53, 39, 0.1);
+            outline: none;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #d73527, #b92e20);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(215, 53, 39, 0.3);
+        }
+
+        .btn-submit:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
         /* Mobile responsiveness */
         @media (min-width: 769px) {
             .sidebar {
@@ -492,6 +664,15 @@
                 width: 50px;
                 height: 50px;
             }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
         }
     </style>
 </head>
@@ -510,6 +691,67 @@
 
     <!-- Sidebar Overlay -->
     <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- Add/Edit Contact Modal -->
+    <div id="contactModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Add New Contact</h3>
+                <button class="close-modal" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="contactForm">
+                <input type="hidden" id="contactId">
+                
+                <div class="form-group">
+                    <label class="form-label" for="contactName">Contact Name *</label>
+                    <input type="text" id="contactName" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="contactDepartment">Department/Organization *</label>
+                    <input type="text" id="contactDepartment" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="contactLogo">Logo URL</label>
+                    <input type="url" id="contactLogo" class="form-control" placeholder="https://example.com/logo.png">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="phone1">Primary Phone *</label>
+                        <input type="tel" id="phone1" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="phone2">Secondary Phone</label>
+                        <input type="tel" id="phone2" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="phone3">Additional Phone</label>
+                    <input type="tel" id="phone3" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="contactEmail">Email Address</label>
+                    <input type="email" id="contactEmail" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="contactAddress">Address</label>
+                    <textarea id="contactAddress" class="form-control" rows="3"></textarea>
+                </div>
+
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <i class="fas fa-save me-2"></i>Save Contact
+                </button>
+            </form>
+        </div>
+    </div>
 
     <div id="dashboardContainer" class="dashboard-container">
         <div class="sidebar" id="sidebar">
@@ -604,7 +846,7 @@
                     </a>
                 </div>
 
-                  <div class="nav-item" data-role="admin,monitor,rescuer,agency">
+                <div class="nav-item" data-role="admin,monitor,rescuer,agency">
                     <a href="changepassword.html" class="nav-link">
                         <i class="fas fa-key"></i>
                         Change Password
@@ -648,7 +890,12 @@
                             <i class="fas fa-phone-alt"></i>
                             Emergency Services Contacts
                         </h3>
-                        <small class="text-muted">Available 24/7 for emergencies in Lipa City</small>
+                        <div>
+                            <button class="btn-action btn-add" onclick="openAddModal()" id="addContactBtn" style="display: none;">
+                                <i class="fas fa-plus me-2"></i>Add Contact
+                            </button>
+                            <small class="text-muted">Available 24/7 for emergencies in Lipa City</small>
+                        </div>
                     </div>
                     
                     <div class="contacts-grid" id="contactsContainer">
@@ -674,7 +921,12 @@
             collection,
             query,
             where,
-            getDocs
+            getDocs,
+            onSnapshot,
+            addDoc,
+            updateDoc,
+            deleteDoc,
+            serverTimestamp
         } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -699,6 +951,7 @@
         };
 
         let currentUserInfo = null;
+        let contactsListener = null;
 
         // Role-based navigation visibility
         function updateNavigationVisibility(userRole) {
@@ -729,6 +982,32 @@
             
             sidebar.classList.remove('show');
             overlay.classList.remove('show');
+        };
+
+        // Modal functions
+        window.openAddModal = function() {
+            document.getElementById('modalTitle').textContent = 'Add New Contact';
+            document.getElementById('contactForm').reset();
+            document.getElementById('contactId').value = '';
+            document.getElementById('contactModal').classList.add('show');
+        };
+
+        window.openEditModal = function(contactId, contactData) {
+            document.getElementById('modalTitle').textContent = 'Edit Contact';
+            document.getElementById('contactId').value = contactId;
+            document.getElementById('contactName').value = contactData.name || '';
+            document.getElementById('contactDepartment').value = contactData.department || '';
+            document.getElementById('contactLogo').value = contactData.logo || '';
+            document.getElementById('phone1').value = contactData.phone1 || '';
+            document.getElementById('phone2').value = contactData.phone2 || '';
+            document.getElementById('phone3').value = contactData.phone3 || '';
+            document.getElementById('contactEmail').value = contactData.email || '';
+            document.getElementById('contactAddress').value = contactData.address || '';
+            document.getElementById('contactModal').classList.add('show');
+        };
+
+        window.closeModal = function() {
+            document.getElementById('contactModal').classList.remove('show');
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -890,6 +1169,11 @@
 
             // Update navigation visibility
             updateNavigationVisibility(currentUserInfo.role);
+
+            // Show add button only for admin
+            if (currentUserInfo.role === USER_ROLES.ADMIN) {
+                document.getElementById('addContactBtn').style.display = 'block';
+            }
         }
 
         function updateUserInfo() {
@@ -924,88 +1208,56 @@
             const container = document.getElementById('contactsContainer');
             
             try {
-                // Define emergency contacts with reliable image URLs and fallbacks
-                const emergencyContacts = [
-                    {
-                        name: "LIPA CDRRMO (LIPA RESCUE)",
-                        department: "City Disaster Risk Reduction and Management Office",
-                        phone1: "0915-463-5005",
-                        phone2: "(043) 756-0127 / 757-5164",
-                        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Philippine_Red_Cross.svg/240px-Philippine_Red_Cross.svg.png"
-                    },
-                    {
-                        name: "LIPA BFP",
-                        department: "Bureau of Fire Protection - Lipa City",
-                        phone1: "0927-575-8065",
-                        phone2: "(043) 757-4618",
-                        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Seal_of_the_Bureau_of_Fire_Protection_%28Philippines%29.svg/240px-Seal_of_the_Bureau_of_Fire_Protection_%28Philippines%29.svg.png"
-                    },
-                    {
-                        name: "LIPA PNP",
-                        department: "Philippine National Police - Lipa City",
-                        phone1: "0977-744-9692",
-                        phone2: "(043) 702-3832",
-                        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Seal_of_the_Philippine_National_Police.svg/240px-Seal_of_the_Philippine_National_Police.svg.png"
-                    },
-                    {
-                        name: "LIPA TMD",
-                        department: "Traffic Management Division",
-                        phone1: "(043) 702-6454",
-                        phone2: "(043) 404-9152",
-                        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Seal_of_the_City_of_Lipa%2C_Batangas.png/240px-Seal_of_the_City_of_Lipa%2C_Batangas.png"
-                    },
-                    {
-                        name: "DPWH LIPA",
-                        department: "Department of Public Works and Highways - Lipa",
-                        phone1: "(043) 233-0509",
-                        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Seal_of_the_Department_of_Public_Works_and_Highways.svg/240px-Seal_of_the_Department_of_Public_Works_and_Highways.svg.png"
-                    },
-                    {
-                        name: "BATELEC",
-                        department: "Batangas Electric Cooperative II",
-                        phone1: "0917-504-9254",
-                        phone2: "0998-892-0145",
-                        phone3: "(043) 756-6337",
-                        logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTbNtq8tCg3cZqHdXw5K9V9m8L7Jk2Q7Y2w&s=0"
-                    },
-                    {
-                        name: "METRO LIPA WATER DISTRICT",
-                        department: "Water Services Department",
-                        phone1: "(043) 756-1611",
-                        phone2: "(043) 756-1118",
-                        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Seal_of_the_City_of_Lipa%2C_Batangas.png/240px-Seal_of_the_City_of_Lipa%2C_Batangas.png"
-                    },
-                    {
-                        name: "REDCROSS LIPA",
-                        department: "Philippine Red Cross - Lipa Chapter",
-                        phone1: "0998-957-0443",
-                        phone2: "(043) 740-0768",
-                        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Philippine_Red_Cross.svg/240px-Philippine_Red_Cross.svg.png"
-                    }
-                ];
+                const q = query(collection(db, "emergency_contacts"), where("status", "==", "active"));
+                
+                if (contactsListener) {
+                    contactsListener();
+                }
 
-                container.innerHTML = '';
-                
-                emergencyContacts.forEach(contact => {
-                    const contactElement = createContactElement(contact);
-                    container.appendChild(contactElement);
+                contactsListener = onSnapshot(q, (snapshot) => {
+                    container.innerHTML = '';
+                    
+                    if (snapshot.empty) {
+                        container.innerHTML = `
+                            <div class="no-data">
+                                <i class="fas fa-phone-slash fa-2x mb-3"></i>
+                                <p>No emergency contacts found</p>
+                                <small>Add contacts using the "Add Contact" button</small>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        const contactElement = createContactElement(docSnap.id, data);
+                        container.appendChild(contactElement);
+                    });
+                    
+                    console.log(`Loaded ${snapshot.size} emergency contacts`);
+                }, (error) => {
+                    console.error('Error loading contacts:', error);
+                    container.innerHTML = `
+                        <div class="error-content">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                            <p>Failed to load emergency contacts</p>
+                            <small>Please check your internet connection</small>
+                        </div>
+                    `;
                 });
-                
-                console.log(`Loaded ${emergencyContacts.length} emergency contacts`);
-                
+
             } catch (error) {
-                console.error('Error loading contacts:', error);
+                console.error('Error setting up contacts listener:', error);
                 container.innerHTML = `
                     <div class="error-content">
                         <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
                         <p>Failed to load emergency contacts</p>
-                        <small>Please check your internet connection</small>
                     </div>
                 `;
             }
         }
 
-        function createContactElement(contact) {
+        function createContactElement(id, contact) {
             const contactDiv = document.createElement('div');
             contactDiv.className = 'contact-card';
             
@@ -1020,10 +1272,29 @@
             if (contact.phone3) {
                 phoneNumbers += `<div class="contact-item"><i class="fas fa-phone"></i><span class="phone-number">${contact.phone3}</span></div>`;
             }
+            if (contact.email) {
+                phoneNumbers += `<div class="contact-item"><i class="fas fa-envelope"></i><span>${contact.email}</span></div>`;
+            }
+            if (contact.address) {
+                phoneNumbers += `<div class="contact-item"><i class="fas fa-map-marker-alt"></i><span>${contact.address}</span></div>`;
+            }
+            
+            // Show edit/delete buttons only for admin
+            const adminActions = currentUserInfo.role === USER_ROLES.ADMIN ? `
+                <div class="contact-actions">
+                    <button class="btn-action btn-edit" onclick="openEditModal('${id}', ${JSON.stringify(contact).replace(/"/g, '&quot;')})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn-action btn-delete" onclick="deleteContact('${id}')">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            ` : '';
             
             contactDiv.innerHTML = `
+                ${adminActions}
                 <div class="contact-header">
-                    <img src="${contact.logo}" alt="${contact.name} Logo" class="contact-logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMzAiIGZpbGw9IiNkNzM1MjciLz4KPHN2ZyB4PSIxNSIgeT0iMTUiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+CjxwYXRoIGQ9Ik0yMiAxNi45MnYzLjAyYTIuMDUgMi4wNSAwIDAgMS0xLjU5NyAxLjk5OWMtLjEwOC4wMDItLjIxNi4wMDItLjMyNCAwQTIuMDUgMi4wNSAwIDAgMSAxOCAxOS45NFYxNi45TTE2IDJIN2EyIDIgMCAwIDAtMiAydjE2YTIgMiAwIDAgMCAyIDJoOWEyIDIgMCAwIDAgMi0yVjRabTAgMTJING0xMi00SDQiLz4KPC9zdmc+Cjwvc3ZnPg=='">
+                    <img src="${contact.logo || getDefaultLogo()}" alt="${contact.name} Logo" class="contact-logo" onerror="this.src='${getDefaultLogo()}'">
                     <div class="contact-info">
                         <div class="contact-name">${contact.name}</div>
                         <div class="contact-department">${contact.department}</div>
@@ -1037,6 +1308,78 @@
             
             return contactDiv;
         }
+
+        function getDefaultLogo() {
+            return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMzAiIGZpbGw9IiNkNzM1MjciLz4KPHN2ZyB4PSIxNSIgeT0iMTUiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+CjxwYXRoIGQ9Ik0yMiAxNi45MnYzLjAyYTIuMDUgMi4wNSAwIDAgMS0xLjU5NyAxLjk5OWMtLjEwOC4wMDItLjIxNi4wMDItLjMyNCAwQTIuMDUgMi4wNSAwIDAgMSAxOCAxOS45NFYxNi45TTE2IDJIN2EyIDIgMCAwIDAtMiAydjE2YTIgMiAwIDAgMCAyIDJoOWEyIDIgMCAwIDAgMi0yVjRabTAgMTJING0xMi00SDQiLz4KPC9zdmc+Cjwvc3ZnPg==';
+        }
+
+        // Form submission handler
+        document.getElementById('contactForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = submitBtn.innerHTML;
+            
+            try {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+                
+                const contactData = {
+                    name: document.getElementById('contactName').value.trim(),
+                    department: document.getElementById('contactDepartment').value.trim(),
+                    logo: document.getElementById('contactLogo').value.trim() || getDefaultLogo(),
+                    phone1: document.getElementById('phone1').value.trim(),
+                    phone2: document.getElementById('phone2').value.trim(),
+                    phone3: document.getElementById('phone3').value.trim(),
+                    email: document.getElementById('contactEmail').value.trim(),
+                    address: document.getElementById('contactAddress').value.trim(),
+                    status: 'active',
+                    updatedAt: serverTimestamp(),
+                    updatedBy: currentUserInfo.user.email
+                };
+
+                const contactId = document.getElementById('contactId').value;
+                
+                if (contactId) {
+                    // Update existing contact
+                    await updateDoc(doc(db, "emergency_contacts", contactId), contactData);
+                    showNotification('Contact updated successfully!', 'success');
+                } else {
+                    // Add new contact
+                    contactData.createdAt = serverTimestamp();
+                    contactData.createdBy = currentUserInfo.user.email;
+                    await addDoc(collection(db, "emergency_contacts"), contactData);
+                    showNotification('Contact added successfully!', 'success');
+                }
+                
+                closeModal();
+                
+            } catch (error) {
+                console.error('Error saving contact:', error);
+                showNotification('Failed to save contact: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+
+        window.deleteContact = async function(contactId) {
+            if (!confirm('Are you sure you want to delete this contact? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                await updateDoc(doc(db, "emergency_contacts", contactId), {
+                    status: 'inactive',
+                    updatedAt: serverTimestamp(),
+                    updatedBy: currentUserInfo.user.email
+                });
+                showNotification('Contact deleted successfully!', 'success');
+            } catch (error) {
+                console.error('Error deleting contact:', error);
+                showNotification('Failed to delete contact: ' + error.message, 'error');
+            }
+        };
 
         window.logoutUser = async function() {
             if (confirm("Are you sure you want to logout?")) {
@@ -1078,6 +1421,24 @@
                 }
             });
         }
+
+        // Close modal when clicking outside
+        document.getElementById('contactModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (contactsListener) contactsListener();
+        });
 
     </script>
 </body>

@@ -1,4 +1,4 @@
-// app/(main)/forum/create.tsx - Updated with Camera and Gallery Upload
+// app/(main)/forum/create.tsx - Submit Button Always Visible (Higher Position)
 import { Ionicons } from "@expo/vector-icons";
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
@@ -9,7 +9,6 @@ import {
   Alert,
   Dimensions,
   Image,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -18,7 +17,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createForumPost } from "../../../services/forum";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -34,9 +32,6 @@ const CreateForumPost = () => {
   const [facing, setFacing] = useState<CameraType>("back");
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
-  
-  // Safe area for responsive design
-  const insets = useSafeAreaInsets();
 
   // Use useMemo to properly track form validity
   const isFormValid = useMemo(() => {
@@ -226,7 +221,7 @@ const CreateForumPost = () => {
               <Ionicons name="camera-reverse" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
-          <View style={[styles.cameraControls, { bottom: insets.bottom + 20 }]}>
+          <View style={styles.cameraControls}>
             <View style={styles.captureContainer}>
               <TouchableOpacity
                 style={styles.captureButton}
@@ -248,7 +243,7 @@ const CreateForumPost = () => {
   return (
     <View style={styles.mainContainer}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+      <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
@@ -256,128 +251,117 @@ const CreateForumPost = () => {
         <View style={styles.placeholder} />
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.keyboardContainer}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-      >
-        <View style={styles.contentWrapper}>
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={[
-              styles.scrollContent,
-              { paddingBottom: Platform.OS === 'ios' ? 140 : 120 }
-            ]}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            bounces={true}
-          >
-            {/* Community Guidelines */}
-            <View style={styles.guidelinesContainer}>
-              <View style={styles.guidelinesHeader}>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={20}
-                  color="#D32F2F"
-                />
-                <Text style={styles.guidelinesTitle}>Community Guidelines</Text>
-              </View>
-              <Text style={styles.guidelinesText}>
-                All posts are reviewed by moderators before being published.
-                Please ensure your content is respectful and follows our
-                guidelines.
+      {/* Submit Button - HIGHER POSITION, ALWAYS VISIBLE */}
+      <View style={styles.submitContainer}>
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            (!isFormValid || isSubmitting) && styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmit}
+          disabled={!isFormValid || isSubmitting}
+          activeOpacity={0.7}
+        >
+          {isSubmitting ? (
+            <View style={styles.buttonContent}>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={[styles.submitButtonText, { marginLeft: 8 }]}>
+                Submitting...
               </Text>
             </View>
-
-            {/* Title Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Title *</Text>
-              <TextInput
-                style={styles.titleInput}
-                placeholder="Enter post title"
-                value={title}
-                onChangeText={setTitle}
-                placeholderTextColor="#999"
-                maxLength={100}
-              />
-              <Text style={styles.charCount}>{title.length}/100</Text>
+          ) : (
+            <View style={styles.buttonContent}>
+              <Ionicons name="send" size={18} color="#fff" />
+              <Text style={styles.submitButtonText}>Submit for Review</Text>
             </View>
+          )}
+        </TouchableOpacity>
+      </View>
 
-            {/* Content Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Content *</Text>
-              <View style={styles.contentInputContainer}>
-                <TextInput
-                  style={styles.contentInput}
-                  placeholder="Share your thoughts..."
-                  value={content}
-                  onChangeText={setContent}
-                  placeholderTextColor="#999"
-                  multiline
-                  textAlignVertical="top"
-                  scrollEnabled={false}
-                  maxLength={1000}
-                />
-                <View style={styles.toolbar}>
-                  <TouchableOpacity
-                    style={styles.toolbarButton}
-                    onPress={showImageOptions}
-                  >
-                    <Ionicons name="camera-outline" size={20} color="#666" />
-                    <Text style={styles.toolbarButtonText}>Add Photo</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <Text style={styles.charCount}>{content.length}/1000</Text>
+      {/* Scrollable Content */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        bounces={true}
+      >
+        {/* Community Guidelines */}
+        <View style={styles.guidelinesContainer}>
+          <View style={styles.guidelinesHeader}>
+            <Ionicons
+              name="information-circle-outline"
+              size={20}
+              color="#D32F2F"
+            />
+            <Text style={styles.guidelinesTitle}>Community Guidelines</Text>
+          </View>
+          <Text style={styles.guidelinesText}>
+            All posts are reviewed by moderators before being published.
+            Please ensure your content is respectful and follows our
+            guidelines.
+          </Text>
+        </View>
+
+        {/* Title Input */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Title *</Text>
+          <TextInput
+            style={styles.titleInput}
+            placeholder="Enter post title"
+            value={title}
+            onChangeText={setTitle}
+            placeholderTextColor="#999"
+            maxLength={100}
+          />
+          <Text style={styles.charCount}>{title.length}/100</Text>
+        </View>
+
+        {/* Content Input */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Content *</Text>
+          <View style={styles.contentInputContainer}>
+            <TextInput
+              style={styles.contentInput}
+              placeholder="Share your thoughts..."
+              value={content}
+              onChangeText={setContent}
+              placeholderTextColor="#999"
+              multiline
+              textAlignVertical="top"
+              scrollEnabled={false}
+              maxLength={1000}
+            />
+            <View style={styles.toolbar}>
+              <TouchableOpacity
+                style={styles.toolbarButton}
+                onPress={showImageOptions}
+              >
+                <Ionicons name="camera-outline" size={20} color="#666" />
+                <Text style={styles.toolbarButtonText}>Add Photo</Text>
+              </TouchableOpacity>
             </View>
+          </View>
+          <Text style={styles.charCount}>{content.length}/1000</Text>
+        </View>
 
-            {/* Photo Preview */}
-            {photoUri && (
-              <View style={styles.photoPreviewContainer}>
-                <Text style={styles.photoLabel}>Photo Preview</Text>
-                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
-                <TouchableOpacity
-                  style={styles.removePhotoButton}
-                  onPress={removePhoto}
-                >
-                  <Ionicons name="close-circle" size={24} color="#D32F2F" />
-                </TouchableOpacity>
-              </View>
-            )}
-          
-          </ScrollView>
-
-          {/* Submit Button - FIXED: Always visible at bottom with proper spacing */}
-          <View style={[styles.submitContainer, { 
-            paddingBottom: Platform.OS === 'ios' ? insets.bottom + 15 : 15,
-            paddingTop: 15,
-          }]}>
+        {/* Photo Preview */}
+        {photoUri && (
+          <View style={styles.photoPreviewContainer}>
+            <Text style={styles.photoLabel}>Photo Preview</Text>
+            <Image source={{ uri: photoUri }} style={styles.photoPreview} />
             <TouchableOpacity
-              style={[
-                styles.submitButton,
-                (!isFormValid || isSubmitting) && styles.submitButtonDisabled,
-              ]}
-              onPress={handleSubmit}
-              disabled={!isFormValid || isSubmitting}
-              activeOpacity={0.7}
+              style={styles.removePhotoButton}
+              onPress={removePhoto}
             >
-              {isSubmitting ? (
-                <View style={styles.buttonContent}>
-                  <ActivityIndicator size="small" color="#fff" />
-                  <Text style={[styles.submitButtonText, { marginLeft: 8 }]}>
-                    Submitting...
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.buttonContent}>
-                  <Ionicons name="send" size={18} color="#fff" />
-                  <Text style={styles.submitButtonText}>Submit for Review</Text>
-                </View>
-              )}
+              <Ionicons name="close-circle" size={24} color="#D32F2F" />
             </TouchableOpacity>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        )}
+
+        {/* Extra space for submit button overlap */}
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
     </View>
   );
 };
@@ -387,18 +371,9 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: "#f5f5f5" 
   },
-  contentWrapper: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 120, // Extra padding to ensure content scrolls above submit button
-  },
   header: {
     backgroundColor: "#fff",
+    paddingTop: Platform.OS === "ios" ? 50 : 30,
     paddingHorizontal: 20,
     paddingBottom: 15,
     flexDirection: "row",
@@ -409,9 +384,6 @@ const styles = StyleSheet.create({
     elevation: 2,
     shadowColor: "#000",
     shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    zIndex: 10,
   },
   backButton: { 
     padding: 5 
@@ -420,13 +392,19 @@ const styles = StyleSheet.create({
     fontSize: 20, 
     fontWeight: "700", 
     color: "#333",
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   placeholder: { 
     width: 34 
   },
-  keyboardContainer: { 
-    flex: 1 
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 80, // Space for submit button
+  },
+  bottomSpacer: {
+    height: 80, // Extra space at bottom for submit button
   },
   loadingContainer: {
     flex: 1,
@@ -439,7 +417,6 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     color: "#666", 
     fontWeight: "500",
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   permissionContainer: {
     flex: 1,
@@ -454,7 +431,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 20,
     lineHeight: 24,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   permissionButton: {
     backgroundColor: "#D32F2F",
@@ -466,7 +442,6 @@ const styles = StyleSheet.create({
     color: "#fff", 
     fontSize: 16, 
     fontWeight: "600",
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   guidelinesContainer: {
     backgroundColor: "#fff3f3",
@@ -486,13 +461,11 @@ const styles = StyleSheet.create({
     fontWeight: "600", 
     color: "#D32F2F", 
     marginLeft: 6,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   guidelinesText: { 
     fontSize: 13, 
     color: "#666", 
     lineHeight: 20,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   inputContainer: {
     backgroundColor: "#fff",
@@ -509,7 +482,6 @@ const styles = StyleSheet.create({
     fontWeight: "600", 
     color: "#333", 
     marginBottom: 10,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   titleInput: {
     fontSize: 16,
@@ -517,7 +489,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   contentInputContainer: { 
     position: "relative" 
@@ -530,7 +501,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingBottom: 50,
     textAlignVertical: "top",
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   toolbar: { 
     position: "absolute", 
@@ -549,14 +519,12 @@ const styles = StyleSheet.create({
     fontSize: 12, 
     color: "#666", 
     marginLeft: 4,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   charCount: { 
     fontSize: 12, 
     color: "#999", 
     textAlign: "right", 
     marginTop: 5,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   photoPreviewContainer: {
     backgroundColor: "#fff",
@@ -573,7 +541,6 @@ const styles = StyleSheet.create({
     fontWeight: "600", 
     color: "#333", 
     marginBottom: 10,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   photoPreview: { 
     width: "100%", 
@@ -588,39 +555,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
   },
-  statusContainer: { 
-    backgroundColor: "#f0f0f0", 
-    margin: 15, 
-    padding: 10, 
-    borderRadius: 5 
-  },
-  statusText: { 
-    fontSize: 12, 
-    color: "#666", 
-    textAlign: "center",
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
   submitContainer: {
+    position: 'absolute',
+    bottom: 20, // HIGHER POSITION - 20 from bottom instead of 0
+    left: 15,
+    right: 15,
     backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-    elevation: 8,
+    borderRadius: 12,
+    elevation: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     paddingHorizontal: 15,
+    paddingVertical: 15,
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   submitButton: {
     backgroundColor: "#D32F2F",
     borderRadius: 8,
     paddingVertical: 15,
     paddingHorizontal: 20,
-    elevation: 2,
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   submitButtonDisabled: { 
     backgroundColor: "#ccc", 
@@ -636,7 +598,6 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     fontWeight: "700", 
     marginLeft: 8,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   // Camera
   cameraContainer: { 
@@ -667,20 +628,19 @@ const styles = StyleSheet.create({
     color: "#fff", 
     fontSize: 18, 
     fontWeight: "700",
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   cameraControls: {
     position: "absolute",
+    bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: 20,
-    paddingTop: 20,
+    paddingBottom: 60,
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   captureContainer: { 
     alignItems: "center", 
-    marginBottom: 15 
+    marginBottom: 20 
   },
   captureButton: {
     width: 80,
@@ -700,11 +660,9 @@ const styles = StyleSheet.create({
   },
   cameraInstructions: { 
     color: "#fff", 
-    fontSize: 13, 
+    fontSize: 14, 
     textAlign: "center", 
-    opacity: 0.9,
-    paddingHorizontal: 20,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    opacity: 0.8,
   },
 });
 

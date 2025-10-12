@@ -1867,22 +1867,27 @@ exports.getPendingUsers = onCall({
   }
 });
 
-// Verify OTP - Enhanced with better error handling
 exports.verifyOtp = onCall({
   region: "asia-southeast1",
-  cors: true
+  cors: true,
+  enforceAppCheck: false,
+  memory: "256MiB",
+  timeoutSeconds: 60
 }, async (request) => {
   const { sessionId, code } = request.data;
   
   if (!sessionId || !code) {
-    throw new Error("Session ID and verification code are required");
+    throw new functions.https.HttpsError('invalid-argument', "Session ID and verification code are required");
   }
   
   if (typeof code !== "string" || !/^\d{6}$/.test(code)) {
-    throw new Error("Invalid verification code format. Code must be 6 digits.");
+    throw new functions.https.HttpsError('invalid-argument', "Invalid verification code format. Code must be 6 digits.");
   }
 
   try {
+    logger.info(`🔍 Verifying OTP for session: ${sessionId.substring(0, 10)}...`);
+
+    // ✅ FIX 1: Query with proper error handling
     const otpQuery = await admin
       .firestore()
       .collection("otp")
@@ -1891,27 +1896,46 @@ exports.verifyOtp = onCall({
       .get();
 
     if (otpQuery.empty) {
-      throw new Error("Invalid or expired session. Please request a new code.");
+      logger.warn(`❌ No OTP found for session: ${sessionId}`);
+      throw new functions.https.HttpsError('not-found', "Invalid or expired session. Please request a new code.");
     }
 
     const otpDoc = otpQuery.docs[0];
     const otpData = otpDoc.data();
 
-    if (otpData.used) {
-      throw new Error("This verification code has already been used.");
+    logger.info(`📋 OTP Data:`, {
+      used: otpData.used,
+      verified: otpData.verified,
+      attempts: otpData.attempts,
+      expiresAt: otpData.expiresAt?.toDate?.()?.toISOString()
+    });
+
+    // ✅ FIX 2: Check if already used
+    if (otpData.used === true) {
+      throw new functions.https.HttpsError('failed-precondition', "This verification code has already been used.");
     }
 
-    if (otpData.expiresAt.toDate() < new Date()) {
-      throw new Error("Verification code has expired. Please request a new one.");
+    // ✅ FIX 3: Check expiration with proper timestamp handling
+    const expiresAt = otpData.expiresAt?.toDate ? otpData.expiresAt.toDate() : new Date(otpData.expiresAt);
+    const now = new Date();
+    
+    if (expiresAt < now) {
+      logger.warn(`❌ OTP expired: ${expiresAt.toISOString()} < ${now.toISOString()}`);
+      throw new functions.https.HttpsError('deadline-exceeded', "Verification code has expired. Please request a new one.");
     }
 
+    // ✅ FIX 4: Check max attempts
     if (otpData.attempts >= MAX_VERIFY_ATTEMPTS) {
-      throw new Error(`Maximum verification attempts exceeded. Please request a new code.`);
+      throw new functions.https.HttpsError('resource-exhausted', `Maximum verification attempts exceeded. Please request a new code.`);
     }
 
+    // ✅ FIX 5: Verify the code hash
     const inputHash = crypto.createHash("sha256").update(code).digest("hex");
+    
     if (inputHash !== otpData.codeHash) {
       const newAttempts = otpData.attempts + 1;
+      
+      // Update attempts count
       await otpDoc.ref.update({
         attempts: newAttempts,
         lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1919,9 +1943,11 @@ exports.verifyOtp = onCall({
       });
       
       const remainingAttempts = MAX_VERIFY_ATTEMPTS - newAttempts;
-      throw new Error(`Invalid verification code. ${remainingAttempts} attempts remaining.`);
+      logger.warn(`❌ Invalid OTP code. Remaining attempts: ${remainingAttempts}`);
+      throw new functions.https.HttpsError('invalid-argument', `Invalid verification code. ${remainingAttempts} attempts remaining.`);
     }
 
+    // ✅ FIX 6: Update OTP as verified and used
     await otpDoc.ref.update({
       used: true,
       verified: true,
@@ -1929,15 +1955,28 @@ exports.verifyOtp = onCall({
       verifierIP: request.rawRequest?.ip || 'unknown',
     });
 
+    logger.info(`✅ OTP verified successfully for session: ${sessionId}`);
+
     return { 
       success: true, 
       message: "Verification code confirmed successfully.",
+      sessionId: sessionId,  // ✅ Return sessionId for next step
       passwordResetWindow: `${PASSWORD_RESET_WINDOW_MINUTES} minutes`
     };
     
   } catch (error) {
-    logger.error("Error in verifyOtp:", error);
-    throw new Error(error.message || "Failed to verify code. Please try again.");
+    logger.error("❌ Error in verifyOtp:", {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    
+    // ✅ FIX 7: Proper error handling
+    if (error.code && error.code.startsWith('functions/')) {
+      throw error; // Re-throw Firebase errors as-is
+    }
+    
+    throw new functions.https.HttpsError('internal', error.message || "Failed to verify code. Please try again.");
   }
 });
 

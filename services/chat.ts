@@ -1,12 +1,10 @@
-
-// services/chat.ts - COMPLETELY FIXED Chat Service with Notifications
+// services/chat.ts - COMPLETELY FIXED Chat Service
 import { getAuth } from 'firebase/auth';
 import {
   addDoc,
   collection,
   doc,
   getDoc,
-  getDocs,
   getFirestore,
   onSnapshot,
   orderBy,
@@ -14,11 +12,8 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
-  updateDoc,
-  where
+  updateDoc
 } from 'firebase/firestore';
-
-import { notificationService } from './notifications';
 
 export interface ChatMessage {
   id?: string;
@@ -174,7 +169,7 @@ export class ChatService {
   // =================== MESSAGE HANDLING ===================
 
   /**
-   * Send a message from the current user - UPDATED WITH NOTIFICATIONS
+   * Send a message from the current user
    */
   async sendUserMessage(content: string, attachments?: any[]): Promise<void> {
     const currentUser = this.auth.currentUser;
@@ -204,107 +199,17 @@ export class ChatService {
       await addDoc(messagesRef, messageData);
       console.log('✅ Message sent successfully');
       
-      // UPDATE CHAT ROOM METADATA
+      // Update chat room with last message
       console.log('🔄 Updating chat room metadata...');
       await this.updateChatRoomLastMessage(chatRoomId, messageData);
       await this.incrementUnreadCount(chatRoomId, 'admin');
       console.log('✅ Chat room metadata updated');
-
-      // 🔥 DAGDAG: CREATE NOTIFICATION FOR ADMIN
-      try {
-        console.log('🔔 Creating admin notification for new message...');
-        
-        // Kunin ang user profile para sa pangalan
-        const userDoc = await getDoc(doc(this.db, 'users', currentUser.uid));
-        const userData = userDoc.data();
-        const userName = userData?.name || userData?.displayName || userData?.email?.split('@')[0] || 'A resident';
-        
-        // Gumawa ng notification para sa admin users
-        await this.notifyAllAdmins(chatRoomId, userName, content.trim(), currentUser.uid);
-        
-        console.log('✅ Admin notification created');
-      } catch (notifError) {
-        console.warn('⚠️ Failed to create admin notification:', notifError);
-        // Don't throw - notification is not critical for chat functionality
-      }
 
     } catch (error: any) {
       console.error('❌ Error sending message:', error);
       console.error('Error code:', error.code);
       console.error('Error message:', error.message);
       throw new Error(`Failed to send message: ${error.message}`);
-    }
-  }
-
-  /**
-   * Notify all admin users about new chat message
-   */
-  private async notifyAllAdmins(
-    chatRoomId: string, 
-    userName: string, 
-    messageContent: string, 
-    senderId: string
-  ): Promise<void> {
-    try {
-      console.log('🔔 Setting up admin notifications...');
-      
-      // Kunin lahat ng admin users mula sa users collection
-      const usersQuery = query(
-        collection(this.db, 'users'),
-        where('role', 'in', ['admin', 'moderator', 'super_admin'])
-      );
-      
-      const usersSnapshot = await getDocs(usersQuery);
-      const adminUsers: string[] = [];
-
-      usersSnapshot.forEach((doc) => {
-        const userData = doc.data();
-        if (userData.role && ['admin', 'moderator', 'super_admin'].includes(userData.role)) {
-          adminUsers.push(doc.id);
-        }
-      });
-
-      console.log(`🔔 Notifying ${adminUsers.length} admin users`);
-
-      // Create notification for each admin
-      for (const adminId of adminUsers) {
-        if (adminId !== senderId) { // Don't notify if admin is the sender
-          await notificationService.createChatNotification(
-            adminId,
-            chatRoomId,
-            userName,
-            messageContent,
-            senderId
-          );
-        }
-      }
-
-      // Fallback: If no admins found, notify default admin
-      if (adminUsers.length === 0) {
-        console.log('⚠️ No admin users found, using fallback notification');
-        await notificationService.createChatNotification(
-          'cdrrmo_admin', // Default admin ID
-          chatRoomId,
-          userName,
-          messageContent,
-          senderId
-        );
-      }
-
-    } catch (error) {
-      console.error('❌ Error notifying admins:', error);
-      // Fallback: Create notification for a default admin
-      try {
-        await notificationService.createChatNotification(
-          'cdrrmo_admin', // Default admin ID
-          chatRoomId,
-          userName,
-          messageContent,
-          senderId
-        );
-      } catch (fallbackError) {
-        console.warn('⚠️ Fallback admin notification also failed:', fallbackError);
-      }
     }
   }
 
@@ -491,14 +396,6 @@ export class ChatService {
       console.error('❌ Error checking chat room existence:', error);
       return false;
     }
-  }
-
-  /**
-   * Cleanup method for component unmounting
-   */
-  cleanup(): void {
-    // Add any cleanup logic here if needed
-    console.log('🧹 Chat service cleanup completed');
   }
 }
 

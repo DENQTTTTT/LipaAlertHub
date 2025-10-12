@@ -1,4 +1,4 @@
-// services/forum.ts - Fixed with correct storage path
+// services/forum.ts - Fixed with correct storage path and NOTIFICATION INTEGRATION
 import {
   addDoc,
   collection,
@@ -16,8 +16,8 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
-import { notificationService } from 'services/notifications';
 import { auth, db } from './firebase';
+import { notificationService } from './notifications'; // ✅ FIXED IMPORT PATH
 
 // Updated interfaces with approval system
 export interface ForumPost {
@@ -127,17 +127,18 @@ export const createForumPost = async (postData: {
 
     const docRef = await addDoc(collection(db, 'forumPosts'), post);
     
-    // Create notification for post submission (only if notificationService exists)
+    // 🔥 DAGDAG: CREATE NOTIFICATION FOR POST SUBMISSION
     try {
-      if (notificationService && notificationService.createForumPostSubmittedNotification) {
-        await notificationService.createForumPostSubmittedNotification(
-          user.uid,
-          docRef.id,
-          postData.title
-        );
-      }
+      console.log('🔔 Creating forum post submission notification...');
+      await notificationService.createForumPostSubmittedNotification(
+        user.uid,
+        docRef.id,
+        postData.title
+      );
+      console.log('✅ Forum post submission notification created');
     } catch (notifError) {
-      console.warn('Notification service not available:', notifError);
+      console.warn('⚠️ Failed to create forum post submission notification:', notifError);
+      // Don't throw - notification is not critical for post creation
     }
     
     return { ...post, id: docRef.id, imageUrl };
@@ -239,17 +240,17 @@ export const approveForumPost = async (postId: string): Promise<void> => {
       updatedAt: serverTimestamp()
     });
 
-    // Create notification for post approval (only if notificationService exists)
+    // 🔥 DAGDAG: CREATE NOTIFICATION FOR POST APPROVAL
     try {
-      if (notificationService && notificationService.createForumPostApprovedNotification) {
-        await notificationService.createForumPostApprovedNotification(
-          post.userId,
-          postId,
-          post.title
-        );
-      }
+      console.log('🔔 Creating forum post approval notification...');
+      await notificationService.createForumPostApprovedNotification(
+        post.userId,
+        postId,
+        post.title
+      );
+      console.log('✅ Forum post approval notification created');
     } catch (notifError) {
-      console.warn('Notification service not available:', notifError);
+      console.warn('⚠️ Failed to create forum post approval notification:', notifError);
     }
   } catch (error) {
     console.error('Error approving forum post:', error);
@@ -275,18 +276,18 @@ export const rejectForumPost = async (postId: string, reason: string): Promise<v
       updatedAt: serverTimestamp()
     });
 
-    // Create notification for post rejection (only if notificationService exists)
+    // 🔥 DAGDAG: CREATE NOTIFICATION FOR POST REJECTION
     try {
-      if (notificationService && notificationService.createForumPostRejectedNotification) {
-        await notificationService.createForumPostRejectedNotification(
-          post.userId,
-          postId,
-          post.title,
-          reason
-        );
-      }
+      console.log('🔔 Creating forum post rejection notification...');
+      await notificationService.createForumPostRejectedNotification(
+        post.userId,
+        postId,
+        post.title,
+        reason
+      );
+      console.log('✅ Forum post rejection notification created');
     } catch (notifError) {
-      console.warn('Notification service not available:', notifError);
+      console.warn('⚠️ Failed to create forum post rejection notification:', notifError);
     }
   } catch (error) {
     console.error('Error rejecting forum post:', error);
@@ -364,7 +365,7 @@ export const subscribeToPendingPosts = (
   });
 };
 
-// Create a reply to a forum post
+// CREATE FORUM REPLY - UPDATED WITH NOTIFICATIONS
 export const createForumReply = async (replyData: {
   postId: string;
   content: string;
@@ -407,19 +408,22 @@ export const createForumReply = async (replyData: {
 
     await batch.commit();
 
-    // Create notification for the post author (only if notificationService exists)
+    // 🔥 DAGDAG: CREATE NOTIFICATION FOR POST AUTHOR
     try {
-      if (post.userId !== user.uid && notificationService && notificationService.createForumReplyNotification) {
+      if (post.userId !== user.uid) {
+        // Only notify if it's not the post author replying to their own post
+        console.log('🔔 Creating forum reply notification...');
         await notificationService.createForumReplyNotification(
-          post.userId,
-          replyData.postId,
-          post.title,
-          userName,
-          replyData.content
+          post.userId, // Post author ID
+          replyData.postId, // Post ID
+          post.title, // Post title
+          userName, // Replier name
+          replyData.content // Reply content
         );
+        console.log('✅ Forum reply notification created');
       }
     } catch (notifError) {
-      console.warn('Notification service not available:', notifError);
+      console.warn('⚠️ Failed to create forum reply notification:', notifError);
     }
 
     return { ...reply, id: replyRef.id };
@@ -477,7 +481,7 @@ export const subscribeToPostReplies = (
   });
 };
 
-// Toggle like on approved post or reply
+// TOGGLE LIKE - UPDATED WITH NOTIFICATIONS
 export const toggleLike = async (targetId: string, type: 'post' | 'reply'): Promise<boolean> => {
   try {
     const user = auth.currentUser;
@@ -530,42 +534,46 @@ export const toggleLike = async (targetId: string, type: 'post' | 'reply'): Prom
 
       await batch.commit();
 
-      // Create notifications for likes (only if notificationService exists)
+      // 🔥 DAGDAG: CREATE NOTIFICATIONS FOR LIKES
       try {
-        if (notificationService) {
-          if (type === 'post') {
-            const post = await getForumPost(targetId);
-            if (post && post.userId !== user.uid && notificationService.createForumPostLikeNotification) {
-              const likerName = user.displayName || user.email?.split('@')[0] || 'Someone';
-              await notificationService.createForumPostLikeNotification(
-                post.userId,
-                targetId,
-                post.title,
-                likerName
-              );
-            }
-          } else {
-            const replyDoc = await getDoc(doc(db, 'forumReplies', targetId));
-            if (replyDoc.exists()) {
-              const replyData = replyDoc.data();
-              if (replyData.userId !== user.uid) {
-                const post = await getForumPost(replyData.postId);
-                if (post && notificationService.createForumReplyLikeNotification) {
-                  const likerName = user.displayName || user.email?.split('@')[0] || 'Someone';
-                  await notificationService.createForumReplyLikeNotification(
-                    replyData.userId,
-                    replyData.postId,
-                    targetId,
-                    post.title,
-                    likerName
-                  );
-                }
+        const likerName = user.displayName || user.email?.split('@')[0] || 'Someone';
+        
+        if (type === 'post') {
+          const post = await getForumPost(targetId);
+          if (post && post.userId !== user.uid) {
+            // Notify post author about like
+            console.log('🔔 Creating forum post like notification...');
+            await notificationService.createForumPostLikeNotification(
+              post.userId,
+              targetId,
+              post.title,
+              likerName
+            );
+            console.log('✅ Forum post like notification created');
+          }
+        } else {
+          const replyDoc = await getDoc(doc(db, 'forumReplies', targetId));
+          if (replyDoc.exists()) {
+            const replyData = replyDoc.data();
+            if (replyData.userId !== user.uid) {
+              const post = await getForumPost(replyData.postId);
+              if (post) {
+                // Notify reply author about like
+                console.log('🔔 Creating forum reply like notification...');
+                await notificationService.createForumReplyLikeNotification(
+                  replyData.userId,
+                  replyData.postId,
+                  targetId,
+                  post.title,
+                  likerName
+                );
+                console.log('✅ Forum reply like notification created');
               }
             }
           }
         }
       } catch (notifError) {
-        console.warn('Notification service not available:', notifError);
+        console.warn('⚠️ Failed to create like notification:', notifError);
       }
 
       return true; // Liked

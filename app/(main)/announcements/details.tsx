@@ -2,15 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import {
-    ActivityIndicator,
-    Dimensions,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { useAnnouncementById } from "../../../hooks/useAnnouncements";
 import { announcementService } from "../../../services/announcements";
@@ -80,9 +80,6 @@ export default function AnnouncementDetailsScreen() {
           <Ionicons name="arrow-back" size={24} color="#D32F2F" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Announcement</Text>
-        <TouchableOpacity style={styles.shareButton} onPress={handleSharePress}>
-          <Ionicons name="share-outline" size={24} color="#D32F2F" />
-        </TouchableOpacity>
       </View>
 
       {/* Content */}

@@ -1,4 +1,4 @@
-// app/(main)/notifications/index.tsx - IMPROVED DESIGN VERSION
+// app/(main)/notifications/index.tsx - FIXED CHAT NAVIGATION
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -16,7 +16,7 @@ import {
   View
 } from "react-native";
 import { useAuth } from "../../../hooks/useAuth";
-import { NotificationData, notificationService } from "../../../services/notifications";
+import { NotificationData, notificationService } from "../../../services/notifications"; // ✅ FIXED IMPORT PATH
 
 const { width } = Dimensions.get('window');
 const isSmallDevice = width < 375;
@@ -81,12 +81,8 @@ export default function NotificationsScreen() {
           router.push('/(main)/forum');
         }
       } else if (notification.type.startsWith('chat_')) {
-        if (notification.chatRoomId) {
-          router.push({
-            pathname: '/(main)/chat',
-            params: { roomId: notification.chatRoomId }
-          });
-        }
+        // ✅ FIXED: Navigate to chat screen (no need for roomId since resident has only one chat room)
+        router.push('/(main)/chat');
       } else {
         Alert.alert("Notification", notification.body);
       }

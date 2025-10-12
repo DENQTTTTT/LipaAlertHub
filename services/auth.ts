@@ -1,3 +1,4 @@
+// services/auth.ts - COMPLETE WITH VIOLATION NOTIFICATIONS
 import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
@@ -9,6 +10,7 @@ import {
 import { collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "./firebase";
+import { notificationService } from "./notifications"; // ✅ IMPORT NOTIFICATION SERVICE
 
 export const register = async (
   email: string,
@@ -617,5 +619,207 @@ export const performSecurityCheck = async (): Promise<{ canChangePassword: boole
     return {
       canChangePassword: true
     };
+  }
+};
+
+// 🔥 DAGDAG: VIOLATION NOTIFICATION FUNCTIONS
+export const createViolationNotification = async (
+  userId: string,
+  violationType: 'warning' | 'strike' | 'suspension' | 'ban',
+  reason: string,
+  additionalData?: {
+    strikes?: number;
+    warnings?: number;
+    suspensionDays?: number;
+    suspensionUntil?: Date;
+  }
+): Promise<void> => {
+  try {
+    console.log(`🔔 Creating ${violationType} notification for user ${userId}`);
+    
+    switch (violationType) {
+      case 'warning':
+        await notificationService.createWarningNotification(
+          userId,
+          reason,
+          additionalData?.warnings || 0,
+          additionalData?.strikes || 0
+        );
+        break;
+      case 'strike':
+        await notificationService.createStrikeNotification(
+          userId,
+          reason,
+          additionalData?.strikes || 0,
+          additionalData?.warnings || 0,
+          additionalData?.suspensionDays
+        );
+        break;
+      case 'suspension':
+        if (additionalData?.suspensionUntil) {
+          await notificationService.createSuspensionNotification(
+            userId,
+            reason,
+            additionalData.suspensionUntil,
+            additionalData?.strikes || 0,
+            additionalData?.warnings || 0
+          );
+        }
+        break;
+      case 'ban':
+        await notificationService.createBanNotification(
+          userId,
+          reason,
+          additionalData?.strikes || 0,
+          additionalData?.warnings || 0
+        );
+        break;
+    }
+    console.log(`✅ ${violationType} notification created for user ${userId}`);
+  } catch (error) {
+    console.error(`❌ Error creating ${violationType} notification:`, error);
+    // Don't throw - notification failure shouldn't break the violation process
+  }
+};
+
+// 🔥 DAGDAG: ACCOUNT STATUS CHANGE NOTIFICATION
+export const createAccountStatusNotification = async (
+  userId: string,
+  status: 'approved' | 'declined' | 'activated' | 'deactivated',
+  reason?: string
+): Promise<void> => {
+  try {
+    console.log(`🔔 Creating account ${status} notification for user ${userId}`);
+    
+    const userProfile = await getUserProfile(userId);
+    if (!userProfile) {
+      console.warn(`⚠️ User profile not found for notification: ${userId}`);
+      return;
+    }
+
+    const titles = {
+      'approved': 'Account Approved',
+      'declined': 'Account Registration Declined',
+      'activated': 'Account Activated',
+      'deactivated': 'Account Deactivated'
+    };
+
+    const bodies = {
+      'approved': 'Your account registration has been approved! You can now access all features of LipaAlertHub.',
+      'declined': `Your account registration was declined. ${reason ? `Reason: ${reason}` : 'Please contact support for more information.'}`,
+      'activated': 'Your account has been reactivated and you can now access all features.',
+      'deactivated': 'Your account has been deactivated. Please contact support for assistance.'
+    };
+
+    await notificationService.createNotification({
+      userId,
+      title: titles[status],
+      body: bodies[status],
+      type: 'account_verified',
+      priority: status === 'declined' ? 'high' : 'normal',
+      status: 'unread',
+      data: {
+        status,
+        reason,
+        accountName: userProfile.name
+      }
+    });
+
+    console.log(`✅ Account ${status} notification created for user ${userId}`);
+  } catch (error) {
+    console.error(`❌ Error creating account status notification:`, error);
+  }
+};
+
+// 🔥 DAGDAG: PASSWORD CHANGE NOTIFICATION
+export const createPasswordChangeNotification = async (userId: string): Promise<void> => {
+  try {
+    console.log(`🔔 Creating password change notification for user ${userId}`);
+    
+    await notificationService.createNotification({
+      userId,
+      title: 'Password Changed Successfully',
+      body: 'Your password has been changed successfully. If you did not make this change, please contact support immediately.',
+      type: 'account_password_changed',
+      priority: 'high',
+      status: 'unread',
+      data: {
+        changedAt: new Date().toISOString(),
+        deviceType: 'mobile'
+      }
+    });
+
+    console.log(`✅ Password change notification created for user ${userId}`);
+  } catch (error) {
+    console.error(`❌ Error creating password change notification:`, error);
+  }
+};
+
+// 🔥 DAGDAG: LOGIN ALERT NOTIFICATION
+export const createLoginAlertNotification = async (
+  userId: string,
+  deviceInfo: string,
+  location?: string
+): Promise<void> => {
+  try {
+    console.log(`🔔 Creating login alert notification for user ${userId}`);
+    
+    await notificationService.createNotification({
+      userId,
+      title: 'New Login Detected',
+      body: `A new login was detected from ${deviceInfo}${location ? ` in ${location}` : ''}. If this wasn't you, please secure your account.`,
+      type: 'account_login_alert',
+      priority: 'high',
+      status: 'unread',
+      data: {
+        deviceInfo,
+        location,
+        loginTime: new Date().toISOString()
+      }
+    });
+
+    console.log(`✅ Login alert notification created for user ${userId}`);
+  } catch (error) {
+    console.error(`❌ Error creating login alert notification:`, error);
+  }
+};
+
+// 🔥 DAGDAG: ENHANCED PASSWORD UPDATE WITH NOTIFICATION
+export const updatePasswordWithNotification = async (newPassword: string): Promise<void> => {
+  const user = auth.currentUser;
+  
+  if (!user) {
+    throw new Error("No authenticated user found. Please log in again");
+  }
+
+  try {
+    // Update password using existing secure function
+    await updatePasswordSecure(newPassword);
+    
+    // Create password change notification
+    await createPasswordChangeNotification(user.uid);
+    
+    console.log(`✅ Password updated and notification sent for user ${user.uid}`);
+  } catch (error) {
+    console.error("❌ Error in updatePasswordWithNotification:", error);
+    throw error;
+  }
+};
+
+// 🔥 DAGDAG: ACCOUNT APPROVAL NOTIFICATION HELPER
+export const notifyAccountApproval = async (userId: string): Promise<void> => {
+  try {
+    await createAccountStatusNotification(userId, 'approved');
+  } catch (error) {
+    console.error("❌ Error sending account approval notification:", error);
+  }
+};
+
+// 🔥 DAGDAG: ACCOUNT DECLINE NOTIFICATION HELPER
+export const notifyAccountDecline = async (userId: string, reason: string): Promise<void> => {
+  try {
+    await createAccountStatusNotification(userId, 'declined', reason);
+  } catch (error) {
+    console.error("❌ Error sending account decline notification:", error);
   }
 };

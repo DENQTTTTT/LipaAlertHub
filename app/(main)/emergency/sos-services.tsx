@@ -12,6 +12,7 @@ import {
   Dimensions,
   Image,
   Linking,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -21,6 +22,7 @@ import {
 } from "react-native";
 
 const { width, height } = Dimensions.get('window');
+const GOOGLE_API_KEY = "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo";
 
 interface EmergencyService {
   id: string;
@@ -40,14 +42,269 @@ interface AddressComponents {
   formattedAddress: string;
   establishment?: string;
   confidence: number;
+  dataSource: 'google_places' | 'google_geocoding' | 'coordinate_fallback';
+  nearbyPlaces?: string[];
+  distance?: number;
 }
 
 const MIN_CALL_DURATION = 3000;
 const CONFIRMATION_DELAY = 1000;
 
+const lipaBarangays = [
+  "Adya", "Anilao", "Anilao-Labac", "Antipolo del Norte", "Antipolo del Sur",
+  "Bagong Pook", "Balintawak", "Banaybanay", "Barangay 12", "Bolbok",
+  "Bugtong na Pulo", "Bulacnin", "Bulaklakan", "Calamias", "Cumba",
+  "Dagatan", "Duhatan", "Halang", "Inosloban", "Kayumanggi",
+  "Latag", "Lodlod", "Lumbang", "Mabini", "Malagonlong",
+  "Malitlit", "Marauoy", "Mataas na Lupa", "Munting Pulo", "Pagolingin Bata",
+  "Pagolingin East", "Pagolingin West", "Pangao", "Pinagkawitan", "Pinagtongulan",
+  "Plaridel", "Poblacion Barangay 1", "Poblacion Barangay 2", "Poblacion Barangay 3",
+  "Poblacion Barangay 4", "Poblacion Barangay 5", "Poblacion Barangay 6",
+  "Poblacion Barangay 7", "Poblacion Barangay 8", "Poblacion Barangay 9",
+  "Poblacion Barangay 9-A", "Poblacion Barangay 10", "Poblacion Barangay 11",
+  "Pusil", "Quezon", "Rizal", "Sabang", "Sampaguita",
+  "San Benito", "San Carlos", "San Celestino", "San Francisco", "San Guillermo",
+  "San Jose", "San Lucas", "San Salvador", "San Sebastian (Balagbag)", "Santo Niño",
+  "Santo Toribio", "Sapac", "Sico", "Talisay", "Tambo",
+  "Tangob", "Tanguay", "Tibig", "Tipacan"
+];
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371e3;
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const matchBarangayName = (detectedName: string): string | null => {
+  if (!detectedName || detectedName.length < 2) return null;
+  
+  const cleanName = detectedName.trim();
+  
+  const exactMatch = lipaBarangays.find(b => 
+    b.toLowerCase() === cleanName.toLowerCase()
+  );
+  if (exactMatch) return exactMatch;
+  
+  if (cleanName.toLowerCase().includes('poblacion')) {
+    const numberMatch = cleanName.match(/(\d+[-A-Za-z]*)/);
+    if (numberMatch) {
+      const num = numberMatch[1];
+      const poblacionMatch = lipaBarangays.find(b => 
+        b.toLowerCase().includes('poblacion') && b.toLowerCase().includes(num.toLowerCase())
+      );
+      if (poblacionMatch) return poblacionMatch;
+    }
+  }
+  
+  const barangayNumberMatch = cleanName.match(/barangay\s*(\d+)/i);
+  if (barangayNumberMatch) {
+    const num = barangayNumberMatch[1];
+    const numberedMatch = lipaBarangays.find(b => 
+      b.toLowerCase() === `barangay ${num}` ||
+      b.toLowerCase().includes(`poblacion barangay ${num}`)
+    );
+    if (numberedMatch) return numberedMatch;
+  }
+  
+  const partialMatch = lipaBarangays.find(b => 
+    b.toLowerCase().includes(cleanName.toLowerCase()) ||
+    cleanName.toLowerCase().includes(b.toLowerCase())
+  );
+  if (partialMatch) return partialMatch;
+  
+  return null;
+};
+
+const extractBarangayFromComponents = (components: any[]): string | null => {
+  if (!components || !Array.isArray(components)) return null;
+  
+  const strategies = [
+    'neighborhood',
+    'sublocality_level_1',
+    'sublocality_level_2',
+    'sublocality',
+    'administrative_area_level_3',
+    'administrative_area_level_4',
+    'locality'
+  ];
+
+  for (const strategy of strategies) {
+    const component = components.find(comp => comp.types && comp.types.includes(strategy));
+    if (component && component.long_name) {
+      const name = component.long_name;
+      
+      if (!name.toLowerCase().includes('lipa city') && 
+          !name.toLowerCase().includes('batangas') &&
+          !name.toLowerCase().includes('philippines') &&
+          !name.toLowerCase().includes('luzon') &&
+          !name.toLowerCase().includes('calabarzon') &&
+          name.length > 2) {
+        
+        let cleanName = name.trim();
+        
+        if (cleanName.toLowerCase().startsWith('barangay ')) {
+          cleanName = cleanName.substring(9);
+        }
+        if (cleanName.toLowerCase().startsWith('brgy ')) {
+          cleanName = cleanName.substring(5);
+        }
+        if (cleanName.toLowerCase().startsWith('brgy. ')) {
+          cleanName = cleanName.substring(6);
+        }
+        
+        if (cleanName.length > 0) {
+          return cleanName;
+        }
+      }
+    }
+  }
+  return null;
+};
+
+const getEnhancedAddress = async (latitude: number, longitude: number): Promise<AddressComponents | null> => {
+  try {
+    console.log(`🔍 Getting address for: ${latitude}, ${longitude}`);
+    
+    let establishmentData = null;
+    let nearbyPlaces: string[] = [];
+    let bestBarangay = null;
+    let bestConfidence = 0;
+    
+    try {
+      const placesResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=200&key=${GOOGLE_API_KEY}`
+      );
+      const placesData = await placesResponse.json();
+      
+      if (placesData.status === 'OK' && placesData.results?.length > 0) {
+        nearbyPlaces = placesData.results.slice(0, 5).map((p: any) => p.name);
+        
+        for (const place of placesData.results.slice(0, 3)) {
+          const detailsResponse = await fetch(
+            `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=address_components,formatted_address,name,types,geometry&key=${GOOGLE_API_KEY}`
+          );
+          const detailsData = await detailsResponse.json();
+          
+          if (detailsData.status === 'OK' && detailsData.result) {
+            const placeDetail = detailsData.result;
+            const placeLocation = placeDetail.geometry?.location;
+            
+            if (placeLocation) {
+              const distance = calculateDistance(latitude, longitude, placeLocation.lat, placeLocation.lng);
+              
+              if (distance <= 200) {
+                const isEstablishment = placeDetail.types && (
+                  placeDetail.types.includes('establishment') ||
+                  placeDetail.types.includes('shopping_mall') ||
+                  placeDetail.types.includes('point_of_interest') ||
+                  placeDetail.types.includes('school') ||
+                  placeDetail.types.includes('university') ||
+                  placeDetail.types.includes('store') ||
+                  placeDetail.types.includes('hospital') ||
+                  placeDetail.types.includes('restaurant') ||
+                  placeDetail.types.includes('cafe') ||
+                  placeDetail.types.includes('bank') ||
+                  placeDetail.types.includes('pharmacy') ||
+                  placeDetail.types.includes('church') ||
+                  placeDetail.types.includes('government')
+                );
+                
+                if (isEstablishment && !establishmentData) {
+                  establishmentData = {
+                    name: placeDetail.name,
+                    addressComponents: placeDetail.address_components,
+                    distance: Math.round(distance)
+                  };
+                  
+                  const barangay = extractBarangayFromComponents(placeDetail.address_components);
+                  if (barangay && barangay !== "Unknown Barangay") {
+                    const matched = matchBarangayName(barangay);
+                    if (matched) {
+                      bestBarangay = matched;
+                      bestConfidence = 95;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.log("Places API failed:", error);
+    }
+    
+    if (!bestBarangay) {
+      const resultTypes = ['premise', 'street_address', 'route', 'neighborhood', 'sublocality_level_1', 'sublocality'];
+      
+      for (const resultType of resultTypes) {
+        try {
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&result_type=${resultType}&key=${GOOGLE_API_KEY}&language=en&region=PH`;
+          const response = await fetch(geocodeUrl);
+          const data = await response.json();
+          
+          if (data.status === 'OK' && data.results?.length > 0) {
+            for (const result of data.results) {
+              const barangay = extractBarangayFromComponents(result.address_components);
+              if (barangay && barangay !== "Unknown Barangay") {
+                const matched = matchBarangayName(barangay);
+                if (matched) {
+                  const confidence = resultType === 'premise' ? 95 : resultType === 'street_address' ? 90 : 85;
+                  if (confidence > bestConfidence) {
+                    bestBarangay = matched;
+                    bestConfidence = confidence;
+                    break;
+                  }
+                }
+              }
+            }
+            if (bestBarangay) break;
+          }
+        } catch (error) {
+          console.log(`Geocoding failed for ${resultType}`);
+        }
+      }
+    }
+    
+    if (bestBarangay) {
+      let formattedAddress = "";
+      
+      if (establishmentData) {
+        formattedAddress = `${establishmentData.name}, ${bestBarangay}, Lipa City`;
+      } else {
+        formattedAddress = `${bestBarangay}, Lipa City`;
+      }
+      
+      return {
+        barangay: bestBarangay,
+        city: "Lipa City",
+        province: "Batangas",
+        country: "Philippines",
+        formattedAddress: formattedAddress,
+        establishment: establishmentData?.name,
+        confidence: bestConfidence,
+        dataSource: establishmentData ? 'google_places' : 'google_geocoding',
+        nearbyPlaces: nearbyPlaces.length > 0 ? nearbyPlaces : undefined,
+        distance: establishmentData?.distance
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Geocoding failed:", error);
+    return null;
+  }
+};
+
 export default function UserSOSServices() {
   const { userProfile, user } = useAuth();
-  const { saveSOSLog, isOnline, unsyncedCount, attachUserToGuestLogs, recentSOSCalls } = useSOSSync();
+  const { saveSOSLog, isOnline, unsyncedCount } = useSOSSync();
   
   const [emergencyServices, setEmergencyServices] = useState<EmergencyService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,19 +314,21 @@ export default function UserSOSServices() {
     callInitiatedAt: number;
     location?: any;
   } | null>(null);
-  const [guestLogsAttached, setGuestLogsAttached] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [callerName, setCallerName] = useState("");
+  const [detectedLocation, setDetectedLocation] = useState<AddressComponents | null>(null);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const confirmationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownConfirmationRef = useRef(false);
 
-  // Check for guest logs to attach when component mounts
   useEffect(() => {
     if (user) {
       loadEmergencyContacts();
-      checkAndAttachGuestLogs();
+      setCallerName(userProfile?.name || user.displayName || "");
     }
-  }, [user]);
+  }, [user, userProfile]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', handleAppStateChange);
@@ -96,7 +355,7 @@ export default function UserSOSServices() {
         confirmationTimerRef.current = setTimeout(() => {
           if (!hasShownConfirmationRef.current) {
             hasShownConfirmationRef.current = true;
-            showCallConfirmation();
+            setShowConfirmationModal(true);
           }
         }, CONFIRMATION_DELAY);
       } else {
@@ -107,100 +366,64 @@ export default function UserSOSServices() {
     appStateRef.current = nextAppState;
   };
 
-  const showCallConfirmation = () => {
-    if (!pendingCallData) return;
+  const handleConfirmCall = async () => {
+    if (!pendingCallData || !user) return;
 
-    const { service } = pendingCallData;
-    const serviceTitle = `${service.title} ${service.subtitle}`.trim();
+    setShowConfirmationModal(false);
 
-    Alert.alert(
-      "Emergency Call Confirmation",
-      `Did you complete the emergency call to ${serviceTitle}?`,
-      [
-        {
-          text: "No, I cancelled",
-          style: "cancel",
-          onPress: handleCallCancelled
-        },
-        {
-          text: "Yes, I called",
-          onPress: () => confirmSOSCall(service, pendingCallData.location)
-        }
-      ],
-      { cancelable: false, onDismiss: handleCallCancelled }
-    );
-  };
-
-  const confirmSOSCall = async (service: EmergencyService, location?: any) => {
-    if (!user) {
-      Alert.alert("Authentication Required", "Please sign in to log emergency calls.");
-      return;
-    }
-
+    const { service, location } = pendingCallData;
     const serviceTitle = `${service.title} ${service.subtitle}`.trim();
 
     try {
-      let userBarangay = userProfile?.barangay;
-      let addressInfo = null;
-      
-      // Use enhanced address detection from location
-      if (location) {
-        addressInfo = await getEnhancedAddress(location.latitude, location.longitude);
-        if (addressInfo) {
-          userBarangay = addressInfo.barangay;
-          console.log(`✅ Enhanced address detected: ${addressInfo.formattedAddress}`);
-        }
-      }
-      
-      // Final barangay determination
+      let userBarangay = detectedLocation?.barangay || userProfile?.barangay;
       const barangay = userBarangay || "Lipa City";
       const reporterPhone = userProfile?.phoneNumber || undefined;
+      const userName = userProfile?.name || user.displayName || "User";
 
-      // Prepare location data for SOS log
       const reporterLocation = location ? {
         latitude: location.latitude,
         longitude: location.longitude,
         accuracy: location.accuracy,
         timestamp: location.timestamp,
-        address: addressInfo?.formattedAddress || location.address || `${barangay}, Lipa City`
+        address: detectedLocation?.formattedAddress || location.address || `${barangay}, Lipa City`
       } : undefined;
 
-      // ✅ AUTHENTICATED USER SOS LOG DATA
       const sosLogData = {
-        userId: user.uid, // Authenticated user ID
-        userName: userProfile?.name || user.displayName || "User", // Real user name
+        userId: user.uid,
+        userName: userName,
         reporterPhone: reporterPhone,
         reporterBarangay: barangay,
         reporterLocation: reporterLocation,
         selectedAgency: serviceTitle,
         phoneNumber: service.phoneNumber,
         calledAt: new Date().toISOString(),
-        fromOffline: false, // FALSE for authenticated users
+        fromOffline: false,
         emergencyType: service.emergencyType,
         barangay: barangay,
-        location: reporterLocation
+        location: reporterLocation,
+        ...(detectedLocation && {
+          establishment: detectedLocation.establishment,
+          formattedAddress: detectedLocation.formattedAddress,
+          confidence: detectedLocation.confidence,
+          dataSource: detectedLocation.dataSource,
+          nearbyPlaces: detectedLocation.nearbyPlaces
+        })
       };
 
-      console.log('Saving AUTHENTICATED SOS log:', {
-        userId: user.uid,
-        userName: sosLogData.userName,
-        reporterBarangay: barangay,
-        agency: serviceTitle,
-        emergencyType: service.emergencyType
-      });
+      console.log('Saving AUTHENTICATED SOS log:', sosLogData);
 
       const result = await saveSOSLog(sosLogData);
       
       if (result.success) {
-        const locationText = addressInfo?.establishment 
-          ? `${addressInfo.establishment}, ${barangay}`
+        const locationText = detectedLocation?.establishment 
+          ? `${detectedLocation.establishment}, ${barangay}`
           : barangay;
           
         Alert.alert(
           "Call Logged Successfully",
           isOnline 
-            ? `Your ${service.emergencyType} emergency call has been recorded and sent to ${serviceTitle}.\n\nLocation: ${locationText}\nYou'll receive a notification once reviewed.`
-            : `Your ${service.emergencyType} emergency call has been saved and will sync when online.\n\nLocation: ${locationText}`,
+            ? `Your ${service.emergencyType} emergency call has been recorded and sent to ${serviceTitle}.\n\nCaller: ${userName}\nLocation: ${locationText}\n\nYou'll receive a notification once reviewed.`
+            : `Your ${service.emergencyType} emergency call has been saved and will sync when online.\n\nCaller: ${userName}\nLocation: ${locationText}`,
           [{ text: "OK" }]
         );
       } else {
@@ -218,7 +441,8 @@ export default function UserSOSServices() {
     }
   };
 
-  const handleCallCancelled = () => {
+  const handleCancelCall = () => {
+    setShowConfirmationModal(false);
     Alert.alert(
       "Call Cancelled",
       "No emergency call was logged. If you need help, please try calling again.",
@@ -230,27 +454,11 @@ export default function UserSOSServices() {
   const resetCallState = () => {
     setPendingCallData(null);
     hasShownConfirmationRef.current = false;
+    setDetectedLocation(null);
+    setIsDetectingLocation(false);
     if (confirmationTimerRef.current) {
       clearTimeout(confirmationTimerRef.current);
       confirmationTimerRef.current = null;
-    }
-  };
-
-  const checkAndAttachGuestLogs = async () => {
-    if (!user) return;
-    
-    try {
-      const attachedCount = await attachUserToGuestLogs(user.uid);
-      if (attachedCount > 0) {
-        setGuestLogsAttached(true);
-        Alert.alert(
-          "Guest Calls Imported",
-          `✅ ${attachedCount} emergency call${attachedCount > 1 ? 's' : ''} from your guest sessions have been imported to your account.`,
-          [{ text: "OK" }]
-        );
-      }
-    } catch (error) {
-      console.error("Error attaching guest logs:", error);
     }
   };
 
@@ -260,22 +468,21 @@ export default function UserSOSServices() {
       const contacts = await fetchEmergencyContacts();
       
       const mappedServices: EmergencyService[] = contacts.map(contact => {
-        // ✅ CDRRMO = MEDICAL (AUTOMATIC)
         let emergencyType = "other";
         let backgroundColor = "#9b59b6";
         
-        if (contact.name.toLowerCase().includes('cdrrmo')) {
-          emergencyType = "medical";
-          backgroundColor = "#27ae60"; // GREEN for medical
-        } else if (contact.name.toLowerCase().includes('police') || contact.name.toLowerCase().includes('pnp')) {
+        if (contact.name.toLowerCase().includes('police') || contact.name.toLowerCase().includes('pnp')) {
           emergencyType = "police";
           backgroundColor = "#2c3e50";
         } else if (contact.name.toLowerCase().includes('fire') || contact.name.toLowerCase().includes('bfp')) {
           emergencyType = "fire";
           backgroundColor = "#e74c3c";
-        } else if (contact.name.toLowerCase().includes('disaster')) {
-          emergencyType = "disaster";
-          backgroundColor = "#f39c12";
+        } else if (contact.name.toLowerCase().includes('medical') || contact.name.toLowerCase().includes('hospital')) {
+          emergencyType = "medical";
+          backgroundColor = "#27ae60";
+        } else if (contact.name.toLowerCase().includes('disaster') || contact.name.toLowerCase().includes('cdrrmo')) {
+          emergencyType = "medical";
+          backgroundColor = "#27ae60";
         }
 
         return {
@@ -292,45 +499,6 @@ export default function UserSOSServices() {
       setEmergencyServices(mappedServices);
     } catch (error) {
       console.error("Error loading emergency contacts:", error);
-      const fallbackServices: EmergencyService[] = [
-        {
-          id: 'cdrrmo',
-          title: 'CDRRMO',
-          subtitle: 'Medical Emergency',
-          icon: '🏥',
-          phoneNumber: '(043) 756-0127',
-          backgroundColor: '#27ae60', // GREEN for medical
-          emergencyType: 'medical'
-        },
-        {
-          id: 'fire',
-          title: 'BFP LIPA',
-          subtitle: 'Fire Station',
-          icon: '🔥',
-          phoneNumber: '(043) 757-4618',
-          backgroundColor: '#e74c3c',
-          emergencyType: 'fire'
-        },
-        {
-          id: 'police',
-          title: 'LIPA PNP',
-          subtitle: 'Police Station',
-          icon: '🚔',
-          phoneNumber: '(043) 702-3832',
-          backgroundColor: '#2c3e50',
-          emergencyType: 'police'
-        },
-        {
-          id: 'disaster',
-          title: 'CDRRMO',
-          subtitle: 'Disaster Response',
-          icon: '🌪️',
-          phoneNumber: '(043) 756-0127',
-          backgroundColor: '#f39c12',
-          emergencyType: 'disaster'
-        }
-      ];
-      setEmergencyServices(fallbackServices);
     } finally {
       setLoading(false);
     }
@@ -368,6 +536,7 @@ export default function UserSOSServices() {
     if (!user) return;
 
     try {
+      setIsDetectingLocation(true);
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       let locationData = null;
@@ -396,6 +565,12 @@ export default function UserSOSServices() {
               : 'Location captured'
           };
           
+          const enhancedAddress = await getEnhancedAddress(loc.coords.latitude, loc.coords.longitude);
+          if (enhancedAddress) {
+            setDetectedLocation(enhancedAddress);
+            console.log('✅ Enhanced location detected:', enhancedAddress.formattedAddress);
+          }
+          
           console.log('✅ SOS Location captured:', locationData);
         } catch (locError) {
           console.error('Error getting location:', locError);
@@ -404,11 +579,12 @@ export default function UserSOSServices() {
         console.log('Location permission denied for SOS');
       }
 
-      // Make the phone call
+      setIsDetectingLocation(false);
       await makeEmergencyCall(service, locationData);
       
     } catch (error) {
       console.error("Error getting location for SOS:", error);
+      setIsDetectingLocation(false);
       await makeEmergencyCall(service, null);
     }
   };
@@ -443,32 +619,6 @@ export default function UserSOSServices() {
     }
   };
 
-  const getEnhancedAddress = async (latitude: number, longitude: number): Promise<AddressComponents | null> => {
-    try {
-      // Simple address detection for user mode
-      const barangay = userProfile?.barangay || "Lipa City";
-      
-      return {
-        barangay: barangay,
-        city: "Lipa City",
-        province: "Batangas",
-        country: "Philippines",
-        formattedAddress: `${barangay}, Lipa City, Batangas`,
-        confidence: 80
-      };
-    } catch (error) {
-      console.error("Geocoding failed:", error);
-      return {
-        barangay: userProfile?.barangay || "Lipa City",
-        city: "Lipa City",
-        province: "Batangas",
-        country: "Philippines",
-        formattedAddress: `${userProfile?.barangay || "Lipa City"}, Lipa City, Batangas`,
-        confidence: 70
-      };
-    }
-  };
-
   const renderConnectionStatus = () => {
     if (!isOnline) {
       return (
@@ -486,21 +636,84 @@ export default function UserSOSServices() {
     return null;
   };
 
-  const renderUserInfo = () => {
+  const renderConfirmationModal = () => {
+    if (!pendingCallData) return null;
+
+    const { service } = pendingCallData;
+    const serviceTitle = `${service.title} ${service.subtitle}`.trim();
+
     return (
-      <View style={styles.userInfoContainer}>
-        <Text style={styles.userInfoText}>
-          👋 Welcome, {userProfile?.name || user?.displayName || 'User'}!
-        </Text>
-        <Text style={styles.userInfoSubtext}>
-          Your emergency calls are automatically tracked and synced
-        </Text>
-        {guestLogsAttached && (
-          <Text style={styles.guestImportText}>
-            ✅ Guest calls imported to your account
-          </Text>
-        )}
-      </View>
+      <Modal
+        visible={showConfirmationModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCancelCall}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Emergency Call Confirmation</Text>
+            
+            <View style={styles.callInfoSection}>
+              <Text style={styles.callInfoLabel}>Service Called:</Text>
+              <Text style={styles.callInfoValue}>{serviceTitle}</Text>
+              
+              <Text style={styles.callInfoLabel}>Emergency Type:</Text>
+              <Text style={styles.callInfoValue}>{service.emergencyType.toUpperCase()}</Text>
+            </View>
+
+            <View style={styles.locationSection}>
+              <Text style={styles.locationTitle}>📍 Detected Location</Text>
+              {isDetectingLocation ? (
+                <View style={styles.locationDetecting}>
+                  <ActivityIndicator size="small" color="#d73527" />
+                  <Text style={styles.locationDetectingText}>Detecting your location...</Text>
+                </View>
+              ) : detectedLocation ? (
+                <View style={styles.locationDetected}>
+                  <Text style={styles.locationText}>{detectedLocation.formattedAddress}</Text>
+                  <Text style={styles.locationConfidence}>
+                    Confidence: {detectedLocation.confidence}%
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.locationText}>
+                  {userProfile?.barangay || "Lipa City"}, Batangas
+                </Text>
+              )}
+              <Text style={styles.locationNote}>
+                ℹ️ Your location is automatically detected and will be sent to the emergency responders
+              </Text>
+            </View>
+
+            <View style={styles.callerInfoSection}>
+              <Text style={styles.callerInfoLabel}>Caller:</Text>
+              <Text style={styles.callerInfoValue}>
+                {userProfile?.name || user?.displayName || "User"}
+              </Text>
+            </View>
+
+            <Text style={styles.confirmQuestion}>
+              Did you complete the emergency call?
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={handleCancelCall}
+              >
+                <Text style={styles.cancelButtonText}>No, I cancelled</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleConfirmCall}
+              >
+                <Text style={styles.confirmButtonText}>Yes, I called</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     );
   };
 
@@ -573,46 +786,34 @@ export default function UserSOSServices() {
         </View>
 
         {renderConnectionStatus()}
-        {renderUserInfo()}
 
         <View style={styles.mainContent}>
           <View style={styles.questionSection}>
             <Text style={styles.sosQuestion}>EMERGENCY SERVICES</Text>
             <Text style={styles.sosQuestion}>DIRECT CALL</Text>
-            <Text style={styles.locationText}>Lipa City Emergency Contacts</Text>
+            <Text style={styles.locationHeaderText}>Lipa City Emergency Contacts</Text>
+            <Text style={styles.locationHeaderNote}>
+              ℹ️ Location automatically detected during emergency calls
+            </Text>
           </View>
 
           {renderEmergencyServices()}
 
           <View style={styles.infoSection}>
-            <Text style={styles.infoTitle}>Automatic Agency Assignment:</Text>
-            <Text style={styles.infoText}>• CDRRMO → Medical Emergencies</Text>
-            <Text style={styles.infoText}>• Police → LIPA PNP Station</Text>
-            <Text style={styles.infoText}>• Fire → BFP Lipa Fire Station</Text>
-            <Text style={styles.infoText}>• Disaster → CDRRMO Response</Text>
+            <Text style={styles.infoTitle}>How It Works:</Text>
+            <Text style={styles.infoText}>1. Tap emergency service to call</Text>
+            <Text style={styles.infoText}>2. Location is automatically detected</Text>
+            <Text style={styles.infoText}>3. Return to app after call</Text>
+            <Text style={styles.infoText}>4. Confirm call with your name</Text>
+            <Text style={styles.infoText}>5. Emergency logged and tracked</Text>
             <Text style={styles.infoNote}>
-              {user 
-                ? "✅ Your location and barangay will be automatically detected and logged"
-                : "Sign in to enable automatic location detection and call tracking"
-              }
+              ✅ Your exact location, name, and emergency details will be sent to responders
             </Text>
           </View>
-
-          {recentSOSCalls.length > 0 && (
-            <View style={styles.recentCallsSection}>
-              <Text style={styles.recentCallsTitle}>Recent Emergency Calls</Text>
-              {recentSOSCalls.slice(0, 3).map((call, index) => (
-                <View key={call.id || index} style={styles.recentCallItem}>
-                  <Text style={styles.recentCallAgency}>{call.selectedAgency}</Text>
-                  <Text style={styles.recentCallTime}>
-                    {call.calledAt?.toDate?.().toLocaleDateString() || 'Recent'}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
       </ScrollView>
+
+      {renderConfirmationModal()}
     </View>
   );
 }
@@ -624,7 +825,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingBottom: 100, // Extra padding for navbar
+    paddingBottom: 100,
   },
   header: {
     paddingHorizontal: width * 0.06,
@@ -674,40 +875,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: width * 0.04,
     borderRadius: 8,
     marginBottom: height * 0.02,
-    alignItems: 'center',
   },
   offlineText: {
     color: "#ffffff",
     fontSize: width * 0.032,
     textAlign: "center",
     fontWeight: "500",
-  },
-  userInfoContainer: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    marginHorizontal: width * 0.06,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: height * 0.02,
-    alignItems: 'center',
-  },
-  userInfoText: {
-    color: "#ffffff",
-    fontSize: width * 0.035,
-    fontWeight: "600",
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  userInfoSubtext: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: width * 0.03,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  guestImportText: {
-    color: "#27ae60",
-    fontSize: width * 0.028,
-    fontWeight: "600",
-    textAlign: 'center',
   },
   mainContent: {
     flex: 1,
@@ -726,13 +899,20 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     lineHeight: width * 0.055,
   },
-  locationText: {
+  locationHeaderText: {
     fontSize: width * 0.035,
     color: "#ffffff",
     textAlign: 'center',
     fontWeight: "400",
     marginTop: height * 0.01,
     opacity: 0.9,
+  },
+  locationHeaderNote: {
+    fontSize: width * 0.028,
+    color: "rgba(255,255,255,0.8)",
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: height * 0.008,
   },
   loadingContainer: {
     flex: 1,
@@ -849,35 +1029,144 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-  recentCallsSection: {
-    marginTop: height * 0.03,
-    padding: 16,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
-    width: '100%',
-  },
-  recentCallsTitle: {
-    color: "#ffffff",
-    fontSize: width * 0.035,
-    fontWeight: "700",
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  recentCallItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.1)",
+    padding: 20,
   },
-  recentCallAgency: {
-    color: "#ffffff",
-    fontSize: width * 0.03,
+  modalContainer: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: width * 0.05,
+    fontWeight: "800",
+    color: "#d73527",
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  callInfoSection: {
+    backgroundColor: "#f8f9fa",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  callInfoLabel: {
+    fontSize: width * 0.032,
+    color: "#666",
+    fontWeight: "600",
+    marginTop: 8,
+  },
+  callInfoValue: {
+    fontSize: width * 0.038,
+    color: "#2c3e50",
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  locationSection: {
+    backgroundColor: "#e8f5e9",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  locationTitle: {
+    fontSize: width * 0.038,
+    fontWeight: "700",
+    color: "#27ae60",
+    marginBottom: 8,
+  },
+  locationDetecting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  locationDetectingText: {
+    fontSize: width * 0.032,
+    color: "#666",
+    marginLeft: 8,
+  },
+  locationDetected: {
+    paddingVertical: 4,
+  },
+  locationText: {
+    fontSize: width * 0.034,
+    color: "#2c3e50",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  locationConfidence: {
+    fontSize: width * 0.028,
+    color: "#27ae60",
     fontWeight: "500",
   },
-  recentCallTime: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: width * 0.025,
+  locationNote: {
+    fontSize: width * 0.026,
+    color: "#666",
+    fontStyle: 'italic',
+    marginTop: 8,
+    lineHeight: 16,
+  },
+  callerInfoSection: {
+    backgroundColor: "#e3f2fd",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  callerInfoLabel: {
+    fontSize: width * 0.032,
+    color: "#666",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  callerInfoValue: {
+    fontSize: width * 0.042,
+    color: "#1976d2",
+    fontWeight: "800",
+  },
+  confirmQuestion: {
+    fontSize: width * 0.038,
+    fontWeight: "600",
+    color: "#2c3e50",
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: "#e0e0e0",
+  },
+  cancelButtonText: {
+    fontSize: width * 0.036,
+    fontWeight: "700",
+    color: "#666",
+  },
+  confirmButton: {
+    backgroundColor: "#d73527",
+  },
+  confirmButtonText: {
+    fontSize: width * 0.036,
+    fontWeight: "700",
+    color: "#ffffff",
   },
 });

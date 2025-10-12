@@ -50,7 +50,12 @@ export interface SOSLog {
     timestamp?: number;
     address: string;
   };
-  // ✅ ADD THESE FOR GUEST SUPPORT
+  establishment?: string;
+  formattedAddress?: string;
+  confidence?: number;
+  dataSource?: 'google_places' | 'google_geocoding' | 'coordinate_fallback';
+  nearbyPlaces?: string[];
+  distance?: number;
   guestId?: string | null;
   userType?: 'guest' | 'resident';
   deviceId?: string | null;
@@ -82,9 +87,12 @@ export interface SOSCall {
   location?: any;
   fullAddress?: string;
   addressLine?: string;
+  establishment?: string;
+  locationConfidence?: number;
+  locationDataSource?: string;
+  nearbyPlaces?: string[];
 }
 
-// Ensure user document exists with proper role
 const ensureUserDocument = async (uid: string, email: string | null, name: string) => {
   try {
     const userRef = doc(db, 'users', uid);
@@ -134,206 +142,292 @@ export function useSOSSync() {
       return 0;
     }
   }, []);
+const syncSOSLogs = useCallback(async (force: boolean = false) => {
+  const now = Date.now();
+  if (!force && (isSyncing || now - lastSyncAttempt.current < 2000)) {
+    return false;
+  }
 
-  const syncSOSLogs = useCallback(async (force: boolean = false) => {
-    const now = Date.now();
-    if (!force && (isSyncing || now - lastSyncAttempt.current < 2000)) {
+  lastSyncAttempt.current = now;
+
+  try {
+    if (isMountedRef.current) setIsSyncing(true);
+    
+    const netInfo = await NetInfo.fetch();
+    if (!netInfo.isConnected) {
+      console.log('No internet connection');
       return false;
     }
 
-    lastSyncAttempt.current = now;
+    const saved = await AsyncStorage.getItem(SOS_LOGS_KEY);
+    const logs: SOSLog[] = saved ? JSON.parse(saved) : [];
+    
+    const unsynced = logs.filter(l => !l.synced);
+    
+    if (unsynced.length === 0) return false;
 
-    try {
-      if (isMountedRef.current) setIsSyncing(true);
-      
-      const netInfo = await NetInfo.fetch();
-      if (!netInfo.isConnected) {
-        console.log('No internet connection');
-        return false;
-      }
+    console.log(`Syncing ${unsynced.length} SOS logs...`);
+    let syncedAny = false;
 
-      const saved = await AsyncStorage.getItem(SOS_LOGS_KEY);
-      const logs: SOSLog[] = saved ? JSON.parse(saved) : [];
-      
-      // ✅ SYNC BOTH AUTHENTICATED USER LOGS AND ATTACHED GUEST LOGS
-      const unsynced = logs.filter(l => !l.synced);
-      
-      if (unsynced.length === 0) return false;
+    for (const log of unsynced) {
+      try {
+        const isGuest = !auth.currentUser || log.fromOffline;
+        
+        // ✅ CRITICAL FIX: Determine user type and IDs correctly
+        const userType = isGuest ? 'guest' : 'resident';
+        const userId = isGuest ? null : (auth.currentUser?.uid || log.userId);
+        const guestId = isGuest ? (log.guestId || log.userId || `guest_${Date.now()}`) : null;
+        const deviceId = isGuest ? (log.deviceId || `device_${Date.now()}`) : null;
 
-      console.log(`Syncing ${unsynced.length} SOS logs...`);
-      let syncedAny = false;
+        console.log('🔍 User Type Analysis:', {
+          hasAuth: !!auth.currentUser,
+          fromOffline: log.fromOffline,
+          userType,
+          userId,
+          guestId,
+          deviceId,
+          isGuest
+        });
 
-      for (const log of unsynced) {
-        try {
-          // ✅ Define isGuest variable
-          const isGuest = !auth.currentUser || log.fromOffline;
+        // Ensure user document exists for authenticated users
+        if (auth.currentUser && !isGuest) {
+          await ensureUserDocument(
+            auth.currentUser.uid,
+            auth.currentUser.email,
+            auth.currentUser.displayName || 'Resident'
+          );
+        }
 
-          // Ensure user document exists for authenticated users
-          if (auth.currentUser && log.userId === auth.currentUser.uid) {
-            await ensureUserDocument(
-              auth.currentUser.uid,
-              auth.currentUser.email,
-              auth.currentUser.displayName || 'Resident'
-            );
-          }
+        const calledAtTimestamp = Timestamp.fromDate(new Date(log.calledAt));
+        const finalUserId = userId;
+        const finalUserName = log.userName || (isGuest ? 'Guest User' : (auth.currentUser?.displayName || 'User'));
 
-          const calledAtTimestamp = Timestamp.fromDate(new Date(log.calledAt));
-          const finalUserId = log.userId;
-          const finalUserName = log.userName;
-
-          // Get user profile for additional info (only for authenticated users)
-          let userProfile = null;
+        // Get user profile for additional info (only for residents)
+        let userProfile = null;
+        if (!isGuest && auth.currentUser) {
           try {
-            const userDoc = await getDoc(doc(db, 'users', finalUserId));
+            const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
             if (userDoc.exists()) {
               userProfile = userDoc.data();
             }
           } catch (error) {
             console.log('Could not fetch user profile:', error);
           }
+        }
 
-          const reporterPhone = log.reporterPhone || 
-                               userProfile?.phoneNumber || 
-                               userProfile?.number || 
-                               userProfile?.phone || 
-                               null;
+        const reporterPhone = log.reporterPhone || 
+                             userProfile?.phoneNumber || 
+                             userProfile?.number || 
+                             userProfile?.phone || 
+                             null;
 
-          let reporterBarangay = log.reporterBarangay || 
-                                userProfile?.barangay || 
-                                log.barangay;
+        let reporterBarangay = log.reporterBarangay || 
+                              userProfile?.barangay || 
+                              log.barangay;
 
-          reporterBarangay = reporterBarangay || DEFAULT_BARANGAY;
-          const reporterLocation = log.reporterLocation || log.location || null;
+        reporterBarangay = reporterBarangay || DEFAULT_BARANGAY;
+        const reporterLocation = log.reporterLocation || log.location || null;
 
-          console.log('📱 Reporter Details:', {
-            userId: finalUserId,
-            userName: finalUserName,
-            phone: reporterPhone,
-            barangay: reporterBarangay,
-            location: reporterLocation,
-            originallyGuest: log.fromOffline,
-            isGuest: isGuest
-          });
+        console.log('📱 SOS Report Details:', {
+          userType,
+          userId: finalUserId,
+          guestId,
+          deviceId,
+          userName: finalUserName,
+          isGuest
+        });
 
-          const incidentReportData: any = {
-            // Required base fields
-            userId: finalUserId,
-            type: "sos",
-            status: "pending",
-            createdAt: serverTimestamp(),
-            
-            // ✅ ADD GUEST FIELDS FOR SECURITY RULES
-            userType: isGuest ? 'guest' : 'resident',
-            guestId: isGuest ? finalUserId : null,
-            deviceId: isGuest ? `device_${Date.now()}` : null,
+        // ✅ FIXED: Build incident report data that matches security rules EXACTLY
+        const incidentReportData: any = {
+          // ✅ SECURITY RULES - These MUST match exactly for guest calls
+          userType: userType, // MUST be 'guest' or 'resident'
+          type: 'sos', // MUST be exactly 'sos'
+          status: 'pending', // MUST be exactly 'pending'
+          hasPatientForm: false, // MUST be boolean false
+          fromOffline: isGuest, // MUST be boolean true for guests
+          
+          // ✅ CRITICAL: For guest calls, userId MUST be null and guestId MUST not be null
+          userId: isGuest ? null : finalUserId,
+          guestId: isGuest ? guestId : null,
+          deviceId: isGuest ? deviceId : null,
+          
+          // Required Firestore fields
+          createdAt: serverTimestamp(),
+          lastUpdated: serverTimestamp(),
 
-            // User info
-            reporterId: finalUserId,
-            userName: finalUserName,
-            email: auth.currentUser?.email || null,
-            reporterPhone: reporterPhone,
-            reporterBarangay: reporterBarangay,
-            
-            // SOS-specific fields
-            selectedAgency: log.selectedAgency,
-            agencyPhoneNumber: log.phoneNumber,
-            emergencyType: log.emergencyType || 'General Emergency',
-            
-            // Location data
-            barangay: reporterBarangay,
-            fullAddress: reporterLocation?.address || log.location?.address || `${reporterBarangay}, Lipa City`,
-            addressLine: reporterLocation?.address || log.location?.address || `${reporterBarangay}, Lipa City`,
-            
-            // Timestamps
-            calledAt: calledAtTimestamp,
-            lastUpdated: serverTimestamp(),
-            
-            // Required security fields
-            hasPatientForm: false,
-            assignedAgency: null,
-            assignedRescuer: null,
-            assignedRescuers: [],
-            reviewed: false,
-            synced: false,
-            
-            // Source tracking
-            fromOffline: log.fromOffline,
-            originallyGuest: log.fromOffline,
+          // User info
+          reporterId: finalUserId, // Always include reporterId for tracking
+          userName: finalUserName,
+          email: isGuest ? null : (auth.currentUser?.email || null),
+          reporterPhone: reporterPhone,
+          reporterBarangay: reporterBarangay,
+          
+          // SOS-specific fields
+          selectedAgency: log.selectedAgency,
+          agencyPhoneNumber: log.phoneNumber,
+          emergencyType: log.emergencyType || 'General Emergency',
+          
+          // Location data
+          barangay: reporterBarangay,
+          fullAddress: log.formattedAddress || reporterLocation?.address || log.location?.address || `${reporterBarangay}, Lipa City`,
+          addressLine: log.formattedAddress || reporterLocation?.address || log.location?.address || `${reporterBarangay}, Lipa City`,
+          
+          // Required for incident tracking
+          calledAt: calledAtTimestamp,
+          assignedAgency: null,
+          assignedRescuer: null,
+          assignedRescuers: [],
+          reviewed: false,
+          originallyGuest: isGuest,
+        };
+
+        // Add location coordinates if available
+        if (reporterLocation && typeof reporterLocation === 'object') {
+          incidentReportData.location = {
+            latitude: reporterLocation.latitude,
+            longitude: reporterLocation.longitude,
           };
-
-          // Add location data if available
-          if (reporterLocation) {
-            incidentReportData.location = {
-              latitude: reporterLocation.latitude,
-              longitude: reporterLocation.longitude,
-              ...(reporterLocation.accuracy && { accuracy: reporterLocation.accuracy }),
-              ...(reporterLocation.timestamp && { timestamp: reporterLocation.timestamp })
-            };
-            incidentReportData.reporterLocation = reporterLocation;
-          } else if (log.location) {
-            incidentReportData.location = {
-              latitude: log.location.latitude,
-              longitude: log.location.longitude,
-              ...(log.location.accuracy && { accuracy: log.location.accuracy }),
-              ...(log.location.timestamp && { timestamp: log.location.timestamp })
-            };
+          if (reporterLocation.accuracy) {
+            incidentReportData.location.accuracy = reporterLocation.accuracy;
           }
+          if (reporterLocation.timestamp) {
+            incidentReportData.location.timestamp = reporterLocation.timestamp;
+          }
+          incidentReportData.reporterLocation = reporterLocation;
+        } else if (log.location && typeof log.location === 'object') {
+          incidentReportData.location = {
+            latitude: log.location.latitude,
+            longitude: log.location.longitude,
+          };
+          if (log.location.accuracy) {
+            incidentReportData.location.accuracy = log.location.accuracy;
+          }
+          if (log.location.timestamp) {
+            incidentReportData.location.timestamp = log.location.timestamp;
+          }
+        }
 
-          console.log('Creating SOS report:', {
-            reporter: finalUserName,
-            reporterPhone: reporterPhone,
-            reporterBarangay: reporterBarangay,
-            agency: log.selectedAgency,
-            location: incidentReportData.location,
-            originallyGuest: log.fromOffline,
-            userType: isGuest ? 'guest' : 'resident'
-          });
+        // Add enhanced location data (optional fields)
+        if (log.establishment) {
+          incidentReportData.establishment = log.establishment;
+        }
+        if (log.confidence) {
+          incidentReportData.locationConfidence = log.confidence;
+        }
+        if (log.dataSource) {
+          incidentReportData.locationDataSource = log.dataSource;
+        }
+        if (log.nearbyPlaces && Array.isArray(log.nearbyPlaces) && log.nearbyPlaces.length > 0) {
+          incidentReportData.nearbyPlaces = log.nearbyPlaces;
+        }
+        if (log.distance && typeof log.distance === 'number') {
+          incidentReportData.establishmentDistance = log.distance;
+        }
 
-          const docRef = await addDoc(collection(db, 'incident_reports'), incidentReportData);
-          
-          // Update synced status
-          await updateDoc(doc(db, 'incident_reports', docRef.id), {
-            synced: true
+        // ✅ CRITICAL: Validate data matches security rules before sending
+        const securityCheck = {
+          userType: incidentReportData.userType,
+          type: incidentReportData.type,
+          userId: incidentReportData.userId,
+          guestId: incidentReportData.guestId,
+          deviceId: incidentReportData.deviceId,
+          status: incidentReportData.status,
+          hasPatientForm: incidentReportData.hasPatientForm,
+          fromOffline: incidentReportData.fromOffline
+        };
+
+        console.log('🔍 SECURITY RULES VALIDATION:', securityCheck);
+        
+        // ✅ ADDITIONAL VALIDATION: Check if this would pass security rules
+        const wouldPassRules = 
+          incidentReportData.userType === 'guest' ? 
+            (incidentReportData.userId === null && 
+             incidentReportData.guestId !== null && 
+             incidentReportData.deviceId !== null &&
+             incidentReportData.status === 'pending' &&
+             incidentReportData.hasPatientForm === false &&
+             incidentReportData.fromOffline === true) :
+            (incidentReportData.userId !== null && 
+             incidentReportData.status === 'pending' &&
+             incidentReportData.hasPatientForm === false);
+
+        if (!wouldPassRules) {
+          console.error('❌ SECURITY RULES VALIDATION FAILED - Skipping document');
+          console.error('Guest requirements:', {
+            userId: incidentReportData.userId,
+            guestId: incidentReportData.guestId,
+            deviceId: incidentReportData.deviceId,
+            status: incidentReportData.status,
+            hasPatientForm: incidentReportData.hasPatientForm,
+            fromOffline: incidentReportData.fromOffline
           });
+          continue;
+        }
+
+        console.log('✍️ Creating SOS incident report for:', finalUserName);
+
+        let docRef;
+        try {
+          docRef = await addDoc(collection(db, 'incident_reports'), incidentReportData);
+          console.log('✅ Document created successfully:', docRef.id);
           
+          // Mark as synced immediately
           log.synced = true;
           syncedAny = true;
 
-          console.log(`✅ Synced SOS: ${log.id} -> ${docRef.id} (${log.fromOffline ? 'Originally Guest' : 'Direct User'})`);
-        } catch (error: any) {
-          console.error('❌ Error syncing SOS log:', error);
-          console.error('Code:', error.code);
-          console.error('Message:', error.message);
+          console.log(`✅ Synced SOS: ${log.id} -> ${docRef.id} (${userType})`);
           
-          if (error.code === 'permission-denied') {
-            console.error('PERMISSION DENIED - Check security rules');
-            break;
+        } catch (addError: any) {
+          console.error('❌ Firestore Error:', {
+            code: addError.code,
+            message: addError.message,
+            securityCheck: securityCheck
+          });
+          
+          if (addError.code === 'permission-denied') {
+            console.error('🔒 SECURITY RULES FAILURE - Check these fields:');
+            console.error('- userType should be "guest" for guest calls:', incidentReportData.userType);
+            console.error('- type should be "sos":', incidentReportData.type);
+            console.error('- userId should be null for guests:', incidentReportData.userId);
+            console.error('- guestId should not be null for guests:', incidentReportData.guestId);
+            console.error('- deviceId should not be null for guests:', incidentReportData.deviceId);
+            console.error('- status should be "pending":', incidentReportData.status);
+            console.error('- hasPatientForm should be false:', incidentReportData.hasPatientForm);
+            console.error('- fromOffline should be true for guests:', incidentReportData.fromOffline);
+            
+            // Don't mark as synced if permission denied
+            continue;
           }
+          throw addError;
         }
+        
+      } catch (error: any) {
+        console.error('❌ Error syncing SOS log:', error);
+        console.error('Code:', error.code);
+        console.error('Message:', error.message);
       }
-
-      if (syncedAny) {
-        await AsyncStorage.setItem(SOS_LOGS_KEY, JSON.stringify(logs));
-        await updateUnsyncedCount();
-        console.log('✅ SOS logs synced successfully');
-      }
-      
-      return syncedAny;
-    } catch (error) {
-      console.error('Error in syncSOSLogs:', error);
-      return false;
-    } finally {
-      if (isMountedRef.current) setIsSyncing(false);
     }
-  }, [isSyncing, updateUnsyncedCount]);
 
-  // ✅ GUEST FUNCTION: Attach guest logs to authenticated user
+    if (syncedAny) {
+      await AsyncStorage.setItem(SOS_LOGS_KEY, JSON.stringify(logs));
+      await updateUnsyncedCount();
+      console.log('✅ SOS logs synced successfully');
+    }
+    
+    return syncedAny;
+  } catch (error) {
+    console.error('Error in syncSOSLogs:', error);
+    return false;
+  } finally {
+    if (isMountedRef.current) setIsSyncing(false);
+  }
+}, [isSyncing, updateUnsyncedCount]);
+
   const attachUserToGuestLogs = useCallback(async (userId: string) => {
     try {
       const saved = await AsyncStorage.getItem(SOS_LOGS_KEY);
       const logs: SOSLog[] = saved ? JSON.parse(saved) : [];
       
-      // Find guest logs (logs with guest_ prefix)
       const guestLogs = logs.filter(log => 
         log.userId.startsWith('guest_') && !log.synced
       );
@@ -346,19 +440,18 @@ export function useSOSSync() {
       let attachedCount = 0;
       
       for (const log of guestLogs) {
-        // Update the log with the new authenticated user ID
         log.userId = userId;
         log.userName = auth.currentUser?.displayName || 'User';
-        log.fromOffline = true; // Mark as originally from guest
+        log.fromOffline = true;
+        log.userType = 'resident';
+        log.guestId = null;
         attachedCount++;
       }
 
-      // Save updated logs back to AsyncStorage
       await AsyncStorage.setItem(SOS_LOGS_KEY, JSON.stringify(logs));
       
       console.log(`✅ Attached ${attachedCount} guest SOS logs to user ${userId}`);
       
-      // Sync the newly attached logs
       if (attachedCount > 0) {
         await syncSOSLogs(true);
       }
@@ -371,7 +464,6 @@ export function useSOSSync() {
     }
   }, [syncSOSLogs]);
 
-  // Auto-sync interval
   useEffect(() => {
     if (unsyncedCount > 0 && isOnline) {
       syncIntervalRef.current = setInterval(() => syncSOSLogs(), SYNC_INTERVAL);
@@ -384,7 +476,6 @@ export function useSOSSync() {
     };
   }, [unsyncedCount, isOnline, syncSOSLogs]);
 
-  // Network listener
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       const wasOffline = !isOnline;
@@ -397,7 +488,6 @@ export function useSOSSync() {
     return () => unsubscribe();
   }, [isOnline, syncSOSLogs]);
 
-  // AppState listener
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (nextAppState === 'active' && isOnline) {
@@ -407,7 +497,6 @@ export function useSOSSync() {
     return () => subscription.remove();
   }, [isOnline, syncSOSLogs]);
 
-  // Initial sync
   useEffect(() => {
     const initSync = async () => {
       await updateUnsyncedCount();
@@ -416,7 +505,6 @@ export function useSOSSync() {
     initSync();
   }, []);
 
-  // Listen to recent SOS calls for authenticated users
   useEffect(() => {
     if (!auth.currentUser) return;
 
@@ -439,7 +527,6 @@ export function useSOSSync() {
     return () => unsubscribe();
   }, []);
 
-  // Cleanup
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -454,10 +541,9 @@ export function useSOSSync() {
                       sosLog.location?.address?.split(',').pop()?.trim() || 
                       DEFAULT_BARANGAY;
 
-      // ✅ GUEST SUPPORT: Generate guest ID if no user
       const isGuest = !auth.currentUser;
       const userId = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : auth.currentUser!.uid;
-      const userName = isGuest ? 'Guest User' : (sosLog.userName || auth.currentUser?.displayName || 'User');
+      const userName = sosLog.userName || (isGuest ? 'Guest User' : (auth.currentUser?.displayName || 'User'));
 
       const newLog: SOSLog = {
         ...sosLog,
@@ -465,10 +551,9 @@ export function useSOSSync() {
         userName: userName,
         barangay,
         reporterBarangay: sosLog.reporterBarangay || barangay,
-        fromOffline: isGuest, // TRUE for guests
+        fromOffline: isGuest,
         id: `sos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         synced: false,
-        // ✅ ADD GUEST FIELDS
         guestId: isGuest ? userId : null,
         userType: isGuest ? 'guest' : 'resident',
         deviceId: isGuest ? `device_${Date.now()}` : null
@@ -480,19 +565,21 @@ export function useSOSSync() {
 
       await AsyncStorage.setItem(SOS_LOGS_KEY, JSON.stringify(logs));
       
-      console.log('SOS log saved:', { 
+      console.log('💾 SOS log saved:', { 
         id: newLog.id, 
         userId: newLog.userId, 
-        isGuest: isGuest,
         userName: newLog.userName,
-        userType: newLog.userType
+        isGuest: isGuest,
+        userType: newLog.userType,
+        barangay: newLog.barangay,
+        establishment: newLog.establishment,
+        confidence: newLog.confidence
       });
       
       await updateUnsyncedCount();
 
-      // Auto-sync if online and authenticated (not guest)
       const netInfo = await NetInfo.fetch();
-      if (netInfo.isConnected && auth.currentUser && !isGuest) {
+      if (netInfo.isConnected) {
         setTimeout(() => syncSOSLogs(true), 300);
       }
 
@@ -511,8 +598,6 @@ export function useSOSSync() {
       const saved = await AsyncStorage.getItem(SOS_LOGS_KEY);
       const logs: SOSLog[] = saved ? JSON.parse(saved) : [];
       
-      // For authenticated users, return their logs + guest logs
-      // For guests, return only guest logs
       let userLogs = logs;
       if (auth.currentUser) {
         userLogs = logs.filter(log => 
@@ -536,17 +621,15 @@ export function useSOSSync() {
       const saved = await AsyncStorage.getItem(SOS_LOGS_KEY);
       const logs: SOSLog[] = saved ? JSON.parse(saved) : [];
       
-      // Keep only unsynced logs
       const unsyncedLogs = logs.filter(l => !l.synced);
       
       await AsyncStorage.setItem(SOS_LOGS_KEY, JSON.stringify(unsyncedLogs));
-      console.log('Cleared synced logs');
+      console.log('🧹 Cleared synced logs');
     } catch (error) {
       console.error('Error clearing synced logs:', error);
     }
   }, []);
 
-  // ✅ NEW: Get guest logs count
   const getGuestLogsCount = useCallback(async (): Promise<number> => {
     try {
       const saved = await AsyncStorage.getItem(SOS_LOGS_KEY);

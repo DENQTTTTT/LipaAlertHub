@@ -68,10 +68,9 @@ export default function HomeScreen() {
     setShowChatModal(true);
   };
 
-  const handleForums = () => {
-    router.push("/(main)/forum/");
-  };
-
+const handleForums = () => {
+  router.push("/(main)/forum/");
+};
   const handleAnnouncementClick = (announcementId: string) => {
     router.push(`/(main)/announcements/details?id=${announcementId}`);
   };

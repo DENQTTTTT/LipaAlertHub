@@ -1,4 +1,4 @@
-// services/reports.ts - COMPLETE WITHOUT APPROVED STATUS
+// services/reports.ts - COMPLETE WITH FULL NOTIFICATION INTEGRATION
 import { User } from "firebase/auth";
 import {
   addDoc,
@@ -24,7 +24,7 @@ import {
 } from "firebase/storage";
 import { Platform } from "react-native";
 import { auth, db } from "./firebase";
-import { notificationService } from "./notifications";
+import { notificationService } from "./notifications"; // ✅ FIXED IMPORT PATH
 
 const GOOGLE_MAPS_API_KEY = Platform.OS === 'android' 
   ? 'AIzaSyDHNKCfdb_Ae0sMaSmdDf88xjOvj2hJM68'
@@ -724,21 +724,22 @@ export const submitIncidentReport = async ({
       }
     }
 
+    // 🔥 DAGDAG: CREATE NOTIFICATION FOR REPORT SUBMISSION
     try {
+      console.log('🔔 Creating report submission notification...');
       const locationString = addressData.establishment 
         ? `${addressData.establishment}, ${addressData.barangay}, ${addressData.city}`
         : `${addressData.barangay}, ${addressData.city}`;
         
-      if (notificationService.createReportSubmittedNotification) {
-        await notificationService.createReportSubmittedNotification(
-          user.uid,
-          docRef.id,
-          locationString,
-          category
-        );
-      }
+      await notificationService.createReportSubmittedNotification(
+        user.uid,
+        docRef.id,
+        locationString,
+        category
+      );
+      console.log('✅ Report submission notification created');
     } catch (notificationError) {
-      console.warn("Failed to create notification:", notificationError);
+      console.warn("⚠️ Failed to create report notification:", notificationError);
     }
 
     console.log('Report submitted successfully:', {
@@ -769,6 +770,119 @@ export const submitIncidentReport = async ({
   }
 };
 
+// 🔥 DAGDAG: NEW FUNCTION FOR REPORT STATUS UPDATES WITH NOTIFICATIONS
+export const updateReportStatusWithNotification = async (
+  reportId: string, 
+  newStatus: ReportStatus,
+  adminNote?: string,
+  assignedRescuer?: string,
+  assignedRescuerName?: string
+): Promise<{ success: boolean; error?: any }> => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error("Must be authenticated");
+    }
+
+    const reportDoc = await getDoc(doc(db, "incident_reports", reportId));
+    if (!reportDoc.exists()) {
+      throw new Error("Report not found");
+    }
+
+    const currentReport = reportDoc.data() as IncidentReport;
+    const previousStatus = currentReport.status;
+    const currentTime = new Date().toISOString();
+
+    const updateData: any = {
+      status: newStatus,
+      updatedAt: serverTimestamp(),
+      lastUpdated: serverTimestamp(),
+      auditTrail: arrayUnion({
+        action: newStatus,
+        handledBy: user.email || user.uid,
+        handledAt: currentTime,
+        previousStatus: previousStatus,
+        newStatus: newStatus,
+        ...(adminNote && { reason: adminNote }),
+        ...(assignedRescuer && { assignedTo: assignedRescuerName || assignedRescuer })
+      })
+    };
+
+    if (adminNote) {
+      updateData.adminNote = adminNote;
+    }
+
+    if (assignedRescuer) {
+      updateData.assignedRescuer = assignedRescuer;
+      updateData.assignedRescuerName = assignedRescuerName || assignedRescuer;
+      updateData.assignedRescuers = [assignedRescuer];
+      updateData.assignedAt = serverTimestamp();
+      updateData.assignedBy = user.uid;
+    }
+
+    if (newStatus === 'resolved') {
+      updateData.resolvedAt = serverTimestamp();
+      updateData.resolvedBy = user.uid;
+      if (adminNote) {
+        updateData.resolutionNote = adminNote;
+      }
+    }
+
+    await updateDoc(doc(db, "incident_reports", reportId), updateData);
+
+    // 🔥 DAGDAG: CREATE NOTIFICATION FOR REPORT STATUS UPDATE
+    try {
+      const reporterId = currentReport.userId || currentReport.reporterId;
+      const locationString = currentReport.establishment 
+        ? `${currentReport.establishment}, ${currentReport.barangay}`
+        : currentReport.barangay;
+
+      console.log(`🔔 Creating ${newStatus} notification for report ${reportId}`);
+
+      if (newStatus === 'accepted') {
+        await notificationService.createReportAcceptedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType
+        );
+      } else if (newStatus === 'verified') {
+        await notificationService.createReportVerifiedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType
+        );
+      } else if (newStatus === 'resolved') {
+        await notificationService.createReportResolvedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType
+        );
+      } else if (newStatus === 'rejected') {
+        await notificationService.createReportRejectedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType,
+          adminNote
+        );
+      }
+      
+      console.log(`✅ ${newStatus} notification created for report ${reportId}`);
+    } catch (notifError) {
+      console.warn('⚠️ Failed to create status update notification:', notifError);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating report status:", error);
+    return { success: false, error };
+  }
+};
+
+// UPDATE EXISTING updateReportStatus FUNCTION - DAGDAGAN LANG:
 export const updateReportStatus = async (
   reportId: string, 
   newStatus: ReportStatus,
@@ -827,6 +941,43 @@ export const updateReportStatus = async (
     }
 
     await updateDoc(doc(db, "incident_reports", reportId), updateData);
+
+    // 🔥 DAGDAG: ADD NOTIFICATIONS TO EXISTING FUNCTION TOO
+    try {
+      const reporterId = currentReport.userId || currentReport.reporterId;
+      const locationString = currentReport.establishment 
+        ? `${currentReport.establishment}, ${currentReport.barangay}`
+        : currentReport.barangay;
+
+      console.log(`🔔 Creating ${newStatus} notification for report ${reportId}`);
+
+      if (newStatus === 'accepted') {
+        await notificationService.createReportAcceptedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType
+        );
+      } else if (newStatus === 'verified') {
+        await notificationService.createReportVerifiedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType
+        );
+      } else if (newStatus === 'resolved') {
+        await notificationService.createReportResolvedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType
+        );
+      }
+      
+      console.log(`✅ ${newStatus} notification created for report ${reportId}`);
+    } catch (notifError) {
+      console.warn('⚠️ Failed to create status update notification:', notifError);
+    }
 
     return { success: true };
   } catch (error) {

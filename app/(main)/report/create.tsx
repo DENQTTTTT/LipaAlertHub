@@ -432,7 +432,7 @@ const uploadImage = async (uri: string, user: any, timestamp: Date, reportId: st
     console.log("Starting image upload for reportId:", reportId);
     const storage = getStorage();
     const timestampStr = new Date().toISOString().replace(/[:.]/g, "-");
-    const imageRef = ref(storage, `emergency_photos/photo-${timestampStr}.jpg`);
+       const imageRef = ref(storage, `incident_photos/photo-${timestampStr}.jpg`);
 
     const response = await fetch(uri);
     const blob = await response.blob();
