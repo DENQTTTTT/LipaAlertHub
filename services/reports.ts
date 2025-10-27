@@ -1,4 +1,4 @@
-// services/reports.ts - COMPLETE WITH FULL NOTIFICATION INTEGRATION
+// services/reports.ts - COMPLETE UPDATED VERSION READY FOR DEPLOYMENT
 import { User } from "firebase/auth";
 import {
   addDoc,
@@ -13,6 +13,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   updateDoc,
   where
 } from "firebase/firestore";
@@ -24,19 +25,22 @@ import {
 } from "firebase/storage";
 import { Platform } from "react-native";
 import { auth, db } from "./firebase";
-import { notificationService } from "./notifications"; // ✅ FIXED IMPORT PATH
+import { notificationService } from "./notifications";
 
 const GOOGLE_MAPS_API_KEY = Platform.OS === 'android' 
   ? 'AIzaSyDHNKCfdb_Ae0sMaSmdDf88xjOvj2hJM68'
   : 'AIzaSyB2MdahsHMIyhDjBTTVwgAm1i-zVx4OD5U';
 
 export type ReportStatus = 
-  | 'pending'
-  | 'accepted'
-  | 'verified'
-  | 'rejected'
-  | 'failed'
-  | 'resolved';
+  | "pending" 
+  | "accepted" 
+  | "verified" 
+  | "rejected" 
+  | "failed" 
+  | "resolved" 
+  | "in_progress" 
+  | "assigned" 
+  | "cancelled";
 
 export interface IncidentReport {
   id?: string;
@@ -67,7 +71,7 @@ export interface IncidentReport {
   photoTakenAt?: string;
   adminNote?: string;
   category?: string;
-  location?: { lat: number; lng: number };
+  location?: { latitude: number; longitude: number } | { lat: number; lng: number };
   photoUrl?: string | null;
   addressLine?: string;
   fullAddress?: string;
@@ -93,7 +97,7 @@ export interface IncidentReport {
   userId?: string;
   reporterName?: string;
   address?: string;
-  images?: string[];
+  images: string[];
   hasPatientForm?: boolean;
   assignedAgency?: string | null;
   assignedRescuers?: string[];
@@ -102,6 +106,194 @@ export interface IncidentReport {
   // ADDITIONAL NOTES FIELD
   additionalNotes?: string;
 }
+
+// ============ DUPLICATE DETECTION FUNCTIONS ============
+
+// ✅ HELPER FUNCTION: Calculate distance between two coordinates
+function calculateDistance(
+  lat1: number, 
+  lon1: number, 
+  lat2: number, 
+  lon2: number
+): number {
+  const R = 6371; // Earth radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c; // Distance in kilometers
+  
+  return distance;
+}
+
+// ✅ HELPER: Extract coordinates from any location format
+const extractCoordinates = (location: { latitude: number; longitude: number } | { lat: number; lng: number }) => {
+  if ('latitude' in location) {
+    return { latitude: location.latitude, longitude: location.longitude };
+  } else {
+    return { latitude: location.lat, longitude: location.lng };
+  }
+};
+
+// ✅ HELPER: Extract coordinates from report
+const extractReportCoordinates = (report: IncidentReport) => {
+  if (report.location) {
+    if ('latitude' in report.location) {
+      return { latitude: report.location.latitude, longitude: report.location.longitude };
+    } else {
+      return { latitude: report.location.lat, longitude: report.location.lng };
+    }
+  } else {
+    return { latitude: report.lat, longitude: report.lng };
+  }
+};
+
+// ✅ FIXED: Updated duplicate check to allow different emergency types and categories
+export const checkDuplicateReport = async (
+  userId: string,
+  emergencyType: string,
+  subCategory: string,
+  location: { latitude: number; longitude: number } | { lat: number; lng: number },
+  barangay: string,
+  establishment?: string
+): Promise<{
+  isDuplicate: boolean;
+  duplicateReport?: IncidentReport;
+  timeSinceReport?: number; // minutes
+  message?: string;
+}> => {
+  try {
+    console.log("🔍 [CLIENT] Starting duplicate check...");
+    
+    // ✅ FIX: Extract coordinates safely
+    const { latitude, longitude } = extractCoordinates(location);
+    
+    console.log("🔍 [CLIENT] Duplicate Check Criteria:", {
+      userId,
+      emergencyType,
+      subCategory,
+      barangay,
+      establishment: establishment || "none",
+      latitude: latitude.toFixed(6),
+      longitude: longitude.toFixed(6)
+    });
+
+    // ✅ TIME WINDOW: 30 minutes to 2 hours ago
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000);
+
+    // ✅ FIXED: Only check reports from the same user within time window
+    // ✅ REMOVED: emergencyType, subCategory, and barangay filters
+    const duplicateQuery = query(
+      collection(db, "incident_reports"),
+      where("userId", "==", userId),
+      where("createdAt", ">", Timestamp.fromDate(thirtyMinAgo)), // ✅ Within 30min-2hrs
+      where("status", "in", ["pending", "accepted", "verified"]), // ✅ Active reports only
+      orderBy("createdAt", "desc"),
+      limit(10) // ✅ Increased limit to check more reports
+    );
+
+    const snapshot = await getDocs(duplicateQuery);
+
+    if (snapshot.empty) {
+      console.log("✅ [CLIENT] No potential duplicates found");
+      return { isDuplicate: false };
+    }
+
+    console.log(`📋 [CLIENT] Found ${snapshot.size} potential duplicate(s) to check`);
+
+    // ✅ CHECK EACH RESULT FOR EXACT MATCH
+    for (const doc of snapshot.docs) {
+      const report = { id: doc.id, ...doc.data() } as IncidentReport;
+      
+      console.log(`🔍 [CLIENT] Checking report ${doc.id}:`, {
+        emergency: report.emergencyType,
+        subCategory: report.subCategory,
+        barangay: report.barangay,
+        establishment: report.establishment || "none",
+        status: report.status,
+        createdAt: report.createdAt?.toDate().toISOString()
+      });
+
+      // ✅ SMART LOCATION MATCHING
+      let isLocationMatch = false;
+
+      if (establishment && report.establishment) {
+        // ✅ OPTION 1: If both have establishment, must match exactly
+        isLocationMatch = (
+          establishment.toLowerCase().trim() === 
+          report.establishment.toLowerCase().trim()
+        );
+        console.log(`📍 [CLIENT] Establishment match check: ${isLocationMatch} (${establishment} vs ${report.establishment})`);
+        
+      } else {
+        // ✅ OPTION 2: No establishment - check 50-meter radius
+        const reportCoords = extractReportCoordinates(report);
+        const reportLat = reportCoords.latitude;
+        const reportLng = reportCoords.longitude;
+
+        if (!reportLat || !reportLng) {
+          console.log("⚠️ [CLIENT] Report missing coordinates - cannot check distance");
+          continue;
+        }
+
+        const distance = calculateDistance(
+          latitude,
+          longitude,
+          reportLat,
+          reportLng
+        );
+
+        console.log(`📏 [CLIENT] Distance: ${distance.toFixed(3)}km (${(distance * 1000).toFixed(0)}m)`);
+
+        // ✅ 50-METER RADIUS CHECK (0.05 km)
+        isLocationMatch = distance <= 0.05;
+        console.log(`📍 [CLIENT] 50m radius check: ${isLocationMatch}`);
+      }
+
+      // ✅ FIXED: Only consider it a duplicate if it's the SAME emergency type AND subcategory
+      const isSameEmergencyType = report.emergencyType === emergencyType;
+      const isSameSubCategory = report.subCategory === subCategory;
+      
+      if (isLocationMatch && isSameEmergencyType && isSameSubCategory) {
+        // ✅ DUPLICATE FOUND! (Same location + same emergency type + same subcategory)
+        const reportTime = report.createdAt?.toDate() || new Date(0);
+        const timeDiff = Math.floor((now.getTime() - reportTime.getTime()) / (1000 * 60));
+
+        console.log("🚨 [CLIENT] DUPLICATE FOUND!");
+        console.log(`📋 [CLIENT] Duplicate Details - Report ID: ${doc.id}, Time difference: ${timeDiff} minutes, Status: ${report.status}`);
+
+        return {
+          isDuplicate: true,
+          duplicateReport: report,
+          timeSinceReport: timeDiff,
+          message: `Duplicate found: ${report.emergencyType} - ${report.subCategory} in ${report.barangay}`
+        };
+      } else if (isLocationMatch) {
+        // ✅ NOT A DUPLICATE - Different emergency type or subcategory
+        console.log("✅ [CLIENT] Different emergency type/subcategory - NOT a duplicate");
+        console.log(`📋 [CLIENT] Current: ${emergencyType} - ${subCategory}, Existing: ${report.emergencyType} - ${report.subCategory}`);
+      }
+    }
+
+    console.log("✅ [CLIENT] No exact duplicates found after location check");
+    return { isDuplicate: false };
+
+  } catch (error) {
+    console.error("❌ [CLIENT] Error checking duplicate:", error);
+    // ✅ Don't block submission on error, just log it
+    return { 
+      isDuplicate: false,
+      message: "Duplicate check failed, allowing submission"
+    };
+  }
+};
 
 // ============ SOS HELPER FUNCTIONS ============
 
@@ -127,7 +319,7 @@ export const getUserSOSCalls = async (userId: string, limitCount: number = 2) =>
 
     return calls;
   } catch (error) {
-    console.error('Error fetching user SOS calls:', error);
+    console.error('❌ [CLIENT] Error fetching user SOS calls:', error);
     return [];
   }
 };
@@ -165,10 +357,10 @@ export const linkSOSToReport = async (sosId: string, reportId: string) => {
       updatedAt: serverTimestamp()
     });
     
-    console.log(`✅ SOS call ${sosId} linked to report ${reportId}`);
+    console.log(`✅ [CLIENT] SOS call ${sosId} linked to report ${reportId}`);
     return { success: true };
   } catch (error) {
-    console.error('Error linking SOS to report:', error);
+    console.error('❌ [CLIENT] Error linking SOS to report:', error);
     return { success: false, error };
   }
 };
@@ -183,10 +375,10 @@ export const markSOSAsReviewed = async (sosId: string, reviewerId: string) => {
       updatedAt: serverTimestamp()
     });
     
-    console.log(`✅ SOS call ${sosId} marked as reviewed`);
+    console.log(`✅ [CLIENT] SOS call ${sosId} marked as reviewed`);
     return { success: true };
   } catch (error) {
-    console.error('Error marking SOS as reviewed:', error);
+    console.error('❌ [CLIENT] Error marking SOS as reviewed:', error);
     return { success: false, error };
   }
 };
@@ -201,10 +393,10 @@ export const assignSOSToAgency = async (sosId: string, agencyId: string, agencyN
       updatedAt: serverTimestamp()
     });
     
-    console.log(`✅ SOS call ${sosId} assigned to ${agencyName}`);
+    console.log(`✅ [CLIENT] SOS call ${sosId} assigned to ${agencyName}`);
     return { success: true };
   } catch (error) {
-    console.error('Error assigning SOS to agency:', error);
+    console.error('❌ [CLIENT] Error assigning SOS to agency:', error);
     return { success: false, error };
   }
 };
@@ -231,7 +423,7 @@ const isWithinLipaCityBounds = (latitude: number, longitude: number): boolean =>
          longitude >= 121.10 && longitude <= 121.25;
 };
 
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+const calculateDistanceForAddress = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371e3;
   const φ1 = lat1 * Math.PI / 180;
   const φ2 = lat2 * Math.PI / 180;
@@ -250,10 +442,11 @@ const tryPlacesNearbySearch = async (latitude: number, longitude: number): Promi
     const response = await fetch(placesUrl);
     const data = await response.json();
     
-    console.log(`Places API status: ${data.status}`);
+    console.log(`📍 [CLIENT] Places API status: ${data.status}`);
     
     if (data.status === 'OK' && data.results?.length > 0) {
       const nearbyPlaces = data.results.slice(0, 5).map((p: any) => p.name);
+      console.log(`📍 [CLIENT] Found ${data.results.length} nearby places`);
       
       for (const place of data.results.slice(0, 3)) {
         const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=address_components,formatted_address,name,types,geometry&key=${GOOGLE_MAPS_API_KEY}`;
@@ -266,8 +459,8 @@ const tryPlacesNearbySearch = async (latitude: number, longitude: number): Promi
           const placeLocation = placeDetail.geometry?.location;
           
           if (placeLocation) {
-            const distance = calculateDistance(latitude, longitude, placeLocation.lat, placeLocation.lng);
-            console.log(`Place: ${placeDetail.name}, Distance: ${Math.round(distance)}m`);
+            const distance = calculateDistanceForAddress(latitude, longitude, placeLocation.lat, placeLocation.lng);
+            console.log(`📍 [CLIENT] Place: ${placeDetail.name}, Distance: ${Math.round(distance)}m`);
             
             if (distance <= 200) {
               const isEstablishment = placeDetail.types && (
@@ -290,7 +483,7 @@ const tryPlacesNearbySearch = async (latitude: number, longitude: number): Promi
                 const components = extractAddressComponents(placeDetail.address_components);
                 
                 if (components.barangay && components.barangay !== 'Unknown Barangay') {
-                  console.log(`✅ Places API found: ${placeDetail.name} at ${components.barangay}`);
+                  console.log(`✅ [CLIENT] Places API found: ${placeDetail.name} at ${components.barangay}`);
                   
                   return {
                     ...components,
@@ -310,7 +503,7 @@ const tryPlacesNearbySearch = async (latitude: number, longitude: number): Promi
     
     return null;
   } catch (error) {
-    console.log('Places API failed:', error);
+    console.log('❌ [CLIENT] Places API failed:', error);
     return null;
   }
 };
@@ -331,7 +524,7 @@ const tryEnhancedGeocoding = async (latitude: number, longitude: number): Promis
           
           if (components.barangay && components.barangay !== 'Unknown Barangay') {
             const confidence = resultType === 'premise' ? 95 : resultType === 'street_address' ? 90 : 85;
-            console.log(`✅ Geocoding found barangay from ${resultType}: ${components.barangay}`);
+            console.log(`✅ [CLIENT] Geocoding found barangay from ${resultType}: ${components.barangay}`);
             
             return {
               ...components,
@@ -342,7 +535,7 @@ const tryEnhancedGeocoding = async (latitude: number, longitude: number): Promis
         }
       }
     } catch (error) {
-      console.log(`Geocoding failed for ${resultType}:`, error);
+      console.log(`❌ [CLIENT] Geocoding failed for ${resultType}:`, error);
     }
   }
 
@@ -351,27 +544,27 @@ const tryEnhancedGeocoding = async (latitude: number, longitude: number): Promis
 
 export const getAddressFromCoordinates = async (latitude: number, longitude: number): Promise<AddressComponents | null> => {
   try {
-    console.log(`Getting address for coordinates: ${latitude}, ${longitude}`);
+    console.log(`📍 [CLIENT] Getting address for coordinates: ${latitude}, ${longitude}`);
     
     // PRIORITY 1: Try Places API for establishment detection
     let addressResult = await tryPlacesNearbySearch(latitude, longitude);
     if (addressResult) {
-      console.log('✅ Places API successful:', addressResult);
+      console.log('✅ [CLIENT] Places API successful:', addressResult);
       return addressResult;
     }
 
     // PRIORITY 2: Try Enhanced Geocoding
     addressResult = await tryEnhancedGeocoding(latitude, longitude);
     if (addressResult) {
-      console.log('✅ Enhanced Geocoding successful:', addressResult);
+      console.log('✅ [CLIENT] Enhanced Geocoding successful:', addressResult);
       return addressResult;
     }
 
-    console.log('⚠️ All API methods failed, using coordinate fallback');
+    console.log('⚠️ [CLIENT] All API methods failed, using coordinate fallback');
     return getCoordinateBasedAddress(latitude, longitude);
 
   } catch (error) {
-    console.error('Complete geocoding failure:', error);
+    console.error('❌ [CLIENT] Complete geocoding failure:', error);
     return getCoordinateBasedAddress(latitude, longitude);
   }
 };
@@ -500,7 +693,7 @@ const getCoordinateBasedAddress = (latitude: number, longitude: number): Address
 };
 
 const determineFallbackBarangay = (lat: number, lng: number): string => {
-  console.log(`Determining fallback barangay for: ${lat}, ${lng}`);
+  console.log(`📍 [CLIENT] Determining fallback barangay for: ${lat}, ${lng}`);
   
   if (lat >= 13.925 && lat <= 13.945 && lng >= 121.165 && lng <= 121.185) {
     return "Pinagkawitan";
@@ -600,7 +793,16 @@ export const submitIncidentReport = async ({
     const user: User | null = auth.currentUser;
     if (!user) throw new Error("You must be logged in to submit a report.");
 
-    console.log('Submitting unified incident report for user:', user.uid);
+    console.log('🚀 [CLIENT] Starting report submission for user:', user.uid);
+    console.log('📋 [CLIENT] Submission data:', {
+      userId: user.uid,
+      reporterName,
+      category,
+      subCategory,
+      imagesCount: images.length,
+      location,
+      address
+    });
 
     const latitude = location.latitude;
     const longitude = location.longitude;
@@ -623,13 +825,21 @@ export const submitIncidentReport = async ({
       throw new Error("Could not determine address from location. Please try again.");
     }
 
+    // ✅ FIXED: Enhanced logging for debugging
+    console.log('📍 [CLIENT] Address data resolved:', {
+      barangay: addressData.barangay,
+      formattedAddress: addressData.formatted_address,
+      establishment: addressData.establishment,
+      confidence: addressData.confidence
+    });
+
     // Ensure user document exists
     try {
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
       
       if (!userDoc.exists()) {
-        console.log("Creating user document for report submission...");
+        console.log("👤 [CLIENT] Creating user document for report submission...");
         await setDoc(userDocRef, {
           email: user.email,
           displayName: user.displayName || reporterName || "Resident",
@@ -644,19 +854,19 @@ export const submitIncidentReport = async ({
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     } catch (userError) {
-      console.error("Error ensuring user document:", userError);
+      console.error("❌ [CLIENT] Error ensuring user document:", userError);
       throw new Error("Failed to validate user account. Please try again.");
     }
 
     const currentTime = new Date().toISOString();
     
-    // Build unified report data structure matching your schema
+    // ✅ FIXED: Proper field names and structure
     const reportData = {
-      // UNIFIED SCHEMA FIELDS
+      // ✅ CORRECT: Use "emergencyType" not "category"
       userId: user.uid,
       reporterName,
+      emergencyType: category, // ✅ CORRECT FIELD NAME
       address: addressData.formatted_address,
-      category,
       description,
       images,
       location: {
@@ -665,37 +875,39 @@ export const submitIncidentReport = async ({
       },
       type: 'report',
       status: "pending" as const,
-      hasPatientForm: false,
-      assignedAgency: null,
-      assignedRescuers: [],
-      createdAt: serverTimestamp(),
-      lastUpdated: serverTimestamp(),
-      
-      // ADDITIONAL FIELDS FOR ADMIN
       subCategory: subCategory || '',
       additionalNotes: additionalNotes || '',
+      barangay: addressData.barangay,
+      city: addressData.city || 'Lipa City',
+      province: addressData.province || 'Batangas',
       
-      // LEGACY/COMPATIBILITY FIELDS
+      // ✅ FIXED: Include all required fields for duplicate checking
       reporterId: user.uid,
-      emergencyType: category,
       photos: images,
       timestamp: serverTimestamp(),
       lat: latitude,
       lng: longitude,
       formatted_address: addressData.formatted_address,
-      barangay: addressData.barangay,
-      city: addressData.city || 'Lipa City',
-      province: addressData.province || 'Batangas',
       region: addressData.region || 'Calabarzon',
       country: addressData.country || 'Philippines',
       postal_code: addressData.postal_code || '',
       confidence: addressData.confidence,
       source: 'Enhanced Google Places & Geocoding API',
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      reporterEmail: user.email,
-      assignedRescuer: null,
+      lastUpdated: serverTimestamp(),
+      
+      // Optional fields
       ...(addressData.establishment && { establishment: addressData.establishment }),
-      photoUrl: images[0] || null,
+      reporterEmail: user.email,
+      
+      // Initialize assignment fields
+      assignedRescuer: null,
+      assignedAgency: null,
+      assignedRescuers: [],
+      hasPatientForm: false,
+
+      // Audit trail
       auditTrail: [{
         action: 'submitted',
         handledBy: user.email || user.uid,
@@ -704,14 +916,25 @@ export const submitIncidentReport = async ({
       }]
     };
 
-    console.log('Unified report data to submit:', reportData);
+    console.log('💾 [CLIENT] Final report data to submit:', reportData);
 
     let docRef;
     try {
+      console.log('📤 [CLIENT] Saving to Firestore...');
       docRef = await addDoc(collection(db, "incident_reports"), reportData);
-      console.log('Report created successfully:', docRef.id);
+      console.log('✅ [CLIENT] Report created successfully in Firestore. ID:', docRef.id);
+      
+      // ✅ FIXED: Verify the document was actually saved
+      const savedDoc = await getDoc(docRef);
+      if (savedDoc.exists()) {
+        console.log('✅ [CLIENT] Document verified in Firestore:', savedDoc.id);
+      } else {
+        console.error('❌ [CLIENT] Document not found after creation!');
+        throw new Error("Report was not saved to database");
+      }
+      
     } catch (firestoreError: any) {
-      console.error("Firestore creation failed:", firestoreError);
+      console.error("❌ [CLIENT] Firestore creation failed:", firestoreError);
       
       if (firestoreError.code === 'permission-denied') {
         throw new Error("Permission denied. Please ensure you're logged in properly and try again.");
@@ -724,9 +947,9 @@ export const submitIncidentReport = async ({
       }
     }
 
-    // 🔥 DAGDAG: CREATE NOTIFICATION FOR REPORT SUBMISSION
+    // Create notification for report submission
     try {
-      console.log('🔔 Creating report submission notification...');
+      console.log('🔔 [CLIENT] Creating report submission notification...');
       const locationString = addressData.establishment 
         ? `${addressData.establishment}, ${addressData.barangay}, ${addressData.city}`
         : `${addressData.barangay}, ${addressData.city}`;
@@ -735,32 +958,32 @@ export const submitIncidentReport = async ({
         user.uid,
         docRef.id,
         locationString,
-        category
+        category // ✅ Use correct field name
       );
-      console.log('✅ Report submission notification created');
+      console.log('✅ [CLIENT] Report submission notification created');
     } catch (notificationError) {
-      console.warn("⚠️ Failed to create report notification:", notificationError);
+      console.warn("⚠️ [CLIENT] Failed to create report notification:", notificationError);
     }
 
-    console.log('Report submitted successfully:', {
+    console.log('🎉 [CLIENT] Report submitted successfully:', {
       reportId: docRef.id,
       barangay: addressData.barangay,
       establishment: addressData.establishment,
-      confidence: addressData.confidence,
+      emergencyType: category,
       subCategory: subCategory,
-      additionalNotes: additionalNotes
+      imagesCount: images.length
     });
 
     return { 
       success: true, 
-      id: docRef.id
+      id: docRef.id // ✅ Return the actual document ID
     };
   } catch (error) {
-    console.error("Error submitting incident report:", error);
+    console.error("❌ [CLIENT] Error submitting incident report:", error);
     
     if (error && typeof error === 'object' && 'code' in error) {
-      console.error("Firebase error code:", (error as any).code);
-      console.error("Firebase error message:", (error as any).message);
+      console.error("❌ [CLIENT] Firebase error code:", (error as any).code);
+      console.error("❌ [CLIENT] Firebase error message:", (error as any).message);
     }
     
     return { 
@@ -770,7 +993,139 @@ export const submitIncidentReport = async ({
   }
 };
 
-// 🔥 DAGDAG: NEW FUNCTION FOR REPORT STATUS UPDATES WITH NOTIFICATIONS
+// ============ REPORT STATUS UPDATE FUNCTIONS ============
+
+export const updateReportStatus = async (
+  reportId: string, 
+  newStatus: ReportStatus,
+  adminNote?: string,
+  assignedRescuer?: string,
+  assignedRescuerName?: string
+): Promise<{ success: boolean; error?: any }> => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error("Must be authenticated");
+    }
+
+    const reportDoc = await getDoc(doc(db, "incident_reports", reportId));
+    if (!reportDoc.exists()) {
+      throw new Error("Report not found");
+    }
+
+    const currentReport = reportDoc.data() as IncidentReport;
+    const previousStatus = currentReport.status;
+    const currentTime = new Date().toISOString();
+
+    const updateData: any = {
+      status: newStatus,
+      updatedAt: serverTimestamp(),
+      lastUpdated: serverTimestamp(),
+      auditTrail: arrayUnion({
+        action: newStatus,
+        handledBy: user.email || user.uid,
+        handledAt: currentTime,
+        previousStatus: previousStatus,
+        newStatus: newStatus,
+        ...(adminNote && { reason: adminNote }),
+        ...(assignedRescuer && { assignedTo: assignedRescuerName || assignedRescuer })
+      })
+    };
+
+    if (adminNote) {
+      updateData.adminNote = adminNote;
+    }
+
+    if (assignedRescuer) {
+      updateData.assignedRescuer = assignedRescuer;
+      updateData.assignedRescuerName = assignedRescuerName || assignedRescuer;
+      updateData.assignedRescuers = [assignedRescuer];
+      updateData.assignedAt = serverTimestamp();
+      updateData.assignedBy = user.uid;
+    }
+
+    if (newStatus === 'resolved') {
+      updateData.resolvedAt = serverTimestamp();
+      updateData.resolvedBy = user.uid;
+      if (adminNote) {
+        updateData.resolutionNote = adminNote;
+      }
+    }
+
+    await updateDoc(doc(db, "incident_reports", reportId), updateData);
+
+    // 🔥 DAGDAG: CREATE NOTIFICATION FOR REPORT STATUS UPDATE
+    try {
+      const reporterId = currentReport.userId || currentReport.reporterId;
+      const locationString = currentReport.establishment 
+        ? `${currentReport.establishment}, ${currentReport.barangay}`
+        : currentReport.barangay;
+
+      console.log(`🔔 [CLIENT] Creating ${newStatus} notification for report ${reportId}`);
+
+      if (newStatus === 'accepted') {
+        await notificationService.createReportAcceptedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType
+        );
+      } else if (newStatus === 'verified') {
+        await notificationService.createReportVerifiedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType
+        );
+      } else if (newStatus === 'resolved') {
+        await notificationService.createReportResolvedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType
+        );
+      } else if (newStatus === 'rejected') {
+        await notificationService.createReportRejectedNotification(
+          reporterId,
+          reportId,
+          locationString,
+          currentReport.category || currentReport.emergencyType,
+          adminNote
+        );
+      } else if (newStatus === 'in_progress') {
+        await notificationService.createReportNotification(
+          reporterId,
+          reportId,
+          'report_in_progress',
+          currentReport.category || currentReport.emergencyType,
+          'Report In Progress',
+          `Work has begun on your ${currentReport.category || currentReport.emergencyType} report.`,
+          'high'
+        );
+      } else if (newStatus === 'assigned') {
+        await notificationService.createReportNotification(
+          reporterId,
+          reportId,
+          'report_assigned',
+          currentReport.category || currentReport.emergencyType,
+          'Report Assigned to Responder',
+          `Your ${currentReport.category || currentReport.emergencyType} report has been assigned to a responder.`,
+          'high'
+        );
+      }
+      
+      console.log(`✅ [CLIENT] ${newStatus} notification created for report ${reportId}`);
+    } catch (notifError) {
+      console.warn('⚠️ [CLIENT] Failed to create status update notification:', notifError);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("❌ [CLIENT] Error updating report status:", error);
+    return { success: false, error };
+  }
+};
+
 export const updateReportStatusWithNotification = async (
   reportId: string, 
   newStatus: ReportStatus,
@@ -837,7 +1192,7 @@ export const updateReportStatusWithNotification = async (
         ? `${currentReport.establishment}, ${currentReport.barangay}`
         : currentReport.barangay;
 
-      console.log(`🔔 Creating ${newStatus} notification for report ${reportId}`);
+      console.log(`🔔 [CLIENT] Creating ${newStatus} notification for report ${reportId}`);
 
       if (newStatus === 'accepted') {
         await notificationService.createReportAcceptedNotification(
@@ -868,120 +1223,36 @@ export const updateReportStatusWithNotification = async (
           currentReport.category || currentReport.emergencyType,
           adminNote
         );
+      } else if (newStatus === 'in_progress') {
+        await notificationService.createReportNotification(
+          reporterId,
+          reportId,
+          'report_in_progress',
+          currentReport.category || currentReport.emergencyType,
+          'Report In Progress',
+          `Work has begun on your ${currentReport.category || currentReport.emergencyType} report.`,
+          'high'
+        );
+      } else if (newStatus === 'assigned') {
+        await notificationService.createReportNotification(
+          reporterId,
+          reportId,
+          'report_assigned',
+          currentReport.category || currentReport.emergencyType,
+          'Report Assigned to Responder',
+          `Your ${currentReport.category || currentReport.emergencyType} report has been assigned to a responder.`,
+          'high'
+        );
       }
       
-      console.log(`✅ ${newStatus} notification created for report ${reportId}`);
+      console.log(`✅ [CLIENT] ${newStatus} notification created for report ${reportId}`);
     } catch (notifError) {
-      console.warn('⚠️ Failed to create status update notification:', notifError);
+      console.warn('⚠️ [CLIENT] Failed to create status update notification:', notifError);
     }
 
     return { success: true };
   } catch (error) {
-    console.error("Error updating report status:", error);
-    return { success: false, error };
-  }
-};
-
-// UPDATE EXISTING updateReportStatus FUNCTION - DAGDAGAN LANG:
-export const updateReportStatus = async (
-  reportId: string, 
-  newStatus: ReportStatus,
-  adminNote?: string,
-  assignedRescuer?: string,
-  assignedRescuerName?: string
-): Promise<{ success: boolean; error?: any }> => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error("Must be authenticated");
-    }
-
-    const reportDoc = await getDoc(doc(db, "incident_reports", reportId));
-    if (!reportDoc.exists()) {
-      throw new Error("Report not found");
-    }
-
-    const currentReport = reportDoc.data() as IncidentReport;
-    const previousStatus = currentReport.status;
-    const currentTime = new Date().toISOString();
-
-    const updateData: any = {
-      status: newStatus,
-      updatedAt: serverTimestamp(),
-      lastUpdated: serverTimestamp(),
-      auditTrail: arrayUnion({
-        action: newStatus,
-        handledBy: user.email || user.uid,
-        handledAt: currentTime,
-        previousStatus: previousStatus,
-        newStatus: newStatus,
-        ...(adminNote && { reason: adminNote }),
-        ...(assignedRescuer && { assignedTo: assignedRescuerName || assignedRescuer })
-      })
-    };
-
-    if (adminNote) {
-      updateData.adminNote = adminNote;
-    }
-
-    if (assignedRescuer) {
-      updateData.assignedRescuer = assignedRescuer;
-      updateData.assignedRescuerName = assignedRescuerName || assignedRescuer;
-      updateData.assignedRescuers = [assignedRescuer];
-      updateData.assignedAt = serverTimestamp();
-      updateData.assignedBy = user.uid;
-    }
-
-    if (newStatus === 'resolved') {
-      updateData.resolvedAt = serverTimestamp();
-      updateData.resolvedBy = user.uid;
-      if (adminNote) {
-        updateData.resolutionNote = adminNote;
-      }
-    }
-
-    await updateDoc(doc(db, "incident_reports", reportId), updateData);
-
-    // 🔥 DAGDAG: ADD NOTIFICATIONS TO EXISTING FUNCTION TOO
-    try {
-      const reporterId = currentReport.userId || currentReport.reporterId;
-      const locationString = currentReport.establishment 
-        ? `${currentReport.establishment}, ${currentReport.barangay}`
-        : currentReport.barangay;
-
-      console.log(`🔔 Creating ${newStatus} notification for report ${reportId}`);
-
-      if (newStatus === 'accepted') {
-        await notificationService.createReportAcceptedNotification(
-          reporterId,
-          reportId,
-          locationString,
-          currentReport.category || currentReport.emergencyType
-        );
-      } else if (newStatus === 'verified') {
-        await notificationService.createReportVerifiedNotification(
-          reporterId,
-          reportId,
-          locationString,
-          currentReport.category || currentReport.emergencyType
-        );
-      } else if (newStatus === 'resolved') {
-        await notificationService.createReportResolvedNotification(
-          reporterId,
-          reportId,
-          locationString,
-          currentReport.category || currentReport.emergencyType
-        );
-      }
-      
-      console.log(`✅ ${newStatus} notification created for report ${reportId}`);
-    } catch (notifError) {
-      console.warn('⚠️ Failed to create status update notification:', notifError);
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error updating report status:", error);
+    console.error("❌ [CLIENT] Error updating report status:", error);
     return { success: false, error };
   }
 };
@@ -1000,7 +1271,7 @@ export const getReportById = async (reportId: string): Promise<IncidentReport | 
       return null;
     }
   } catch (error) {
-    console.error("Error getting report:", error);
+    console.error("❌ [CLIENT] Error getting report:", error);
     return null;
   }
 };
@@ -1099,7 +1370,7 @@ export const assignRescuersToReport = async (
 
     return { success: true };
   } catch (error) {
-    console.error("Error assigning rescuers:", error);
+    console.error("❌ [CLIENT] Error assigning rescuers:", error);
     return { success: false, error };
   }
 };
@@ -1125,7 +1396,7 @@ export const assignAgencyToReport = async (
 
     return { success: true };
   } catch (error) {
-    console.error("Error assigning agency:", error);
+    console.error("❌ [CLIENT] Error assigning agency:", error);
     return { success: false, error };
   }
 };
@@ -1173,41 +1444,45 @@ export const formatReportTime = (timestamp: any) => {
   }
 };
 
-export const getStatusDisplayText = (status: ReportStatus) => {
-  switch (status) {
-    case 'pending':
-      return 'Pending Review';
-    case 'accepted':
-      return 'Accepted';
-    case 'verified':
-      return 'Verified';
-    case 'rejected':
-      return 'Rejected';
-    case 'failed':
-      return 'Failed';
-    case 'resolved':
-      return 'Resolved';
-    default:
-      return `Unknown Status (${status})`;
-  }
+// ✅ UPDATED: Complete status display text with all status types
+export const getStatusDisplayText = (status: ReportStatus): string => {
+  const statusMap: Record<ReportStatus, string> = {
+    'pending': 'Under Review',
+    'accepted': 'Accepted',
+    'verified': 'Verified',
+    'rejected': 'Not Approved',
+    'failed': 'Verification Failed',
+    'resolved': 'Resolved',
+    'in_progress': 'In Progress',
+    'assigned': 'Assigned to Responder',
+    'cancelled': 'Cancelled'
+  };
+  return statusMap[status] || status;
 };
 
+// ✅ UPDATED: Complete status color mapping with all status types
 export const getStatusColor = (status: ReportStatus) => {
   switch (status) {
     case 'pending':
-      return '#f59e0b';
+      return '#f59e0b'; // amber
     case 'accepted':
-      return '#10b981';
+      return '#10b981'; // emerald
     case 'verified':
-      return '#059669';
+      return '#059669'; // green
     case 'rejected':
-      return '#f97316';
+      return '#f97316'; // orange
     case 'failed':
-      return '#dc2626';
+      return '#dc2626'; // red
     case 'resolved':
-      return '#22c55e';
+      return '#22c55e'; // green
+    case 'in_progress':
+      return '#3b82f6'; // blue
+    case 'assigned':
+      return '#8b5cf6'; // violet
+    case 'cancelled':
+      return '#6b7280'; // gray
     default:
-      return '#6b7280';
+      return '#6b7280'; // gray
   }
 };
 
@@ -1238,7 +1513,7 @@ export const checkPhotoTimestamp = async (photoURL: string): Promise<{
       photoTakenAt: metadata.customMetadata?.photoTakenAt
     };
   } catch (error) {
-    console.error('Error checking photo timestamp:', error);
+    console.error('❌ [CLIENT] Error checking photo timestamp:', error);
     return { hasTimestamp: false, needsProcessing: false };
   }
 };
@@ -1266,7 +1541,33 @@ export const markPhotoAsProcessed = async (photoURL: string): Promise<boolean> =
     
     return true;
   } catch (error) {
-    console.error('Error marking photo as processed:', error);
+    console.error('❌ [CLIENT] Error marking photo as processed:', error);
     return false;
+  }
+};
+
+// ✅ NEW: DUPLICATE REPORT NOTIFICATION HELPER
+export const createDuplicateReportNotification = async (
+  userId: string,
+  duplicateReportId: string,
+  emergencyType: string,
+  subCategory: string,
+  barangay: string,
+  timeSinceReport: number,
+  currentStatus: string
+): Promise<void> => {
+  try {
+    await notificationService.createDuplicateReportNotification(
+      userId,
+      duplicateReportId,
+      emergencyType,
+      subCategory,
+      barangay,
+      timeSinceReport,
+      currentStatus
+    );
+    console.log(`✅ [CLIENT] Duplicate report notification created for user ${userId}`);
+  } catch (error) {
+    console.error('❌ [CLIENT] Failed to create duplicate report notification:', error);
   }
 };

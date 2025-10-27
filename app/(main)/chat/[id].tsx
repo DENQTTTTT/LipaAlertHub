@@ -1,5 +1,6 @@
-// app/(main)/chat/[id].tsx - Fixed Chat Conversation Screen
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -8,11 +9,13 @@ import {
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,11 +33,20 @@ export default function ChatConversationScreen() {
     loading,
     connected,
     sending,
+    sendingFile,
     sendMessage,
+    sendFileMessage,
     markMessagesAsRead,
+    formatFileSize,
+    getFileIcon,
   } = useChat();
 
   const [inputText, setInputText] = useState('');
+  const [showFileOptions, setShowFileOptions] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<{ uri: string; name: string; type: string; size: number } | null>(null);
+  const [fileCaption, setFileCaption] = useState('');
+  const [showFileModal, setShowFileModal] = useState(false);
+  
   const flatListRef = useRef<FlatList>(null);
   const hasMarkedAsReadRef = useRef(false);
 
@@ -45,15 +57,15 @@ export default function ChatConversationScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages.length]); // Only depend on message count
+  }, [messages.length]);
 
-  // Mark messages as read when screen loads (only once)
+  // Mark messages as read when screen loads
   useEffect(() => {
     if (connected && !hasMarkedAsReadRef.current) {
       markMessagesAsRead();
       hasMarkedAsReadRef.current = true;
     }
-  }, [connected]); // Only when connected changes
+  }, [connected, markMessagesAsRead]);
 
   const handleSendMessage = useCallback(async () => {
     const messageText = inputText.trim();
@@ -78,6 +90,77 @@ export default function ChatConversationScreen() {
       );
     }
   }, [inputText, sending, sendMessage]);
+
+  const handlePickImage = useCallback(async () => {
+    try {
+      setShowFileOptions(false);
+      
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Please allow access to your photos to upload images.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        setSelectedFile({
+          uri: asset.uri,
+          name: `image_${Date.now()}.jpg`,
+          type: asset.mimeType || 'image/jpeg',
+          size: asset.fileSize || 0,
+        });
+        setShowFileModal(true);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  }, []);
+
+  const handlePickDocument = useCallback(async () => {
+    try {
+      setShowFileOptions(false);
+      
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled === false && result.assets[0]) {
+        const asset = result.assets[0];
+        setSelectedFile({
+          uri: asset.uri,
+          name: asset.name || `document_${Date.now()}`,
+          type: asset.mimeType || 'application/octet-stream',
+          size: asset.size || 0,
+        });
+        setShowFileModal(true);
+      }
+    } catch (error) {
+      console.error('Error picking document:', error);
+      Alert.alert('Error', 'Failed to pick document. Please try again.');
+    }
+  }, []);
+
+  const handleSendFile = useCallback(async () => {
+    if (!selectedFile || sendingFile) return;
+
+    try {
+      await sendFileMessage(selectedFile, fileCaption);
+      setShowFileModal(false);
+      setSelectedFile(null);
+      setFileCaption('');
+    } catch (error) {
+      console.error('Error sending file:', error);
+      // Error is handled in the hook
+    }
+  }, [selectedFile, fileCaption, sendingFile, sendFileMessage]);
 
   const formatMessageTime = useCallback((timestamp: any) => {
     if (!timestamp) return '';
@@ -114,13 +197,73 @@ export default function ChatConversationScreen() {
     }
   }, []);
 
+  const renderFileMessage = useCallback((message: ChatMessage) => {
+    const isUserMessage = message.senderRole === 'user';
+    
+    return (
+      <View style={[
+        styles.fileMessageContainer,
+        isUserMessage ? styles.userFileMessage : styles.adminFileMessage
+      ]}>
+        <View style={styles.fileIconContainer}>
+          <Ionicons 
+            name={getFileIcon(message.fileType || '') as any} 
+            size={24} 
+            color={isUserMessage ? '#fff' : '#d73527'} 
+          />
+        </View>
+        
+        <View style={styles.fileInfo}>
+          <Text style={[
+            styles.fileName,
+            isUserMessage ? styles.userFileName : styles.adminFileName
+          ]}>
+            {message.fileName}
+          </Text>
+          
+          <Text style={[
+            styles.fileSize,
+            isUserMessage ? styles.userFileSize : styles.adminFileSize
+          ]}>
+            {formatFileSize(message.fileSize || 0)}
+          </Text>
+          
+          {message.content ? (
+            <Text style={[
+              styles.fileCaption,
+              isUserMessage ? styles.userFileCaption : styles.adminFileCaption
+            ]}>
+              {message.content}
+            </Text>
+          ) : null}
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.downloadButton}
+          onPress={() => {
+            if (message.fileUrl) {
+              // In a real app, you might want to use Linking.openURL or download the file
+              Alert.alert('Download', `Would download: ${message.fileName}`);
+            }
+          }}
+        >
+          <Ionicons 
+            name="download" 
+            size={20} 
+            color={isUserMessage ? '#fff' : '#d73527'} 
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  }, [getFileIcon, formatFileSize]);
+
   const renderMessage = useCallback(({ item, index }: { item: ChatMessage; index: number }) => {
     const isUserMessage = item.senderRole === 'user';
     const isSystemMessage = item.senderId === 'system';
     const showTime = index === 0 || 
       (messages[index - 1] && 
        Math.abs((item.createdAt?.toDate?.() || new Date()).getTime() - 
-                (messages[index - 1].createdAt?.toDate?.() || new Date()).getTime()) > 300000); // 5 minutes
+                (messages[index - 1].createdAt?.toDate?.() || new Date()).getTime()) > 300000);
 
     return (
       <View style={styles.messageContainer}>
@@ -145,23 +288,27 @@ export default function ChatConversationScreen() {
             </View>
           )}
 
-          <View style={[
-            styles.messageBubble,
-            isUserMessage ? styles.userBubble : styles.adminBubble,
-            isSystemMessage && styles.systemBubble
-          ]}>
-            <Text style={[
-              styles.messageText,
-              isUserMessage ? styles.userMessageText : styles.adminMessageText,
-              isSystemMessage && styles.systemMessageText
+          {item.type === 'file' ? (
+            renderFileMessage(item)
+          ) : (
+            <View style={[
+              styles.messageBubble,
+              isUserMessage ? styles.userBubble : styles.adminBubble,
+              isSystemMessage && styles.systemBubble
             ]}>
-              {item.content}
-            </Text>
-          </View>
+              <Text style={[
+                styles.messageText,
+                isUserMessage ? styles.userMessageText : styles.adminMessageText,
+                isSystemMessage && styles.systemMessageText
+              ]}>
+                {item.content}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     );
-  }, [messages, formatMessageTime]);
+  }, [messages, formatMessageTime, renderFileMessage]);
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -170,7 +317,7 @@ export default function ChatConversationScreen() {
       </View>
       <Text style={styles.emptyTitle}>Start the conversation</Text>
       <Text style={styles.emptySubtitle}>
-        Send a message to begin chatting with our support team
+        Send a message or attach files to begin chatting with our support team
       </Text>
     </View>
   );
@@ -248,6 +395,13 @@ export default function ChatConversationScreen() {
         {/* Message Input */}
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
+            <TouchableOpacity 
+              style={styles.attachButton}
+              onPress={() => setShowFileOptions(true)}
+            >
+              <Ionicons name="attach" size={20} color="#666" />
+            </TouchableOpacity>
+            
             <TextInput
               style={styles.textInput}
               placeholder="Type your message..."
@@ -289,6 +443,124 @@ export default function ChatConversationScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* File Options Modal */}
+      <Modal
+        visible={showFileOptions}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFileOptions(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setShowFileOptions(false)}
+        >
+          <View style={styles.fileOptionsContainer}>
+            <Text style={styles.fileOptionsTitle}>Attach File</Text>
+            
+            <TouchableOpacity 
+              style={styles.fileOption}
+              onPress={handlePickImage}
+            >
+              <Ionicons name="image" size={24} color="#d73527" />
+              <Text style={styles.fileOptionText}>Photo from Library</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.fileOption}
+              onPress={handlePickDocument}
+            >
+              <Ionicons name="document" size={24} color="#d73527" />
+              <Text style={styles.fileOptionText}>Document</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => setShowFileOptions(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* File Preview Modal */}
+      <Modal
+        visible={showFileModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowFileModal(false)}
+      >
+        <SafeAreaView style={styles.fileModalContainer}>
+          <View style={styles.fileModalHeader}>
+            <Text style={styles.fileModalTitle}>Send File</Text>
+            <TouchableOpacity 
+              onPress={() => {
+                setShowFileModal(false);
+                setSelectedFile(null);
+                setFileCaption('');
+              }}
+            >
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.filePreview}>
+            {selectedFile?.type.startsWith('image/') ? (
+              <View style={styles.imagePreview}>
+                <Ionicons name="image" size={60} color="#d73527" />
+                <Text style={styles.filePreviewName}>{selectedFile.name}</Text>
+                <Text style={styles.filePreviewSize}>
+                  {formatFileSize(selectedFile.size)}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.documentPreview}>
+                <Ionicons name="document" size={60} color="#d73527" />
+                <Text style={styles.filePreviewName}>{selectedFile?.name}</Text>
+                <Text style={styles.filePreviewSize}>
+                  {selectedFile && formatFileSize(selectedFile.size)}
+                </Text>
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.captionContainer}>
+            <Text style={styles.captionLabel}>Add a caption (optional)</Text>
+            <TextInput
+              style={styles.captionInput}
+              placeholder="Describe this file..."
+              value={fileCaption}
+              onChangeText={setFileCaption}
+              multiline={true}
+              maxLength={500}
+            />
+            <Text style={styles.captionCharCount}>
+              {fileCaption.length}/500
+            </Text>
+          </View>
+          
+          <View style={styles.fileModalActions}>
+            <TouchableOpacity 
+              style={[
+                styles.sendFileButton,
+                sendingFile && styles.sendFileButtonDisabled
+              ]}
+              onPress={handleSendFile}
+              disabled={sendingFile}
+            >
+              {sendingFile ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="send" size={18} color="#fff" />
+                  <Text style={styles.sendFileButtonText}>Send File</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
 
       {/* Footer */}
       <View style={styles.footer}>
@@ -419,7 +691,7 @@ const styles = StyleSheet.create({
   },
   messageWrapper: {
     paddingHorizontal: 16,
-    maxWidth: width * 0.8,
+    maxWidth: width * 0.85,
   },
   userMessageWrapper: {
     alignSelf: 'flex-end',
@@ -476,6 +748,63 @@ const styles = StyleSheet.create({
   systemMessageText: {
     color: '#2c5282',
   },
+  // File message styles
+  fileMessageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 12,
+    maxWidth: '100%',
+  },
+  userFileMessage: {
+    backgroundColor: '#d73527',
+  },
+  adminFileMessage: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e1e8ed',
+  },
+  fileIconContainer: {
+    marginRight: 12,
+  },
+  fileInfo: {
+    flex: 1,
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  userFileName: {
+    color: '#fff',
+  },
+  adminFileName: {
+    color: '#1a202c',
+  },
+  fileSize: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  userFileSize: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  adminFileSize: {
+    color: '#666',
+  },
+  fileCaption: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  userFileCaption: {
+    color: '#fff',
+  },
+  adminFileCaption: {
+    color: '#1a202c',
+  },
+  downloadButton: {
+    padding: 8,
+  },
+  // Input styles
   inputContainer: {
     backgroundColor: '#fff',
     borderTopWidth: 1,
@@ -493,6 +822,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderWidth: 1,
     borderColor: '#e1e8ed',
+  },
+  attachButton: {
+    padding: 8,
+    marginRight: 4,
   },
   textInput: {
     flex: 1,
@@ -539,5 +872,135 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#666',
     marginLeft: 4,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  fileOptionsContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    paddingBottom: 34,
+  },
+  fileOptionsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#1a202c',
+  },
+  fileOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  fileOptionText: {
+    fontSize: 16,
+    marginLeft: 12,
+    color: '#1a202c',
+  },
+  cancelButton: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#d73527',
+  },
+  // File modal styles
+  fileModalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  fileModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e8ed',
+  },
+  fileModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a202c',
+  },
+  filePreview: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  imagePreview: {
+    alignItems: 'center',
+  },
+  documentPreview: {
+    alignItems: 'center',
+  },
+  filePreviewName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
+    textAlign: 'center',
+    color: '#1a202c',
+  },
+  filePreviewSize: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  captionContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  captionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#1a202c',
+  },
+  captionInput: {
+    borderWidth: 1,
+    borderColor: '#e1e8ed',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  captionCharCount: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  fileModalActions: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  sendFileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#d73527',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  sendFileButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  sendFileButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

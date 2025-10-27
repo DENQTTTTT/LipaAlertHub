@@ -1070,6 +1070,23 @@
             font-size: 16px;
         }
 
+        /* File Upload Button */
+        .file-upload-btn {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 18px;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-btn:hover {
+            background: var(--light-color);
+            transform: scale(1.1);
+        }
+
         @media (max-width: 991px) {
             .mobile-toggle {
                 display: flex;
@@ -1205,7 +1222,7 @@
                 <div class="nav-item" data-role="admin">
                     <a href="Maps.html" class="nav-link">
                         <i class="fas fa-map"></i>
-                        Map
+                        Heat Map
                     </a>
                 </div>
                 
@@ -1363,7 +1380,7 @@
                 <div class="file-upload-area" id="fileUploadArea">
                     <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: #ddd; margin-bottom: 15px;"></i>
                     <h4>Drop files here or click to upload</h4>
-                    <p style="color: #666; margin-bottom: 15px;">Supports images, documents, and other files</p>
+                    <p style="color: #666; margin-bottom: 15px;">Supports images, documents, and other files (Max: 15MB per file)</p>
                     <button class="btn-new-conversation" style="width: auto; padding: 10px 20px;">
                         <i class="fas fa-folder-open"></i> Browse Files
                     </button>
@@ -1400,7 +1417,8 @@
             getDocs,
             where,
             serverTimestamp,
-            setDoc
+            setDoc,
+            limit
         } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
@@ -1418,13 +1436,13 @@
         const db = getFirestore(app);
         const storage = getStorage(app);
 
-        // FIXED: Updated chat permissions to allow admin-to-admin chats
+        // Chat permissions for all roles including resident
         const CHAT_PERMISSIONS = {
-            'admin': ['resident', 'monitor', 'rescuer', 'agency', 'admin'], // Added 'admin' to allow admin-to-admin chats
+            'admin': ['resident', 'monitor', 'rescuer', 'agency', 'admin'],
             'monitor': ['resident', 'admin', 'rescuer', 'agency'],
-            'rescuer': ['admin', 'monitor'],
-            'agency': ['admin'],
-            'resident': ['admin', 'monitor']
+            'rescuer': ['admin', 'monitor', 'resident'],
+            'agency': ['admin', 'monitor'],
+            'resident': ['admin', 'monitor', 'rescuer']
         };
 
         const USER_ROLES = {
@@ -1442,8 +1460,8 @@
         let selectedChatRoom = null;
         let allAvailableUsers = [];
         let currentFilter = 'all';
-        let isInitialLoad = true;
         let selectedFiles = [];
+        let existingRooms = new Map(); // ⭐ NEW: Track existing rooms for persistence
 
         // Error Handling Class
         class ChatError extends Error {
@@ -1531,6 +1549,7 @@
             });
         }
 
+        // ⭐ FIX 2: Updated initialization order - OPEN CHAT FIRST
         async function initializeChatSystem() {
             try {
                 const urlParams = parseURLParameters();
@@ -1539,10 +1558,25 @@
                 updateUserInfo();
                 
                 if (urlParams.userId) {
-                    console.log('Opening direct chat with user:', urlParams.userId);
-                    await loadChatRooms();
-                    await openDirectChat(urlParams.userId, urlParams.userName);
+                    console.log('🎯 [URL PARAMS DETECTED]:', urlParams);
+                    console.log('⚡ Opening direct chat FIRST (fast path)...');
+                    
+                    // ⭐ CRITICAL FIX: Open chat FIRST, load list in BACKGROUND
+                    await openDirectChat(
+                        urlParams.userId, 
+                        urlParams.userName,
+                        urlParams.userRole // ⭐ Pass role from URL
+                    );
+                    
+                    // ⭐ Load chat list in BACKGROUND (no await - don't block!)
+                    console.log('📋 Loading chat list in background...');
+                    loadChatRooms().catch(error => {
+                        console.error('Error loading chat list:', error);
+                        // Don't block - just log the error
+                    });
+                    
                 } else {
+                    console.log('📋 No URL params - loading normal chat list...');
                     showPermissionNotice();
                     await loadChatRooms();
                 }
@@ -1561,58 +1595,91 @@
             }
         }
 
+        // ⭐ FIX 3: Updated parseURLParameters() - Get userRole
         function parseURLParameters() {
             const urlParams = new URLSearchParams(window.location.search);
-            return {
+            const params = {
                 userId: urlParams.get('userId'),
-                userName: urlParams.get('userName')
+                userName: urlParams.get('userName'),
+                userRole: urlParams.get('userRole') // ⭐ NEW: Get role from URL
             };
+            
+            console.log('🔗 [URL PARAMETERS]:', params);
+            return params;
         }
 
-        async function openDirectChat(userId, userName) {
+        // ⭐ FIX 1: Completely rewritten openDirectChat() function
+        async function openDirectChat(userId, userName, userRole) {
             try {
+                console.log('🔵 [OPEN DIRECT CHAT] Starting:', { userId, userName, userRole });
+                
+                // 1. Show loading notification
                 showNotification(`Opening chat with ${userName || 'user'}...`, 'info');
                 
+                // 2. Validate user exists in database
+                console.log('🔍 [STEP 1] Fetching user data from database...');
                 const userDoc = await getDoc(doc(db, 'users', userId));
+                
                 if (!userDoc.exists()) {
-                    showNotification('User not found', 'error');
+                    console.error('❌ [ERROR] User not found in database');
+                    showNotification('User not found or account deleted', 'error');
                     return;
                 }
                 
                 const userData = userDoc.data();
-                const userRole = userData.role;
+                const actualUserRole = userRole || userData.role; // Use URL param or fetch from DB
+                console.log('✅ [STEP 1] User data loaded:', userData);
                 
+                // 3. Check permissions
+                console.log('🔍 [STEP 2] Checking chat permissions...');
                 const allowedRoles = CHAT_PERMISSIONS[currentUserInfo.role] || [];
-                if (!allowedRoles.includes(userRole)) {
-                    showNotification(`You cannot chat with ${userRole}s`, 'error');
+                
+                if (!allowedRoles.includes(actualUserRole)) {
+                    console.error('❌ [ERROR] Permission denied:', { 
+                        myRole: currentUserInfo.role, 
+                        targetRole: actualUserRole,
+                        allowed: allowedRoles 
+                    });
+                    showNotification(`You cannot chat with ${actualUserRole}s`, 'error');
                     return;
                 }
+                console.log('✅ [STEP 2] Permission check passed');
                 
-                const roomId = await createOrFindChatRoom(userId, userRole);
+                // 4. Create or find chat room
+                console.log('🔍 [STEP 3] Creating/finding chat room...');
+                const roomId = await createOrFindChatRoom(userId, actualUserRole);
+                console.log('✅ [STEP 3] Room ID obtained:', roomId);
                 
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // 5. ⭐ CRITICAL: Fetch room data DIRECTLY from database
+                console.log('🔍 [STEP 4] Fetching room data from database...');
+                const roomRef = doc(db, 'chatRooms', roomId);
+                const roomDoc = await getDoc(roomRef);
                 
-                const roomElement = document.querySelector(`[data-room-id="${roomId}"]`);
-                if (roomElement) {
-                    roomElement.click();
-                    showNotification(`Chat opened with ${userName || userData.name || 'user'}`, 'success');
-                } else {
-                    showNotification('Chat created successfully! Selecting it now...', 'success');
-                    setTimeout(() => {
-                        const retryElement = document.querySelector(`[data-room-id="${roomId}"]`);
-                        if (retryElement) {
-                            retryElement.click();
-                        }
-                    }, 500);
+                if (!roomDoc.exists()) {
+                    console.error('❌ [ERROR] Chat room does not exist after creation');
+                    throw new Error('Chat room was not created properly');
                 }
                 
+                const roomData = roomDoc.data();
+                console.log('✅ [STEP 4] Room data loaded:', roomData);
+                
+                // 6. ⭐ CRITICAL: Directly call selectChatRoom (NO DOM CLICKS!)
+                console.log('🔍 [STEP 5] Opening chat interface...');
+                await selectChatRoom(roomId, roomData);
+                console.log('✅ [STEP 5] Chat interface opened successfully!');
+                
+                // 7. Success notification
+                const displayName = userName || userData.name || userData.displayName || 'User';
+                showNotification(`✅ Chat opened with ${displayName}`, 'success');
+                console.log('🎉 [COMPLETE] Direct chat opened successfully!');
+                
             } catch (error) {
-                console.error('Error opening direct chat:', error);
+                console.error('💥 [FATAL ERROR] openDirectChat failed:', error);
+                console.error('Error stack:', error.stack);
                 showNotification('Failed to open chat: ' + error.message, 'error');
             }
         }
 
-        // FIXED: Enhanced createOrFindChatRoom function with proper error handling and admin-to-admin support
         async function createOrFindChatRoom(targetUserId, targetUserRole) {
             try {
                 console.log('=== START createOrFindChatRoom ===');
@@ -1624,10 +1691,7 @@
                 const allowedRoles = CHAT_PERMISSIONS[currentUserInfo.role] || [];
                 console.log('Allowed roles for', currentUserInfo.role, ':', allowedRoles);
                 
-                // FIXED: Allow admin-to-admin chats explicitly
-                if (currentUserInfo.role === 'admin' && targetUserRole === 'admin') {
-                    console.log('✅ Admin-to-admin chat allowed');
-                } else if (!allowedRoles.includes(targetUserRole)) {
+                if (!allowedRoles.includes(targetUserRole)) {
                     throw new ChatError(`As ${currentUserInfo.role}, you cannot start a chat with ${targetUserRole}`);
                 }
 
@@ -1635,7 +1699,6 @@
                 let participants;
                 let participantRoles;
 
-                // FIXED: Simplified room creation logic - always use pair-based for consistency
                 const userIds = [currentUserInfo.uid, targetUserId].sort();
                 roomId = `${userIds[0]}_${userIds[1]}`;
                 participants = [currentUserInfo.uid, targetUserId];
@@ -1761,13 +1824,13 @@
                     noticeText = 'You can communicate with residents, admins, rescuers, and agencies. All conversations are private.';
                     break;
                 case 'rescuer':
-                    noticeText = 'You can communicate with administrators and monitors. Your conversations are private.';
+                    noticeText = 'You can communicate with administrators, monitors, and residents. Your conversations are private.';
                     break;
                 case 'agency':
-                    noticeText = 'You can communicate with administrators. All conversations are private.';
+                    noticeText = 'You can communicate with administrators and monitors. All conversations are private.';
                     break;
                 case 'resident':
-                    noticeText = 'You can communicate with administrators and monitors. Your conversations are private and secure.';
+                    noticeText = 'You can communicate with administrators, monitors, and rescuers. Your conversations are private and secure.';
                     break;
                 default:
                     noticeText = 'Your conversations are private. Only you and your chat partner can see your messages.';
@@ -1777,186 +1840,196 @@
             notice.style.display = 'block';
         }
 
-       async function loadChatRooms() {
-  const container = document.getElementById('chatRoomsList');
-  
-  try {
-    console.log('=== LOAD CHAT ROOMS STARTED ===');
-    console.log('Current user role:', currentUserInfo.role);
-    
-    if (chatRoomsListener) {
-      console.log('Unsubscribing from previous listener');
-      chatRoomsListener();
-      chatRoomsListener = null;
-    }
-
-    let q;
-    
-    // ✅ FIX: Admin and Monitor see ALL rooms
-    if (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor') {
-      console.log('✅ Loading ALL chat rooms (Admin/Monitor view)');
-      q = query(
-        collection(db, "chatRooms"),
-        orderBy("lastUpdated", "desc")
-      );
-    } else {
-      // Other roles only see rooms they're part of
-      console.log('Loading only participated chat rooms');
-      q = query(
-        collection(db, "chatRooms"),
-        where("participants", "array-contains", currentUserInfo.uid),
-        orderBy("lastUpdated", "desc")
-      );
-    }
-
-    console.log('Setting up onSnapshot listener...');
-    
-    chatRoomsListener = onSnapshot(q, async (snapshot) => {
-      console.log('=== CHAT ROOMS SNAPSHOT RECEIVED ===');
-      console.log('Total docs in snapshot:', snapshot.size);
-      console.log('Has pending writes:', snapshot.metadata.hasPendingWrites);
-      
-      if (snapshot.metadata.hasPendingWrites && !isInitialLoad) {
-        console.log('Skipping snapshot with pending writes');
-        return;
-      }
-      
-      isInitialLoad = false;
-      container.innerHTML = '';
-      
-      if (snapshot.empty) {
-        console.log('No conversations found');
-        container.innerHTML = `
-          <div class="loading-messages">
-            <i class="fas fa-inbox fa-2x mb-3"></i>
-            <p>No conversations found</p>
-            <small>Start a new conversation using the button above</small>
-          </div>
-        `;
-        updateChatStats(0, 0);
-        return;
-      }
-
-      console.log('Processing chat rooms...');
-      let totalUnread = 0;
-      const chatRooms = [];
-
-      for (const docSnap of snapshot.docs) {
-        const data = docSnap.data();
-        
-        if (!data.participants || !Array.isArray(data.participants)) {
-          console.warn('Skipping room with invalid participants:', docSnap.id);
-          continue;
-        }
-        
-        // ✅ Admin/Monitor can see all rooms
-        // Other roles only see their own rooms (already filtered by query)
-        const isParticipant = data.participants.includes(currentUserInfo.uid);
-        const canView = (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor') || isParticipant;
-        
-        if (!canView) {
-          console.log('Skipping room - no access:', docSnap.id);
-          continue;
-        }
-        
-        const roomElement = await createChatRoomElement(docSnap.id, data);
-        if (roomElement) {
-          chatRooms.push({ element: roomElement, data });
-          
-          const unreadCount = getUnreadCountForUser(data);
-          if (unreadCount > 0) {
-            totalUnread += unreadCount;
-          }
-        }
-      }
-
-      console.log(`Total valid rooms to display: ${chatRooms.length}`);
-      
-      chatRooms.sort((a, b) => {
-        const aUnread = getUnreadCountForUser(a.data);
-        const bUnread = getUnreadCountForUser(b.data);
-        
-        if (aUnread !== bUnread) {
-          return bUnread - aUnread;
-        }
-        
-        const aTime = a.data.lastUpdated?.seconds || 0;
-        const bTime = b.data.lastUpdated?.seconds || 0;
-        return bTime - aTime;
-      });
-
-      container.innerHTML = '';
-      chatRooms.forEach((room) => {
-        container.appendChild(room.element);
-      });
-
-      updateChatStats(chatRooms.length, totalUnread);
-      console.log('=== LOAD CHAT ROOMS COMPLETED ===');
-      
-    }, (error) => {
-      console.error('❌ ERROR in onSnapshot listener:', error);
-      container.innerHTML = `
-        <div class="error-state">
-          <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-          <p>Error loading conversations</p>
-          <small>${error.message}</small>
-        </div>
-      `;
-      updateChatStats(0, 0);
-    });
-
-  } catch (error) {
-    console.error('❌ ERROR setting up chat rooms listener:', error);
-    container.innerHTML = `
-      <div class="error-state">
-        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-        <p>Error loading chat system</p>
-      </div>
-    `;
-    updateChatStats(0, 0);
-  }
-}
-
-        function getUnreadCountForUser(roomData) {
-            const userRole = currentUserInfo.role;
-            if (!roomData.unreadCount) return 0;
-            return roomData.unreadCount[userRole] || 0;
-        }
-
-        async function createChatRoomElement(roomId, data) {
-            const roomDiv = document.createElement('div');
-            roomDiv.className = 'chat-room-item';
-            roomDiv.dataset.roomId = roomId;
+        // ⭐ FIX 4 & 5: COMPLETELY REWRITTEN loadChatRooms with persistent state management
+        async function loadChatRooms() {
+            const container = document.getElementById('chatRoomsList');
             
             try {
-                const otherParticipants = data.participants.filter(id => id !== currentUserInfo.uid);
+                console.log('=== LOAD CHAT ROOMS STARTED ===');
+                console.log('Current user role:', currentUserInfo.role);
+                
+                if (chatRoomsListener) {
+                    console.log('Unsubscribing from previous listener');
+                    chatRoomsListener();
+                    chatRoomsListener = null;
+                }
+
+                let q;
+                
+                // Admin and Monitor see ALL rooms
+                if (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor') {
+                    console.log('✅ Loading recent chat rooms (Admin/Monitor view)');
+                    q = query(
+                        collection(db, "chatRooms"),
+                        orderBy("lastUpdated", "desc"),
+                        limit(50)
+                    );
+                } else {
+                    // Other roles only see rooms they're part of
+                    console.log('Loading only participated chat rooms');
+                    q = query(
+                        collection(db, "chatRooms"),
+                        where("participants", "array-contains", currentUserInfo.uid),
+                        orderBy("lastUpdated", "desc")
+                    );
+                }
+
+                console.log('Setting up onSnapshot listener...');
+                
+                // ⭐ FIX: Track existing rooms to avoid full re-render
+                
+                chatRoomsListener = onSnapshot(q, async (snapshot) => {
+                    console.log('=== CHAT ROOMS SNAPSHOT RECEIVED ===');
+                    console.log('Total docs in snapshot:', snapshot.size);
+                    
+                    // Don't clear container on updates - only update changed rooms
+                    if (existingRooms.size === 0) {
+                        // First load - show loading state
+                        container.innerHTML = '<div class="loading-messages"><div class="loading-spinner-small"></div><p>Loading conversations...</p></div>';
+                    }
+                    
+                    let totalUnread = 0;
+                    const updatedRooms = [];
+                    const roomsToRemove = new Set(existingRooms.keys());
+                    
+                    // Process all rooms in the snapshot
+                    for (const docSnap of snapshot.docs) {
+                        const data = docSnap.data();
+                        const roomId = docSnap.id;
+                        
+                        roomsToRemove.delete(roomId);
+                        
+                        if (!data.participants || !Array.isArray(data.participants)) {
+                            console.warn('Skipping room with invalid participants:', roomId);
+                            continue;
+                        }
+                        
+                        // Check if user can view this room
+                        const isParticipant = data.participants.includes(currentUserInfo.uid);
+                        const canView = (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor') || isParticipant;
+                        
+                        if (!canView) {
+                            console.log('Skipping room - no access:', roomId);
+                            continue;
+                        }
+                        
+                        const unreadCount = getUnreadCountForUser(data);
+                        totalUnread += unreadCount;
+                        
+                        updatedRooms.push({
+                            id: roomId,
+                            data: data,
+                            unreadCount: unreadCount,
+                            lastUpdated: data.lastUpdated?.seconds || 0
+                        });
+                        
+                        // Update existing room or create new one
+                        await updateOrCreateRoomElement(roomId, data, existingRooms);
+                    }
+                    
+                    // Remove rooms that are no longer in the snapshot
+                    for (const roomId of roomsToRemove) {
+                        const existingElement = existingRooms.get(roomId);
+                        if (existingElement) {
+                            existingElement.remove();
+                            existingRooms.delete(roomId);
+                        }
+                    }
+                    
+                    // Sort rooms (unread first, then by time)
+                    const sortedRoomIds = Array.from(existingRooms.keys()).sort((a, b) => {
+                        const roomA = updatedRooms.find(r => r.id === a);
+                        const roomB = updatedRooms.find(r => r.id === b);
+                        
+                        if (!roomA || !roomB) return 0;
+                        
+                        if (roomA.unreadCount !== roomB.unreadCount) {
+                            return roomB.unreadCount - roomA.unreadCount;
+                        }
+                        
+                        return roomB.lastUpdated - roomA.lastUpdated;
+                    });
+                    
+                    // Reorder DOM elements based on sort
+                    const fragment = document.createDocumentFragment();
+                    sortedRoomIds.forEach(roomId => {
+                        const element = existingRooms.get(roomId);
+                        if (element) {
+                            fragment.appendChild(element);
+                        }
+                    });
+                    
+                    container.innerHTML = '';
+                    container.appendChild(fragment);
+                    
+                    updateChatStats(existingRooms.size, totalUnread);
+                    console.log('=== CHAT ROOMS UPDATED ===');
+                    
+                }, (error) => {
+                    console.error('❌ ERROR in onSnapshot listener:', error);
+                    container.innerHTML = `
+                        <div class="error-state">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                            <p>Error loading conversations</p>
+                            <small>${error.message}</small>
+                        </div>
+                    `;
+                    updateChatStats(0, 0);
+                });
+
+            } catch (error) {
+                console.error('❌ ERROR setting up chat rooms listener:', error);
+                container.innerHTML = `
+                    <div class="error-state">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Error loading chat system</p>
+                    </div>
+                `;
+                updateChatStats(0, 0);
+            }
+        }
+
+        // ⭐ NEW: Smart room element updater - only updates what changed
+        async function updateOrCreateRoomElement(roomId, roomData, existingRooms) {
+            const container = document.getElementById('chatRoomsList');
+            let roomElement = existingRooms.get(roomId);
+            
+            try {
+                const otherParticipants = roomData.participants.filter(id => id !== currentUserInfo.uid);
                 if (otherParticipants.length === 0) {
                     console.warn('Room has no other participants:', roomId);
                     return null;
                 }
 
                 const otherUserId = otherParticipants[0];
-                const participantRole = data.participantRoles?.[otherUserId] || 'user';
+                const participantRole = roomData.participantRoles?.[otherUserId] || 'user';
                 
                 let participantName = 'Unknown User';
                 let participantAvatar = participantRole.charAt(0).toUpperCase();
 
-                try {
-                    const userDoc = await getDoc(doc(db, 'users', otherUserId));
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data();
-                        participantName = userData.name || userData.displayName || userData.email || 'User';
-                        participantAvatar = participantName.charAt(0).toUpperCase();
+                // Only fetch user data if we don't have this room or if name might have changed
+                if (!roomElement || !roomElement.dataset.participantName) {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'users', otherUserId));
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            participantName = userData.name || userData.displayName || userData.email || 'User';
+                            participantAvatar = participantName.charAt(0).toUpperCase();
+                        }
+                    } catch (err) {
+                        console.error('Error fetching participant:', err);
+                        participantName = participantRole.charAt(0).toUpperCase() + participantRole.slice(1);
                     }
-                } catch (err) {
-                    console.error('Error fetching participant:', err);
-                    participantName = participantRole.charAt(0).toUpperCase() + participantRole.slice(1);
+                } else {
+                    // Use cached data
+                    participantName = roomElement.dataset.participantName;
+                    participantAvatar = roomElement.dataset.participantAvatar;
                 }
 
-                const unreadCount = getUnreadCountForUser(data);
-                const lastMessageTime = formatTimestamp(data.lastMessageTime || data.lastUpdated);
-                const lastMessagePreview = data.lastMessage || 'No messages yet';
-                const lastMessageSender = data.lastMessageSender || '';
+                const unreadCount = getUnreadCountForUser(roomData);
+                const lastMessageTime = formatTimestamp(roomData.lastMessageTime || roomData.lastUpdated);
+                const lastMessagePreview = roomData.lastMessage || 'No messages yet';
+                const lastMessageSender = roomData.lastMessageSender || '';
 
                 let displaySender = '';
                 if (lastMessageSender === currentUserInfo.uid) {
@@ -1965,91 +2038,153 @@
                     displaySender = `${participantName}: `;
                 }
 
-                roomDiv.innerHTML = `
-                    <div class="chat-room-header">
-                        <div class="chat-participant">
-                            <div class="participant-avatar ${participantRole}">
-                                ${participantAvatar}
+                if (!roomElement) {
+                    // Create new room element
+                    roomElement = document.createElement('div');
+                    roomElement.className = 'chat-room-item';
+                    roomElement.dataset.roomId = roomId;
+                    roomElement.dataset.participantName = participantName;
+                    roomElement.dataset.participantAvatar = participantAvatar;
+                    
+                    roomElement.innerHTML = `
+                        <div class="chat-room-header">
+                            <div class="chat-participant">
+                                <div class="participant-avatar ${participantRole}">
+                                    ${participantAvatar}
+                                </div>
+                                <div>
+                                    <div class="participant-name">${participantName}</div>
+                                    <div class="participant-role">${participantRole.toUpperCase()}</div>
+                                </div>
                             </div>
-                            <div>
-                                <div class="participant-name">${participantName}</div>
-                                <div class="participant-role">${participantRole.toUpperCase()}</div>
-                            </div>
+                            <div class="chat-time">${lastMessageTime}</div>
                         </div>
-                        <div class="chat-time">${lastMessageTime}</div>
-                    </div>
-                    
-                    <div class="chat-preview">
-                        ${displaySender}${lastMessagePreview}
-                    </div>
-                    
-                    <div class="chat-meta">
-                        <div class="status-indicator ${Math.random() > 0.5 ? 'online' : 'offline'}"></div>
-                        ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
-                    </div>
-                `;
+                        
+                        <div class="chat-preview">
+                            ${displaySender}${lastMessagePreview}
+                        </div>
+                        
+                        <div class="chat-meta">
+                            <div class="status-indicator ${Math.random() > 0.5 ? 'online' : 'offline'}"></div>
+                            ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
+                        </div>
+                    `;
 
-                roomDiv.addEventListener('click', () => selectChatRoom(roomId, data));
+                    roomElement.addEventListener('click', () => selectChatRoom(roomId, roomData));
+                    existingRooms.set(roomId, roomElement);
+                    
+                } else {
+                    // Update existing room element - only change what's necessary
+                    const timeElement = roomElement.querySelector('.chat-time');
+                    const previewElement = roomElement.querySelector('.chat-preview');
+                    const unreadBadge = roomElement.querySelector('.unread-badge');
+                    
+                    if (timeElement && timeElement.textContent !== lastMessageTime) {
+                        timeElement.textContent = lastMessageTime;
+                    }
+                    
+                    if (previewElement && previewElement.textContent !== (displaySender + lastMessagePreview)) {
+                        previewElement.textContent = displaySender + lastMessagePreview;
+                    }
+                    
+                    // Update unread badge
+                    if (unreadCount > 0) {
+                        if (!unreadBadge) {
+                            const metaElement = roomElement.querySelector('.chat-meta');
+                            if (metaElement) {
+                                const badge = document.createElement('div');
+                                badge.className = 'unread-badge';
+                                badge.textContent = unreadCount;
+                                metaElement.appendChild(badge);
+                            }
+                        } else if (unreadBadge.textContent !== unreadCount.toString()) {
+                            unreadBadge.textContent = unreadCount;
+                        }
+                    } else if (unreadBadge) {
+                        unreadBadge.remove();
+                    }
+                    
+                    // Update active state if this is the selected room
+                    if (selectedChatRoom && selectedChatRoom.id === roomId) {
+                        roomElement.classList.add('active');
+                    } else {
+                        roomElement.classList.remove('active');
+                    }
+                }
                 
-                return roomDiv;
+                return roomElement;
 
             } catch (error) {
-                console.error('Error creating room element:', error);
+                console.error('Error updating room element:', error);
                 return null;
             }
         }
 
-      async function selectChatRoom(roomId, roomData) {
-  document.querySelectorAll('.chat-room-item').forEach(item => {
-    item.classList.remove('active');
-  });
-  
-  const clickedRoom = document.querySelector(`[data-room-id="${roomId}"]`);
-  if (clickedRoom) {
-    clickedRoom.classList.add('active');
-  }
+        function getUnreadCountForUser(roomData) {
+            const userRole = currentUserInfo.role;
+            if (!roomData.unreadCount) return 0;
+            return roomData.unreadCount[userRole] || 0;
+        }
 
-  selectedChatRoom = { id: roomId, data: roomData };
-  
-  try {
-    // ✅ FIX: Admin can join rooms they're not yet part of
-    const isParticipant = roomData.participants.includes(currentUserInfo.uid);
-    
-    if (!isParticipant && (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor')) {
-      console.log('✅ Admin/Monitor joining room:', roomId);
-      
-      // Add admin to participants
-      const updatedParticipants = [...roomData.participants, currentUserInfo.uid];
-      const updatedRoles = {
-        ...roomData.participantRoles,
-        [currentUserInfo.uid]: currentUserInfo.role
-      };
-      
-      await updateDoc(doc(db, 'chatRooms', roomId), {
-        participants: updatedParticipants,
-        participantRoles: updatedRoles,
-        lastUpdated: serverTimestamp()
-      });
-      
-      // Update local data
-      roomData.participants = updatedParticipants;
-      roomData.participantRoles = updatedRoles;
-      
-      showNotification('Joined conversation successfully', 'success');
-    }
-    
-    // Mark messages as read
-    const updateData = {};
-    updateData[`unreadCount.${currentUserInfo.role}`] = 0;
-    await updateDoc(doc(db, 'chatRooms', roomId), updateData);
-    
-  } catch (error) {
-    console.error('Error selecting chat room:', error);
-    showNotification('Error accessing chat room: ' + error.message, 'error');
-  }
+        // ⭐ FIX 6: Updated selectChatRoom with detailed console logs
+        async function selectChatRoom(roomId, roomData) {
+            console.log('📌 [SELECT CHAT ROOM] Called with:', { roomId, roomData });
+            
+            document.querySelectorAll('.chat-room-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            const clickedRoom = document.querySelector(`[data-room-id="${roomId}"]`);
+            if (clickedRoom) {
+                clickedRoom.classList.add('active');
+                console.log('✅ [SELECT CHAT ROOM] Room highlighted in list');
+            } else {
+                console.log('⚠️ [SELECT CHAT ROOM] Room not in list yet (loading in background)');
+            }
 
-  await loadChatInterface(roomId, roomData);
-}
+            selectedChatRoom = { id: roomId, data: roomData };
+            console.log('✅ [SELECT CHAT ROOM] Selected room stored');
+            
+            try {
+                // Admin can join rooms they're not yet part of
+                const isParticipant = roomData.participants.includes(currentUserInfo.uid);
+                console.log('🔍 [SELECT CHAT ROOM] Participant check:', { isParticipant });
+                
+                if (!isParticipant && (currentUserInfo.role === 'admin' || currentUserInfo.role === 'monitor')) {
+                    console.log('👑 [SELECT CHAT ROOM] Admin/Monitor joining room...');
+                    
+                    // Add admin to participants
+                    const updatedParticipants = [...roomData.participants, currentUserInfo.uid];
+                    const updatedRoles = {
+                        ...roomData.participantRoles,
+                        [currentUserInfo.uid]: currentUserInfo.role
+                    };
+                    
+                    await updateDoc(doc(db, 'chatRooms', roomId), {
+                        participants: updatedParticipants,
+                        participantRoles: updatedRoles,
+                        lastUpdated: serverTimestamp()
+                    });
+                    
+                    // Update local data
+                    roomData.participants = updatedParticipants;
+                    roomData.participantRoles = updatedRoles;
+                    
+                    showNotification('Joined conversation successfully', 'success');
+                }
+                
+                // Mark messages as read
+                const updateData = {};
+                updateData[`unreadCount.${currentUserInfo.role}`] = 0;
+                await updateDoc(doc(db, 'chatRooms', roomId), updateData);
+                
+            } catch (error) {
+                console.error('Error selecting chat room:', error);
+                showNotification('Error accessing chat room: ' + error.message, 'error');
+            }
+
+            await loadChatInterface(roomId, roomData);
+        }
 
         async function loadChatInterface(roomId, roomData) {
             const chatMain = document.getElementById('chatMain');
@@ -2086,7 +2221,10 @@
                             </div>
                         </div>
                         
-    
+                        <div class="chat-actions">
+                            <button class="btn-chat-action" onclick="showFileUploadModal()" title="Attach File">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
                             <button class="btn-chat-action" onclick="refreshChat()" title="Refresh">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
@@ -2115,6 +2253,9 @@
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
+                        <button class="file-upload-btn" onclick="showFileUploadModal()" title="Attach File">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
                     </div>
                 `;
 
@@ -2294,6 +2435,7 @@
             });
         }
 
+        // ⭐ FIX: Updated sendMessage to be more efficient
         window.sendMessage = async function() {
             const textarea = document.getElementById('chatMessage');
             const sendBtn = document.getElementById('sendMessageBtn');
@@ -2323,7 +2465,7 @@
                 const messagesRef = collection(db, 'chatRooms', selectedChatRoom.id, 'messages');
                 await addDoc(messagesRef, messageData);
                 
-                // Update room with last message
+                // Update room with last message - but don't trigger full reload
                 const updateData = {
                     lastMessage: content.length > 50 ? content.substring(0, 47) + '...' : content,
                     lastMessageSender: currentUserInfo.uid,
@@ -2350,6 +2492,9 @@
                 textarea.value = '';
                 textarea.style.height = 'auto';
                 
+                // ⭐ FIX: Don't trigger full chat list reload
+                console.log('✅ Message sent - chat list remains stable');
+                
             } catch (error) {
                 console.error('Error sending message:', error);
                 showNotification('Failed to send message: ' + error.message, 'error');
@@ -2359,7 +2504,7 @@
             }
         };
 
-        // FIXED: Enhanced user loading with proper role filtering
+        // Enhanced user loading with proper role filtering
         window.showNewConversationModal = async function() {
             try {
                 const modal = document.getElementById('newConversationModal');
@@ -2374,10 +2519,8 @@
                 });
                 document.getElementById('userSearchInput').value = '';
                 
-                // FIXED: For admin, allow chatting with all roles including other admins
-                const allowedRoles = currentUserInfo.role === 'admin' 
-                    ? ['admin', 'monitor', 'rescuer', 'agency', 'resident']
-                    : CHAT_PERMISSIONS[currentUserInfo.role] || [];
+                // For all roles, allow chatting with permitted roles
+                const allowedRoles = CHAT_PERMISSIONS[currentUserInfo.role] || [];
                 
                 if (allowedRoles.length === 0) {
                     usersList.innerHTML = '<div class="no-data"><p>You cannot start new conversations</p></div>';
@@ -2552,8 +2695,18 @@
         }
 
         function handleFiles(files) {
+            const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB limit
+            
             for (let i = 0; i < files.length; i++) {
-                selectedFiles.push(files[i]);
+                const file = files[i];
+                
+                // Check file size
+                if (file.size > MAX_FILE_SIZE) {
+                    showNotification(`File "${file.name}" exceeds the 15MB limit`, 'error');
+                    continue;
+                }
+                
+                selectedFiles.push(file);
             }
             updateFilePreview();
         }
@@ -2610,28 +2763,69 @@
         };
 
         async function uploadSelectedFiles() {
-            const uploadPromises = selectedFiles.map(async (file) => {
-                try {
-                    const storageRef = ref(storage, `chat-files/${selectedChatRoom.id}/${Date.now()}_${file.name}`);
-                    const snapshot = await uploadBytes(storageRef, file);
-                    const downloadURL = await getDownloadURL(snapshot.ref);
-                    
-                    return {
-                        name: file.name,
-                        size: file.size,
-                        type: file.type,
-                        url: downloadURL
-                    };
-                } catch (error) {
-                    console.error('Error uploading file:', error);
-                    throw new Error(`Failed to upload ${file.name}: ${error.message}`);
-                }
-            });
-            
-            return await Promise.all(uploadPromises);
-        }
+    if (!selectedChatRoom) {
+        throw new Error('No chat room selected');
+    }
 
+    const uploadPromises = selectedFiles.map(async (file) => {
+        try {
+            console.log(`📤 Starting upload for: ${file.name}`);
+            
+            // Generate unique filename
+            const timestamp = Date.now();
+            const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const fileName = `${timestamp}_${safeFileName}`;
+            const filePath = `chat-files/${selectedChatRoom.id}/${fileName}`;
+            
+            console.log(`📁 File path: ${filePath}`);
+            
+            // Create storage reference
+            const storageRef = ref(storage, filePath);
+            
+            // Upload file with metadata
+            const metadata = {
+                contentType: file.type,
+                customMetadata: {
+                    'uploadedBy': currentUserInfo.uid,
+                    'originalName': file.name,
+                    'roomId': selectedChatRoom.id,
+                    'timestamp': timestamp.toString(),
+                    'userRole': currentUserInfo.role
+                }
+            };
+            
+            console.log(`🔄 Uploading file: ${file.name} (${file.size} bytes)`);
+            
+            // Upload the file
+            const snapshot = await uploadBytes(storageRef, file, metadata);
+            console.log(`✅ Upload completed: ${file.name}`);
+            
+            // Get download URL
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            console.log(`🔗 Download URL obtained for: ${file.name}`);
+            
+            return {
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type,
+                fileUrl: downloadURL,
+                storagePath: filePath
+            };
+            
+        } catch (error) {
+            console.error(`❌ Failed to upload ${file.name}:`, error);
+            throw new Error(`Failed to upload ${file.name}: ${error.message}`);
+        }
+    });
+    
+    return await Promise.all(uploadPromises);
+}
         window.showFileUploadModal = function() {
+            if (!selectedChatRoom) {
+                showNotification('Please select a conversation first', 'warning');
+                return;
+            }
+            
             const modal = document.getElementById('fileUploadModal');
             modal.style.display = 'block';
             document.getElementById('filePreview').innerHTML = '';
@@ -2643,72 +2837,88 @@
             modal.style.display = 'none';
         };
 
-        window.uploadFiles = async function() {
-            if (selectedFiles.length === 0) {
-                showNotification('Please select files to upload', 'warning');
-                return;
-            }
+      window.uploadFiles = async function() {
+    if (selectedFiles.length === 0) {
+        showNotification('Please select files to upload', 'warning');
+        return;
+    }
 
-            try {
-                const uploadBtn = document.getElementById('uploadFilesBtn');
-                uploadBtn.disabled = true;
-                uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    if (!selectedChatRoom) {
+        showNotification('Please select a conversation first', 'warning');
+        return;
+    }
 
-                const fileUrls = await uploadSelectedFiles();
-                
-                for (const fileData of fileUrls) {
-                    const messageData = {
-                        senderId: currentUserInfo.uid,
-                        senderRole: currentUserInfo.role,
-                        senderName: currentUserInfo.userData?.name || currentUserInfo.user.displayName || 'User',
-                        content: '',
-                        type: 'file',
-                        fileName: fileData.name,
-                        fileSize: fileData.size,
-                        fileType: fileData.type,
-                        fileUrl: fileData.url,
-                        createdAt: serverTimestamp()
-                    };
+    try {
+        const uploadBtn = document.getElementById('uploadFilesBtn');
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
 
-                    const messagesRef = collection(db, 'chatRooms', selectedChatRoom.id, 'messages');
-                    await addDoc(messagesRef, messageData);
-                }
+        console.log(`🚀 Starting upload of ${selectedFiles.length} files to room: ${selectedChatRoom.id}`);
+        
+        // Upload files to storage
+        const fileUrls = await uploadSelectedFiles();
+        console.log('✅ All files uploaded to storage:', fileUrls);
+        
+        // Create chat messages for each uploaded file
+        for (const fileData of fileUrls) {
+            const messageData = {
+                senderId: currentUserInfo.uid,
+                senderRole: currentUserInfo.role,
+                senderName: currentUserInfo.userData?.name || currentUserInfo.user.displayName || 'User',
+                content: '',
+                type: 'file',
+                fileName: fileData.fileName,
+                fileSize: fileData.fileSize,
+                fileType: fileData.fileType,
+                fileUrl: fileData.fileUrl,
+                storagePath: fileData.storagePath,
+                createdAt: serverTimestamp()
+            };
 
-                const updateData = {
-                    lastMessage: `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} sent`,
-                    lastMessageSender: currentUserInfo.uid,
-                    lastMessageSenderRole: currentUserInfo.role,
-                    lastMessageTime: serverTimestamp(),
-                    lastUpdated: serverTimestamp()
-                };
+            console.log(`💬 Creating file message for: ${fileData.fileName}`);
+            const messagesRef = collection(db, 'chatRooms', selectedChatRoom.id, 'messages');
+            await addDoc(messagesRef, messageData);
+            console.log(`✅ File message created for: ${fileData.fileName}`);
+        }
 
-                const otherParticipants = selectedChatRoom.data.participants.filter(
-                    id => id !== currentUserInfo.uid
-                );
-                
-                for (const participantId of otherParticipants) {
-                    const participantRole = selectedChatRoom.data.participantRoles?.[participantId];
-                    if (participantRole) {
-                        updateData[`unreadCount.${participantRole}`] = 
-                            (selectedChatRoom.data.unreadCount?.[participantRole] || 0) + 1;
-                    }
-                }
-
-                await updateDoc(doc(db, 'chatRooms', selectedChatRoom.id), updateData);
-
-                showNotification('Files uploaded successfully', 'success');
-                closeFileUploadModal();
-                
-            } catch (error) {
-                console.error('Error uploading files:', error);
-                showNotification('Failed to upload files: ' + error.message, 'error');
-            } finally {
-                const uploadBtn = document.getElementById('uploadFilesBtn');
-                uploadBtn.disabled = false;
-                uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Files';
-            }
+        // Update room with last message
+        const updateData = {
+            lastMessage: `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} sent`,
+            lastMessageSender: currentUserInfo.uid,
+            lastMessageSenderRole: currentUserInfo.role,
+            lastMessageTime: serverTimestamp(),
+            lastUpdated: serverTimestamp()
         };
 
+        // Update unread counts for other participants
+        const otherParticipants = selectedChatRoom.data.participants.filter(
+            id => id !== currentUserInfo.uid
+        );
+        
+        for (const participantId of otherParticipants) {
+            const participantRole = selectedChatRoom.data.participantRoles?.[participantId];
+            if (participantRole) {
+                updateData[`unreadCount.${participantRole}`] = 
+                    (selectedChatRoom.data.unreadCount?.[participantRole] || 0) + 1;
+            }
+        }
+
+        console.log('🔄 Updating chat room data...');
+        await updateDoc(doc(db, 'chatRooms', selectedChatRoom.id), updateData);
+        console.log('✅ Chat room updated successfully');
+
+        showNotification(`${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} uploaded successfully`, 'success');
+        closeFileUploadModal();
+        
+    } catch (error) {
+        console.error('💥 Error uploading files:', error);
+        showNotification('Failed to upload files: ' + error.message, 'error');
+    } finally {
+        const uploadBtn = document.getElementById('uploadFilesBtn');
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Files';
+    }
+};
         window.downloadFile = function(url, fileName) {
             const link = document.createElement('a');
             link.href = url;

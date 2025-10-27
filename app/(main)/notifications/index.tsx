@@ -1,4 +1,3 @@
-// app/(main)/notifications/index.tsx - FIXED CHAT NAVIGATION
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -16,7 +15,7 @@ import {
   View
 } from "react-native";
 import { useAuth } from "../../../hooks/useAuth";
-import { NotificationData, notificationService } from "../../../services/notifications"; // ✅ FIXED IMPORT PATH
+import { NotificationData, notificationService } from "../../../services/notifications";
 
 const { width } = Dimensions.get('window');
 const isSmallDevice = width < 375;
@@ -53,24 +52,41 @@ export default function NotificationsScreen() {
 
   const handleNotificationPress = async (notification: NotificationData) => {
     try {
+      console.log('📱 [NOTIFICATION] Handling notification press:', {
+        type: notification.type,
+        reportId: notification.reportId,
+        data: notification.data
+      });
+
       if (notification.status === 'unread' && notification.id) {
         await notificationService.markAsRead(notification.id);
       }
 
-      // Navigate based on notification type
-      if (notification.type === 'violation' || 
+      // ✅ FIXED: Proper routing for report notifications
+      if (notification.type.startsWith('report_')) {
+        if (notification.reportId) {
+          console.log('📱 [NOTIFICATION] Navigating to report status:', notification.reportId);
+          
+          // ✅ FIXED: Use the correct route path
+          router.push({
+            pathname: "/(main)/report/status",
+            params: { 
+              reportId: notification.reportId,
+              ...(notification.type === 'report_duplicate' && { isDuplicate: 'true' })
+            }
+          });
+        } else {
+          console.warn('⚠️ [NOTIFICATION] No reportId found for report notification');
+          router.push("/(main)/reports");
+        }
+      } 
+      // Handle other notification types...
+      else if (notification.type === 'violation' || 
           notification.type === 'violation_warning' || 
           notification.type === 'violation_strike' ||
           notification.type === 'violation_suspension' ||
           notification.type === 'violation_ban') {
         router.push('/(main)/profile/strikes');
-      } else if (notification.type.startsWith('report_')) {
-        if (notification.reportId) {
-          router.push({
-            pathname: '/(main)/report/status',
-            params: { reportId: notification.reportId }
-          });
-        }
       } else if (notification.type.startsWith('forum_')) {
         if (notification.forumPostId) {
           router.push({
@@ -81,24 +97,94 @@ export default function NotificationsScreen() {
           router.push('/(main)/forum');
         }
       } else if (notification.type.startsWith('chat_')) {
-        // ✅ FIXED: Navigate to chat screen (no need for roomId since resident has only one chat room)
         router.push('/(main)/chat');
+      } else if (notification.type.startsWith('sos_')) {
+        if (notification.sosCallId) {
+          router.push({
+            pathname: '/(main)/emergency/sos-status',
+            params: { sosId: notification.sosCallId }
+          });
+        }
       } else {
+        console.log('📱 [NOTIFICATION] Default notification handling');
         Alert.alert("Notification", notification.body);
       }
     } catch (error) {
-      console.error('Error handling notification press:', error);
+      console.error('❌ [NOTIFICATION] Error handling notification press:', error);
     }
   };
 
   const getNotificationIcon = (type: string) => {
-    if (type.startsWith('violation')) return '⚠️';
-    if (type.startsWith('report_')) return '🚨';
-    if (type.startsWith('forum_')) return '💬';
-    if (type.startsWith('chat_')) return '📱';
-    if (type.startsWith('announcement')) return '📢';
-    if (type.startsWith('alert')) return '🔔';
-    return '📋';
+    const iconMap: { [key: string]: string } = {
+      // Report notifications
+      'report_submitted': '📝',
+      'report_accepted': '✅',
+      'report_verified': '✅',
+      'report_rejected': '❌',
+      'report_failed': '⚠️',
+      'report_resolved': '✅',
+      'report_assigned': '👷',
+      'report_in_progress': '🔄',
+      'report_cancelled': '❌',
+      'report_duplicate': '⚠️',
+      
+      // Forum notifications
+      'forum_reply': '💬',
+      'forum_like_post': '❤️',
+      'forum_like_reply': '❤️',
+      'forum_mention': '🔔',
+      'forum_post_submitted': '📝',
+      'forum_post_approved': '✅',
+      'forum_post_rejected': '❌',
+      'forum_new_post': '💬',
+      'forum_comment': '💬',
+      
+      // Chat notifications
+      'chat_message': '💬',
+      'chat_priority_change': '⚡',
+      'chat_assigned': '👷',
+      'chat_room_created': '💬',
+      'chat_user_joined': '👥',
+      'chat_user_left': '👥',
+      
+      // Account notifications
+      'account_verified': '✅',
+      'account_password_changed': '🔐',
+      'account_login_alert': '🔐',
+      'account_suspended': '⏸️',
+      'account_role_changed': '👤',
+      'account_profile_updated': '👤',
+      
+      // Violation notifications
+      'violation': '⚠️',
+      'violation_warning': '⚠️',
+      'violation_strike': '🔺',
+      'violation_suspension': '⏸️',
+      'violation_ban': '🚫',
+      
+      // System notifications
+      'system_maintenance': '🔧',
+      'system_update': '🔄',
+      'system_announcement': '📢',
+      'system_emergency_alert': '🚨',
+      
+      // Weather/Alert notifications
+      'weather_alert': '🌦️',
+      'emergency_broadcast': '🚨',
+      'evacuation_notice': '🚨',
+      
+      // Emergency contacts
+      'emergency_contact_updated': '📞',
+      
+      // SOS notifications
+      'sos_call_pending': '🚨',
+      'sos_call_confirm': '📞',
+      'sos_call_reviewed': '✅',
+      'sos_call_assigned': '👷',
+      'sos_confirmation': '📞'
+    };
+    
+    return iconMap[type] || '🔔';
   };
 
   const getIconColor = (type: string, status: string) => {
@@ -109,6 +195,9 @@ export default function NotificationsScreen() {
     }
     
     if (type.startsWith('report_')) {
+      if (type.includes('duplicate')) {
+        return isUnread ? '#f39c12' : '#fef5e7';
+      }
       if (type.includes('approved') || type.includes('verified') || type.includes('resolved')) {
         return isUnread ? '#22c55e' : '#d1fae5';
       }
@@ -120,6 +209,7 @@ export default function NotificationsScreen() {
     
     if (type.startsWith('forum_')) return isUnread ? '#9c27b0' : '#f3e5f5';
     if (type.startsWith('chat_')) return isUnread ? '#3498db' : '#dbeafe';
+    if (type.startsWith('sos_')) return isUnread ? '#e74c3c' : '#fadbd8';
     if (type.startsWith('announcement')) return isUnread ? '#ff9800' : '#fff3e0';
     if (type.startsWith('alert')) return isUnread ? '#f44336' : '#ffebee';
     return isUnread ? '#6b7280' : '#f3f4f6';
@@ -162,7 +252,7 @@ export default function NotificationsScreen() {
 
       await notificationService.markMultipleAsRead(unreadNotifications);
     } catch (error) {
-      console.error('Error marking all as read:', error);
+      console.error('❌ [NOTIFICATION] Error marking all as read:', error);
       Alert.alert("Error", "Failed to mark notifications as read");
     }
   };
@@ -171,13 +261,15 @@ export default function NotificationsScreen() {
 
   const renderNotification = ({ item }: { item: NotificationData }) => {
     const isViolation = item.type.startsWith('violation');
+    const isDuplicate = item.type === 'report_duplicate';
     const isUnread = item.status === 'unread';
     
     return (
       <TouchableOpacity
         style={[
           styles.notificationItem,
-          isUnread && styles.unreadItem
+          isUnread && styles.unreadItem,
+          isDuplicate && styles.duplicateItem
         ]}
         onPress={() => handleNotificationPress(item)}
         activeOpacity={0.7}
@@ -196,11 +288,15 @@ export default function NotificationsScreen() {
             <Text style={[
               styles.title,
               isUnread && styles.unreadTitle,
-              isViolation && styles.violationTitle
+              isViolation && styles.violationTitle,
+              isDuplicate && styles.duplicateTitle
             ]} numberOfLines={1}>
               {item.title}
             </Text>
-            {isUnread && <View style={styles.unreadDot} />}
+            {isUnread && <View style={[
+              styles.unreadDot,
+              isDuplicate && styles.duplicateDot
+            ]} />}
           </View>
           <Text style={[
             styles.message,
@@ -414,6 +510,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     elevation: 2,
   },
+  duplicateItem: {
+    backgroundColor: '#fffaf0',
+    borderLeftWidth: 4,
+    borderLeftColor: '#f39c12',
+  },
   iconContainer: {
     width: isSmallDevice ? 44 : 48,
     height: isSmallDevice ? 44 : 48,
@@ -448,12 +549,19 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     fontWeight: '700',
   },
+  duplicateTitle: {
+    color: '#f39c12',
+    fontWeight: '700',
+  },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#3b82f6',
     marginLeft: 6,
+  },
+  duplicateDot: {
+    backgroundColor: '#f39c12',
   },
   message: {
     fontSize: isSmallDevice ? 12 : 13,

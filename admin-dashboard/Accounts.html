@@ -718,7 +718,7 @@
            <div class="nav-item" data-role="admin">
                     <a href="Maps.html" class="nav-link">
                         <i class="fas fa-map"></i>
-                        Hazard Map
+                        Heat Map
                     </a>
                 </div>
                     <div class="nav-item" data-role="admin,monitor,rescuer,agency">
@@ -1035,8 +1035,6 @@
                                     <option value="">Select Agency</option>
                                     <option value="PNP Lipa Police Station">PNP Lipa Police Station</option>
                                     <option value="BFP Lipa Fire Station">BFP Lipa Fire Station</option>
-
-
                                 </select>
                             </div>
                         </div>
@@ -1055,10 +1053,7 @@
                                 </label>
                             </div>
                         </div>
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Note:</strong> Account will be created with status <strong>PENDING</strong> and requires admin approval before the user can login.
-                        </div>
+                    
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -2851,6 +2846,148 @@ async function performFinalDuplicateCheck(formData) {
         return { hasDuplicates: false };
     }
 }
+
+// =================== AUTO-SET DEFAULT PASSWORD FOR AGENCIES ===================
+// Add this code BEFORE the closing </script> tag
+
+document.addEventListener('DOMContentLoaded', function() {
+  setupDefaultPasswordForAgencies();
+});
+
+function setupDefaultPasswordForAgencies() {
+  const roleSelect = document.getElementById('newAccountRole');
+  const passwordField = document.getElementById('newAccountPassword');
+  const agencyNameSelect = document.getElementById('newAccountAgencyName');
+  
+  if (!roleSelect || !passwordField) {
+    console.log('Password fields not found');
+    return;
+  }
+
+  // When role changes
+  roleSelect.addEventListener('change', function() {
+    handleRoleChange(this.value, passwordField, agencyNameSelect);
+  });
+
+  // When agency name changes (optional: create agency-specific password)
+  if (agencyNameSelect) {
+    agencyNameSelect.addEventListener('change', function() {
+      if (roleSelect.value === 'agency' && this.value) {
+        updateAgencyPassword(this.value, passwordField);
+      }
+    });
+  }
+}
+
+function handleRoleChange(role, passwordField, agencyNameSelect) {
+  if (role === 'agency') {
+    // Set default password
+    const defaultPassword = 'Agency@2025';
+    passwordField.value = defaultPassword;
+    passwordField.readOnly = true;
+    passwordField.style.backgroundColor = '#f0f0f0';
+    passwordField.style.cursor = 'not-allowed';
+    
+    // Remove any existing info message
+    removePasswordInfo(passwordField);
+    
+    // Show password info to admin
+    showPasswordInfo(passwordField, defaultPassword);
+    
+    // Show alert with password
+    setTimeout(() => {
+      showNotification(
+        `✅ Default password set: ${defaultPassword}\n\n` +
+        `ℹ️ The agency can change this password anytime in their Profile Settings.\n\n` +
+        `Note: Password change is optional but recommended for security.`,
+        'info'
+      );
+    }, 300);
+    
+  } else {
+    // Reset for other roles
+    passwordField.value = '';
+    passwordField.readOnly = false;
+    passwordField.style.backgroundColor = '';
+    passwordField.style.cursor = 'text';
+    removePasswordInfo(passwordField);
+  }
+}
+
+function updateAgencyPassword(agencyName, passwordField) {
+  // Option 1: Keep simple default (RECOMMENDED - simple lang)
+  const defaultPassword = 'Agency@2025';
+  
+  // Option 2: Agency-specific password (uncomment if you want this)
+  // const agencyCode = agencyName.split(' ')[0]; // Get first word
+  // const defaultPassword = `${agencyCode}@2025`;
+  
+  passwordField.value = defaultPassword;
+  updatePasswordInfo(passwordField, defaultPassword);
+}
+
+function showPasswordInfo(passwordField, password) {
+  const infoDiv = document.createElement('div');
+  infoDiv.id = 'password-info-message';
+  infoDiv.className = 'alert alert-info mt-2';
+  infoDiv.style.fontSize = '13px';
+  infoDiv.innerHTML = `
+    <i class="fas fa-info-circle"></i> 
+    <strong>Default Password:</strong> <code style="background: #fff; padding: 2px 8px; border-radius: 4px;">${password}</code>
+    <br>
+    <small>
+      <i class="fas fa-shield-alt"></i> Agency can change this anytime in Profile Settings (optional)
+    </small>
+  `;
+  passwordField.parentElement.appendChild(infoDiv);
+}
+
+function updatePasswordInfo(passwordField, password) {
+  const infoDiv = document.getElementById('password-info-message');
+  if (infoDiv) {
+    infoDiv.querySelector('code').textContent = password;
+  }
+}
+
+function removePasswordInfo(passwordField) {
+  const infoDiv = document.getElementById('password-info-message');
+  if (infoDiv) {
+    infoDiv.remove();
+  }
+}
+
+// =================== ENHANCED SUCCESS MESSAGE ===================
+// Call this function AFTER successful account creation
+// Replace or enhance your existing success notification
+
+function showAgencyCreationSuccess(name, email, role, agencyName, password) {
+  let successMessage = `✅ Agency Account Created Successfully!\n\n`;
+  successMessage += `👤 Name: ${name}\n`;
+  successMessage += `📧 Email: ${email}\n`;
+  successMessage += `🏢 Agency: ${agencyName}\n`;
+  successMessage += `👔 Role: ${role.toUpperCase()}\n`;
+  successMessage += `🔑 Default Password: ${password}\n\n`;
+  successMessage += `📋 Status: ACTIVE ✓\n\n`;
+  successMessage += `📝 REMINDERS:\n`;
+  successMessage += `1. Agency has been notified via in-app notification\n`;
+  successMessage += `2. They can login immediately with the credentials above\n`;
+  successMessage += `3. They can change password anytime (optional)\n`;
+  successMessage += `4. Default password: ${password}\n\n`;
+  successMessage += `💡 TIP: Send credentials via secure channel if needed`;
+  
+  showNotification(successMessage, 'success');
+}
+
+// =================== INTEGRATION WITH EXISTING CODE ===================
+// In your existing confirmCreateAccount() function, after successful account creation:
+
+// Example integration:
+// if (role === 'agency') {
+//   showAgencyCreationSuccess(name, email, role, agencyName, 'Agency@2025');
+// } else {
+//   // Your existing success message
+//   showNotification('Account created successfully!', 'success');
+// }
     </script>
 </body>
 </html>

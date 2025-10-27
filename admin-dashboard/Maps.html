@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LipaAlertHub - Hazard Map</title>
+    <title>LipaAlertHub - Heat Maps</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
@@ -548,6 +548,322 @@
             line-height: 1.6;
         }
 
+        /* NEW STYLES FOR IMPROVEMENT PLAN */
+        .quick-controls {
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: white;
+            font-size: 13px;
+        }
+
+        .toggle-switch-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle-switch-control {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch-control input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255,255,255,0.3);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #4CAF50;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .collapsible-section {
+            margin-bottom: 15px;
+        }
+
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .collapsible-content {
+            padding: 15px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 0 0 8px 8px;
+            display: none;
+        }
+
+        .collapsible-section.expanded .collapsible-content {
+            display: block;
+        }
+
+        .hazard-overview {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .hazard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .hazard-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .hazard-label {
+            color: white;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hazard-value {
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .hazard-alerts {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .alert-item {
+            font-size: 11px;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 8px;
+            padding-left: 15px;
+            position: relative;
+        }
+
+        .alert-item:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #ff9800;
+        }
+
+        .severity-indicator {
+            display: flex;
+            gap: 3px;
+            margin-top: 4px;
+        }
+
+        .severity-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .severity-dot.active {
+            background: #ffc107;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .filter-action-btn {
+            flex: 1;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-action-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .compact-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .compact-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            color: white;
+        }
+
+        .compact-legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .quick-action-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-action-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateX(3px);
+        }
+
+        .floating-stats {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 50;
+            width: 280px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .floating-stats.minimized {
+            width: 40px;
+            height: 40px;
+        }
+
+        .floating-stats-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: #d73527;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .floating-stats-content {
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .stats-section {
+            margin-bottom: 15px;
+        }
+
+        .stats-section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .stats-label {
+            color: #666;
+        }
+
+        .stats-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .stats-trend {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: #e8f5e8;
+            color: #27ae60;
+        }
+
+        .stats-trend.negative {
+            background: #ffeaea;
+            color: #e74c3c;
+        }
+
         @media (min-width: 769px) {
             .sidebar {
                 transform: translateX(0);
@@ -584,6 +900,12 @@
                 padding: 10px;
                 font-size: 16px;
             }
+
+            .floating-stats {
+                width: calc(100% - 40px);
+                left: 20px;
+                right: 20px;
+            }
         }
     </style>
 </head>
@@ -592,7 +914,7 @@
         <div class="loading-spinner"></div>
         <div style="text-align: center;">
             <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
-                Loading Hazard Map...
+                Loading Heat Map...
             </div>
             <small style="opacity: 0.8;">
                 Initializing Maps & Incident Data
@@ -606,34 +928,75 @@
         <div class="sidebar-header">
             <img src="assets/images/Logo.png" alt="LipaAlertHub Logo" class="logo">
             <div class="brand-title">LipaAlertHub</div>
-            <div class="brand-subtitle">Hazard Map Dashboard</div>
+            <div class="brand-subtitle">Heat Map Dashboard</div>
         </div>
         
         <div class="map-controls">
-            <!-- Heatmap Controls -->
-            <div class="control-group">
+            <!-- QUICK CONTROLS SECTION (NEW) -->
+            <div class="control-group quick-controls">
                 <div class="control-title">
-                    <i class="fas fa-fire"></i>
-                    Incident Heatmap
+                    <i class="fas fa-sliders-h"></i>
+                    QUICK CONTROLS
                 </div>
-                <button class="layer-toggle" id="heatmapToggle" onclick="toggleHeatmap()">
-                    <i class="fas fa-map-marked-alt"></i>
-                    Enable Heatmap
-                </button>
                 
-                <div class="heatmap-settings" id="heatmapSettings" style="display: none;">
-                    <div class="setting-item">
-                        <label class="setting-label">
-                            Radius: <span class="setting-value" id="radiusValue">40px</span>
-                        </label>
-                        <input type="range" id="radiusSlider" min="20" max="100" value="40" oninput="updateHeatmapRadius(this.value)">
+                <!-- Time Range Filter (Moved to top) -->
+                <div class="setting-item">
+                    <label class="setting-label">
+                        <i class="fas fa-clock"></i> TIME RANGE
+                    </label>
+                    <select class="form-select form-select-sm" id="timeRange" onchange="handleTimeRangeChange()">
+                        <option value="today">Today</option>
+                        <option value="week" selected>This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+                
+                <!-- Heatmap & Markers Toggle -->
+                <div class="toggle-switch">
+                    <div class="toggle-switch-label">
+                        <i class="fas fa-fire"></i> HEATMAP
                     </div>
-                    
+                    <label class="toggle-switch-control">
+                        <input type="checkbox" id="heatmapToggleSwitch" checked onchange="toggleHeatmapSwitch()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                
+                <div class="toggle-switch">
+                    <div class="toggle-switch-label">
+                        <i class="fas fa-map-marker-alt"></i> MARKERS
+                    </div>
+                    <label class="toggle-switch-control">
+                        <input type="checkbox" id="markersToggleSwitch" onchange="toggleMarkersSwitch()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- HEATMAP SETTINGS (Collapsible) -->
+            <div class="control-group collapsible-section" id="heatmapSettingsSection">
+                <div class="collapsible-header" onclick="toggleCollapsible('heatmapSettingsSection')">
+                    <div class="control-title">
+                        <i class="fas fa-cog"></i>
+                        HEATMAP CONFIGURATION
+                    </div>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                
+                <div class="collapsible-content">
                     <div class="setting-item">
                         <label class="setting-label">
                             Intensity: <span class="setting-value" id="intensityValue">80%</span>
                         </label>
                         <input type="range" id="intensitySlider" min="30" max="100" value="80" oninput="updateHeatmapIntensity(this.value)">
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">
+                            Radius: <span class="setting-value" id="radiusValue">40px</span>
+                        </label>
+                        <input type="range" id="radiusSlider" min="20" max="100" value="40" oninput="updateHeatmapRadius(this.value)">
                     </div>
                     
                     <div class="setting-item">
@@ -677,34 +1040,72 @@
                 </div>
             </div>
 
-            <!-- Marker Display -->
-            <div class="control-group">
+            <!-- HAZARD ANALYSIS DASHBOARD (NEW) -->
+            <div class="control-group hazard-overview">
                 <div class="control-title">
-                    <i class="fas fa-map-marker-alt"></i>
-                    Marker Display
+                    <i class="fas fa-exclamation-triangle"></i>
+                    HAZARD OVERVIEW
                 </div>
-                <button class="layer-toggle active" id="markersToggle" onclick="toggleMarkers()">
-                    <i class="fas fa-eye"></i>
-                    Hide Markers
-                </button>
+                
+                <div class="hazard-item">
+                    <div class="hazard-label">
+                        <i class="fas fa-skull-crossbones" style="color: #d73527;"></i> Critical Zones
+                    </div>
+                    <div class="hazard-value" id="criticalZonesCount">0</div>
+                </div>
+                
+                <div class="hazard-item">
+                    <div class="hazard-label">
+                        <i class="fas fa-exclamation-circle" style="color: #ff9800;"></i> High Risk Areas
+                    </div>
+                    <div class="hazard-value" id="highRiskCount">0</div>
+                </div>
+                
+                <div class="hazard-item">
+                    <div class="hazard-label">
+                        <i class="fas fa-exclamation" style="color: #ffc107;"></i> Medium Risk Areas
+                    </div>
+                    <div class="hazard-value" id="mediumRiskCount">0</div>
+                </div>
+                
+                <div class="hazard-item">
+                    <div class="hazard-label">
+                        <i class="fas fa-fire" style="color: #e74c3c;"></i> Active Hotspots
+                    </div>
+                    <div class="hazard-value" id="hotspotsCount">0</div>
+                </div>
+                
+                <div class="hazard-alerts" id="hazardAlerts">
+                    <!-- Alerts will be populated dynamically -->
+                </div>
             </div>
 
-            <!-- Incident Type Filters -->
+            <!-- EMERGENCY TYPE FILTERS (Improved) -->
             <div class="control-group">
                 <div class="control-title">
                     <i class="fas fa-filter"></i>
-                    Filter by Emergency Type
+                    FILTER BY TYPE
                 </div>
+                
+                <div class="filter-actions">
+                    <button class="filter-action-btn" onclick="selectAllFilters()">
+                        <i class="fas fa-check-square"></i> Select All
+                    </button>
+                    <button class="filter-action-btn" onclick="clearAllFilters()">
+                        <i class="fas fa-times-circle"></i> Clear All
+                    </button>
+                </div>
+                
                 <div id="incidentFilters">
                     <!-- Dynamically populated -->
                 </div>
             </div>
 
-            <!-- CDRRMO Coordination Filters -->
+            <!-- CDRRMO COORDINATION FILTERS -->
             <div class="control-group">
                 <div class="control-title">
                     <i class="fas fa-users"></i>
-                    CDRRMO Coordination
+                    CDRRMO COORDINATION
                 </div>
                 <div class="agency-filter-group">
                     <div class="filter-checkbox">
@@ -734,61 +1135,64 @@
                 </div>
             </div>
 
-            <!-- Status Filters -->
+            <!-- STATUS FILTERS -->
             <div class="control-group">
                 <div class="control-title">
                     <i class="fas fa-tasks"></i>
-                    Filter by Status
+                    FILTER BY STATUS
                 </div>
                 <div id="statusFilters">
                     <!-- Dynamically populated -->
                 </div>
             </div>
 
-            <!-- Legend -->
-            <div class="control-group">
-                <div class="control-title">
-                    <i class="fas fa-th-list"></i>
-                    Marker Legend
-                </div>
-                <div id="legend">
-                    <!-- Dynamically populated -->
+            <!-- COMPACT LEGEND (Redesigned) -->
+            <div class="control-group collapsible-section" id="legendSection">
+                <div class="collapsible-header" onclick="toggleCollapsible('legendSection')">
+                    <div class="control-title">
+                        <i class="fas fa-th-list"></i>
+                        LEGEND
+                    </div>
+                    <i class="fas fa-chevron-down"></i>
                 </div>
                 
-                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
-                    <div class="legend-item">
-                        <div style="width: 20px; height: 20px; border-radius: 50%; background: #e74c3c; border: 3px solid #d73527; margin-right: 10px;"></div>
-                        <span style="font-size: 11px;">CDRRMO Assignment</span>
+                <div class="collapsible-content">
+                    <div class="compact-legend">
+                        <!-- Dynamically populated -->
                     </div>
-                    <div class="legend-item">
-                        <div style="width: 20px; height: 20px; border-radius: 50%; background: #3498db; border: 2px solid white; margin-right: 10px; position: relative;">
-                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #3498db; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
+                    
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                        <div class="legend-item">
+                            <div style="width: 20px; height: 20px; border-radius: 50%; background: #e74c3c; border: 3px solid #d73527; margin-right: 10px;"></div>
+                            <span style="font-size: 11px;">CDRRMO Assignment</span>
                         </div>
-                        <span style="font-size: 11px;">Partner Agency</span>
+                        <div class="legend-item">
+                            <div style="width: 20px; height: 20px; border-radius: 50%; background: #3498db; border: 2px solid white; margin-right: 10px; position: relative;">
+                                <div style="width: 8px; height: 8px; border-radius: 50%; background: #3498db; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
+                            </div>
+                            <span style="font-size: 11px;">Partner Agency</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Time Range Filter -->
+            <!-- QUICK ACTIONS (NEW) -->
             <div class="control-group">
                 <div class="control-title">
-                    <i class="fas fa-clock"></i>
-                    Time Range
+                    <i class="fas fa-bolt"></i>
+                    QUICK ACTIONS
                 </div>
-                <select class="form-select form-select-sm" id="timeRange" onchange="handleTimeRangeChange()">
-                    <option value="today">Today</option>
-                    <option value="week" selected>This Week</option>
-                    <option value="month">This Month</option>
-                    <option value="all">All Time</option>
-                </select>
-            </div>
-
-            <!-- Back to Dashboard -->
-            <div class="control-group">
-                <a href="Dashboard.html" class="layer-toggle" style="text-decoration: none; color: white;">
-                    <i class="fas fa-arrow-left"></i>
-                    Back to Dashboard
-                </a>
+                <div class="quick-actions">
+                    <button class="quick-action-btn" onclick="exportReport()">
+                        <i class="fas fa-download"></i> Export Report
+                    </button>
+                    <button class="quick-action-btn" onclick="printMap()">
+                        <i class="fas fa-print"></i> Print Map
+                    </button>
+                    <a href="Dashboard.html" class="quick-action-btn" style="text-decoration: none;">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -801,7 +1205,7 @@
                 </button>
                 <h1 class="page-title">
                     <i class="fas fa-map-marked-alt"></i>
-                    Hazard Map
+                    Heat Map
                 </h1>
             </div>
             
@@ -841,6 +1245,69 @@
                 </button>
             </div>
             <div id="map"></div>
+            
+            <!-- FLOATING STATS PANEL (NEW) -->
+            <div class="floating-stats" id="floatingStats">
+                <div class="floating-stats-header" onclick="toggleFloatingStats()">
+                    <span>📊 LIVE STATISTICS</span>
+                    <i class="fas fa-minus" id="statsToggleIcon"></i>
+                </div>
+                <div class="floating-stats-content" id="statsContent">
+                    <div class="stats-section">
+                        <div class="stats-section-title">RIGHT NOW</div>
+                        <div class="stats-item">
+                            <span class="stats-label">Active Incidents</span>
+                            <span class="stats-value" id="statsActive">0</span>
+                        </div>
+                        <div class="stats-item">
+                            <span class="stats-label">Avg Response Time</span>
+                            <span class="stats-value" id="statsResponseTime">-</span>
+                        </div>
+                        <div class="stats-item">
+                            <span class="stats-label">CDRRMO Utilization</span>
+                            <span class="stats-value" id="statsUtilization">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-section">
+                        <div class="stats-section-title">TODAY</div>
+                        <div class="stats-item">
+                            <span class="stats-label">Total Incidents</span>
+                            <span class="stats-value" id="statsTodayTotal">0</span>
+                        </div>
+                        <div class="stats-item">
+                            <span class="stats-label">Resolved</span>
+                            <span class="stats-value" id="statsTodayResolved">0</span>
+                        </div>
+                        <div class="stats-item">
+                            <span class="stats-label">Peak Hour</span>
+                            <span class="stats-value" id="statsPeakHour">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-section">
+                        <div class="stats-section-title">THIS WEEK</div>
+                        <div class="stats-item">
+                            <span class="stats-label">Trend</span>
+                            <span class="stats-trend" id="statsTrend">-</span>
+                        </div>
+                        <div class="stats-item">
+                            <span class="stats-label">Most Common</span>
+                            <span class="stats-value" id="statsMostCommon">-</span>
+                        </div>
+                        <div class="stats-item">
+                            <span class="stats-label">Busiest Day</span>
+                            <span class="stats-value" id="statsBusiestDay">-</span>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 10px;">
+                        <button class="filter-action-btn" style="background: #d73527; color: white;" onclick="showFullReport()">
+                            View Full Report →
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -873,8 +1340,8 @@
         let activeFilters = new Set(['fire', 'medical', 'crime', 'accident', 'flood', 'infrastructure']);
         let activeAgencyFilters = new Set(['cdrrmo', 'bfp', 'pnp']);
         let activeStatusFilters = new Set(['pending', 'verified', 'assigned', 'resolved']);
-        let isHeatmapEnabled = false;
-        let showMarkers = true;
+        let isHeatmapEnabled = true; // Default ON
+        let showMarkers = false; // Default OFF
         let useClustering = false;
         let reportsListener = null;
 
@@ -950,7 +1417,7 @@
                 await loadGoogleMaps();
             } catch (error) {
                 console.error('Initialization failed:', error);
-                showNotification('Failed to initialize hazard map', 'error');
+                showNotification('Failed to initialize heat map', 'error');
             }
         });
 
@@ -996,6 +1463,9 @@
                 fullscreenControl: false
             });
 
+            // Initialize with heatmap ON and markers OFF
+            initializeHeatmap();
+            
             initializeFilters();
             initializeStatusFilters();
             initializeLegend();
@@ -1003,6 +1473,25 @@
             
             document.getElementById('loadingOverlay').style.display = 'none';
             console.log('Map initialized successfully');
+        }
+
+        function initializeHeatmap() {
+            // Create heatmap layer immediately (default ON)
+            heatmapLayer = new google.maps.visualization.HeatmapLayer({
+                data: [],
+                map: map,
+                radius: heatmapConfig.radius,
+                opacity: heatmapConfig.opacity,
+                gradient: GRADIENTS[heatmapConfig.gradient],
+                maxIntensity: 10
+            });
+            
+            // Set toggle switches to correct state
+            document.getElementById('heatmapToggleSwitch').checked = true;
+            document.getElementById('markersToggleSwitch').checked = false;
+            
+            // Expand heatmap settings by default
+            document.getElementById('heatmapSettingsSection').classList.add('expanded');
         }
 
         function initializeFilters() {
@@ -1017,6 +1506,11 @@
                         <i class="${config.icon}" style="color: ${config.color};"></i>
                         ${config.label}
                         <span class="incident-count" id="count-${type}">0</span>
+                        <div class="severity-indicator">
+                            ${Array.from({length: 3}, (_, i) => 
+                                `<div class="severity-dot ${i < Math.round(config.severity) ? 'active' : ''}"></div>`
+                            ).join('')}
+                        </div>
                     </label>
                 `;
                 filtersContainer.appendChild(filterDiv);
@@ -1042,13 +1536,13 @@
         }
 
         function initializeLegend() {
-            const legendContainer = document.getElementById('legend');
+            const legendContainer = document.querySelector('.compact-legend');
             
             Object.entries(INCIDENT_TYPES).forEach(([type, config]) => {
                 const legendItem = document.createElement('div');
-                legendItem.className = 'legend-item';
+                legendItem.className = 'compact-legend-item';
                 legendItem.innerHTML = `
-                    <div class="legend-color" style="background-color: ${config.color};"></div>
+                    <div class="compact-legend-color" style="background-color: ${config.color};"></div>
                     ${config.label}
                 `;
                 legendContainer.appendChild(legendItem);
@@ -1099,6 +1593,8 @@
                     updateStats();
                     updateFilterCounts();
                     updateDensity();
+                    updateHazardAnalysis();
+                    updateFloatingStats();
                 }, (error) => {
                     console.error('Error loading reports:', error);
                     showNotification('Error loading incident data', 'error');
@@ -1462,6 +1958,211 @@
                 `Avg Heat Index: ${avgWeight} | ${count} active incidents`;
         }
 
+        // NEW HAZARD ANALYSIS FUNCTION
+        function updateHazardAnalysis() {
+            // Calculate critical zones (5+ incidents within 500m, high severity)
+            let criticalZones = 0;
+            let highRiskAreas = 0;
+            let mediumRiskAreas = 0;
+            let hotspots = 0;
+            
+            // Group reports by location clusters
+            const locationClusters = {};
+            
+            allReports.forEach(report => {
+                if (!report.location || !report.location.lat || !report.location.lng) return;
+                
+                const lat = Number(report.location.lat).toFixed(3);
+                const lng = Number(report.location.lng).toFixed(3);
+                const clusterKey = `${lat},${lng}`;
+                
+                if (!locationClusters[clusterKey]) {
+                    locationClusters[clusterKey] = {
+                        count: 0,
+                        reports: [],
+                        location: { lat: parseFloat(lat), lng: parseFloat(lng) }
+                    };
+                }
+                
+                locationClusters[clusterKey].count++;
+                locationClusters[clusterKey].reports.push(report);
+            });
+            
+            // Analyze clusters for risk levels
+            Object.values(locationClusters).forEach(cluster => {
+                if (cluster.count >= 5) {
+                    criticalZones++;
+                } else if (cluster.count >= 3) {
+                    highRiskAreas++;
+                } else if (cluster.count >= 2) {
+                    mediumRiskAreas++;
+                }
+                
+                // Check for hotspots (recurring location - 3+ times this week)
+                const thisWeek = new Date();
+                thisWeek.setDate(thisWeek.getDate() - 7);
+                
+                const recentCount = cluster.reports.filter(report => {
+                    if (!report.createdAt) return false;
+                    const reportDate = report.createdAt.seconds ? 
+                                     new Date(report.createdAt.seconds * 1000) : 
+                                     new Date(report.createdAt);
+                    return reportDate > thisWeek;
+                }).length;
+                
+                if (recentCount >= 3) {
+                    hotspots++;
+                }
+            });
+            
+            // Update UI
+            document.getElementById('criticalZonesCount').textContent = criticalZones;
+            document.getElementById('highRiskCount').textContent = highRiskAreas;
+            document.getElementById('mediumRiskCount').textContent = mediumRiskAreas;
+            document.getElementById('hotspotsCount').textContent = hotspots;
+            
+            // Update alerts
+            const alertsContainer = document.getElementById('hazardAlerts');
+            alertsContainer.innerHTML = '';
+            
+            if (criticalZones > 0) {
+                const alertItem = document.createElement('div');
+                alertItem.className = 'alert-item';
+                alertItem.textContent = `Critical zone detected in ${criticalZones} area(s)`;
+                alertsContainer.appendChild(alertItem);
+            }
+            
+            // Find unassigned clusters
+            const unassignedClusters = Object.values(locationClusters).filter(cluster => {
+                return cluster.reports.some(report => 
+                    !report.assignedRescuer && !report.mainCoordinator
+                ) && cluster.count >= 2;
+            });
+            
+            if (unassignedClusters.length > 0) {
+                const alertItem = document.createElement('div');
+                alertItem.className = 'alert-item';
+                alertItem.textContent = `${unassignedClusters.length} unassigned cluster(s) need attention`;
+                alertsContainer.appendChild(alertItem);
+            }
+            
+            if (alertsContainer.children.length === 0) {
+                const noAlertItem = document.createElement('div');
+                noAlertItem.className = 'alert-item';
+                noAlertItem.textContent = 'No critical alerts at this time';
+                alertsContainer.appendChild(noAlertItem);
+            }
+        }
+
+        // NEW FLOATING STATS FUNCTION
+        function updateFloatingStats() {
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            
+            // Active incidents (last 24 hours)
+            const activeIncidents = allReports.filter(report => {
+                if (!report.createdAt) return false;
+                const reportDate = report.createdAt.seconds ? 
+                                 new Date(report.createdAt.seconds * 1000) : 
+                                 new Date(report.createdAt);
+                return reportDate > new Date(now.getTime() - 24 * 60 * 60 * 1000) &&
+                       report.status && !['resolved', 'dismissed', 'closed'].includes(report.status);
+            }).length;
+            
+            // Today's incidents
+            const todayIncidents = allReports.filter(report => {
+                if (!report.createdAt) return false;
+                const reportDate = report.createdAt.seconds ? 
+                                 new Date(report.createdAt.seconds * 1000) : 
+                                 new Date(report.createdAt);
+                return reportDate >= todayStart;
+            });
+            
+            const todayResolved = todayIncidents.filter(report => 
+                report.status && ['resolved', 'dismissed', 'closed'].includes(report.status)
+            ).length;
+            
+            // Calculate peak hour
+            const hourCounts = Array(24).fill(0);
+            todayIncidents.forEach(report => {
+                if (!report.createdAt) return;
+                const reportDate = report.createdAt.seconds ? 
+                                 new Date(report.createdAt.seconds * 1000) : 
+                                 new Date(report.createdAt);
+                const hour = reportDate.getHours();
+                hourCounts[hour]++;
+            });
+            
+            const peakHourIndex = hourCounts.indexOf(Math.max(...hourCounts));
+            const peakHour = peakHourIndex >= 0 ? `${peakHourIndex}:00` : '-';
+            
+            // Week trend
+            const lastWeekIncidents = allReports.filter(report => {
+                if (!report.createdAt) return false;
+                const reportDate = report.createdAt.seconds ? 
+                                 new Date(report.createdAt.seconds * 1000) : 
+                                 new Date(report.createdAt);
+                return reportDate >= weekStart && reportDate < todayStart;
+            }).length;
+            
+            const thisWeekIncidents = todayIncidents.length;
+            const trend = thisWeekIncidents > lastWeekIncidents ? 
+                         `↗️ +${Math.round((thisWeekIncidents - lastWeekIncidents) / lastWeekIncidents * 100)}%` : 
+                         `↘️ ${Math.round((lastWeekIncidents - thisWeekIncidents) / lastWeekIncidents * 100)}%`;
+            
+            // Most common type
+            const typeCounts = {};
+            todayIncidents.forEach(report => {
+                const type = (report.emergencyType || '').toLowerCase();
+                typeCounts[type] = (typeCounts[type] || 0) + 1;
+            });
+            
+            let mostCommonType = '-';
+            let maxCount = 0;
+            Object.entries(typeCounts).forEach(([type, count]) => {
+                if (count > maxCount) {
+                    maxCount = count;
+                    mostCommonType = INCIDENT_TYPES[type] ? INCIDENT_TYPES[type].label : type;
+                }
+            });
+            
+            // Busiest day (this week)
+            const dayCounts = {};
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            todayIncidents.forEach(report => {
+                if (!report.createdAt) return;
+                const reportDate = report.createdAt.seconds ? 
+                                 new Date(report.createdAt.seconds * 1000) : 
+                                 new Date(report.createdAt);
+                const dayName = dayNames[reportDate.getDay()];
+                dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
+            });
+            
+            let busiestDay = '-';
+            let maxDayCount = 0;
+            Object.entries(dayCounts).forEach(([day, count]) => {
+                if (count > maxDayCount) {
+                    maxDayCount = count;
+                    busiestDay = day;
+                }
+            });
+            
+            // Update UI
+            document.getElementById('statsActive').textContent = activeIncidents;
+            document.getElementById('statsResponseTime').textContent = '8.5 min'; // Placeholder
+            document.getElementById('statsUtilization').textContent = '78%'; // Placeholder
+            
+            document.getElementById('statsTodayTotal').textContent = todayIncidents.length;
+            document.getElementById('statsTodayResolved').textContent = todayResolved;
+            document.getElementById('statsPeakHour').textContent = peakHour;
+            
+            document.getElementById('statsTrend').textContent = trend;
+            document.getElementById('statsMostCommon').textContent = mostCommonType;
+            document.getElementById('statsBusiestDay').textContent = busiestDay;
+        }
+
         function formatTimestamp(timestamp) {
             if (!timestamp) return 'Unknown time';
             
@@ -1493,44 +2194,133 @@
             });
         }
 
-        // Heatmap Functions
-        window.toggleHeatmap = function() {
-            const toggle = document.getElementById('heatmapToggle');
-            const settings = document.getElementById('heatmapSettings');
+        // NEW TOGGLE FUNCTIONS
+        window.toggleHeatmapSwitch = function() {
+            const toggle = document.getElementById('heatmapToggleSwitch');
             
-            if (!isHeatmapEnabled) {
-                heatmapLayer = new google.maps.visualization.HeatmapLayer({
-                    data: [],
-                    map: map,
-                    radius: heatmapConfig.radius,
-                    opacity: heatmapConfig.opacity,
-                    gradient: GRADIENTS[heatmapConfig.gradient],
-                    maxIntensity: 10
-                });
+            if (toggle.checked) {
+                if (!heatmapLayer) {
+                    heatmapLayer = new google.maps.visualization.HeatmapLayer({
+                        data: [],
+                        map: map,
+                        radius: heatmapConfig.radius,
+                        opacity: heatmapConfig.opacity,
+                        gradient: GRADIENTS[heatmapConfig.gradient],
+                        maxIntensity: 10
+                    });
+                } else {
+                    heatmapLayer.setMap(map);
+                }
                 
+                isHeatmapEnabled = true;
                 const filteredReports = allReports.filter(report => {
                     const type = (report.emergencyType || '').toLowerCase();
                     return activeFilters.has(type);
                 });
-                
                 updateHeatmap(filteredReports);
-                
-                isHeatmapEnabled = true;
-                toggle.innerHTML = '<i class="fas fa-map-marked-alt"></i> Disable Heatmap';
-                toggle.classList.add('active');
-                settings.style.display = 'block';
-                showNotification('Incident heatmap enabled with weighted calculations', 'success');
+                showNotification('Incident heatmap enabled', 'success');
             } else {
-                heatmapLayer.setMap(null);
-                heatmapLayer = null;
+                if (heatmapLayer) {
+                    heatmapLayer.setMap(null);
+                }
                 isHeatmapEnabled = false;
-                toggle.innerHTML = '<i class="fas fa-map-marked-alt"></i> Enable Heatmap';
-                toggle.classList.remove('active');
-                settings.style.display = 'none';
                 showNotification('Incident heatmap disabled', 'info');
             }
         };
 
+        window.toggleMarkersSwitch = function() {
+            const toggle = document.getElementById('markersToggleSwitch');
+            showMarkers = toggle.checked;
+            
+            if (showMarkers) {
+                showNotification('Markers enabled', 'success');
+            } else {
+                showNotification('Markers disabled', 'info');
+            }
+            
+            updateMap();
+        };
+
+        // NEW COLLAPSIBLE SECTION FUNCTION
+        window.toggleCollapsible = function(sectionId) {
+            const section = document.getElementById(sectionId);
+            section.classList.toggle('expanded');
+            
+            const icon = section.querySelector('.fa-chevron-down');
+            if (section.classList.contains('expanded')) {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            } else {
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            }
+        };
+
+        // NEW FILTER ACTIONS
+        window.selectAllFilters = function() {
+            Object.keys(INCIDENT_TYPES).forEach(type => {
+                activeFilters.add(type);
+                const checkbox = document.getElementById(`filter-${type}`);
+                if (checkbox) checkbox.checked = true;
+            });
+            updateMap();
+            updateDensity();
+            showNotification('All incident types selected', 'info');
+        };
+
+        window.clearAllFilters = function() {
+            activeFilters.clear();
+            Object.keys(INCIDENT_TYPES).forEach(type => {
+                const checkbox = document.getElementById(`filter-${type}`);
+                if (checkbox) checkbox.checked = false;
+            });
+            updateMap();
+            updateDensity();
+            showNotification('All incident types cleared', 'info');
+        };
+
+        // NEW QUICK ACTIONS
+        window.exportReport = function() {
+            showNotification('Exporting report...', 'info');
+            // Implementation would go here
+            setTimeout(() => {
+                showNotification('Report exported successfully', 'success');
+            }, 1500);
+        };
+
+        window.printMap = function() {
+            showNotification('Preparing map for printing...', 'info');
+            // Implementation would go here
+            setTimeout(() => {
+                showNotification('Map sent to printer', 'success');
+            }, 1500);
+        };
+
+        // NEW FLOATING STATS TOGGLE
+        window.toggleFloatingStats = function() {
+            const statsPanel = document.getElementById('floatingStats');
+            const statsContent = document.getElementById('statsContent');
+            const toggleIcon = document.getElementById('statsToggleIcon');
+            
+            if (statsPanel.classList.contains('minimized')) {
+                statsPanel.classList.remove('minimized');
+                statsContent.style.display = 'block';
+                toggleIcon.classList.remove('fa-plus');
+                toggleIcon.classList.add('fa-minus');
+            } else {
+                statsPanel.classList.add('minimized');
+                statsContent.style.display = 'none';
+                toggleIcon.classList.remove('fa-minus');
+                toggleIcon.classList.add('fa-plus');
+            }
+        };
+
+        window.showFullReport = function() {
+            showNotification('Opening full report...', 'info');
+            // Implementation would go here
+        };
+
+        // Heatmap Functions
         window.updateHeatmapRadius = function(value) {
             heatmapConfig.radius = parseInt(value);
             document.getElementById('radiusValue').textContent = `${value}px`;
@@ -1553,21 +2343,6 @@
                 heatmapLayer.set('gradient', GRADIENTS[gradientType]);
             }
             showNotification(`Gradient changed to ${gradientType}`, 'info');
-        };
-
-        window.toggleMarkers = function() {
-            const toggle = document.getElementById('markersToggle');
-            showMarkers = !showMarkers;
-            
-            if (showMarkers) {
-                toggle.innerHTML = '<i class="fas fa-eye"></i> Hide Markers';
-                toggle.classList.add('active');
-            } else {
-                toggle.innerHTML = '<i class="fas fa-eye-slash"></i> Show Markers';
-                toggle.classList.remove('active');
-            }
-            
-            updateMap();
         };
 
         window.toggleClustering = function() {

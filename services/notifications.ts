@@ -1,26 +1,26 @@
-// services/notification.ts
+// services/notifications.ts - COMPLETE DEPLOYMENT READY VERSION
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDocs,
-    getFirestore,
-    limit,
-    onSnapshot,
-    orderBy,
-    query,
-    Timestamp,
-    updateDoc,
-    where,
-    writeBatch
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  getFirestore,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  Timestamp,
+  updateDoc,
+  where,
+  writeBatch
 } from 'firebase/firestore';
 import { Alert, Platform } from 'react-native';
 
-// FIXED: Proper NotificationHandler configuration - WALANG ERROR
+// Proper NotificationHandler configuration
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -31,10 +31,8 @@ Notifications.setNotificationHandler({
   }),
 });
 
-
 // Comprehensive notification types
 export type NotificationType =
-  // Report/Incident notifications
   | 'report_submitted'
   | 'report_accepted'
   | 'report_verified'
@@ -44,7 +42,7 @@ export type NotificationType =
   | 'report_assigned'
   | 'report_in_progress'
   | 'report_cancelled'
-  // Forum notifications
+  | 'report_duplicate'
   | 'forum_reply'
   | 'forum_like_post'
   | 'forum_like_reply'
@@ -54,38 +52,31 @@ export type NotificationType =
   | 'forum_post_rejected'
   | 'forum_new_post'
   | 'forum_comment'
-  // Chat notifications
   | 'chat_message'
   | 'chat_priority_change'
   | 'chat_assigned'
   | 'chat_room_created'
   | 'chat_user_joined'
   | 'chat_user_left'
-  // Account notifications
   | 'account_verified'
   | 'account_password_changed'
   | 'account_login_alert'
   | 'account_suspended'
   | 'account_role_changed'
   | 'account_profile_updated'
-  // Violation notifications
   | 'violation'
   | 'violation_warning'
   | 'violation_strike'
   | 'violation_suspension'
   | 'violation_ban'
-  // System notifications
   | 'system_maintenance'
   | 'system_update'
   | 'system_announcement'
   | 'system_emergency_alert'
-  // Weather/Alert notifications
   | 'weather_alert'
   | 'emergency_broadcast'
   | 'evacuation_notice'
-  // Emergency contacts
   | 'emergency_contact_updated'
-  // SOS-specific notifications
   | 'sos_call_pending'
   | 'sos_call_confirm'
   | 'sos_call_reviewed'
@@ -102,14 +93,12 @@ export interface NotificationData {
   priority: 'low' | 'normal' | 'high' | 'urgent';
   createdAt: Timestamp;
   readAt?: Timestamp;
-  // Related IDs for navigation
   reportId?: string;
   forumPostId?: string;
   forumReplyId?: string;
   chatRoomId?: string;
   announcementId?: string;
   sosCallId?: string;
-  // Additional data for context
   data?: {
     reportType?: string;
     postTitle?: string;
@@ -117,20 +106,20 @@ export interface NotificationData {
     senderAvatar?: string;
     actionUrl?: string;
     imageUrl?: string;
-    // Violation-specific data
     violationType?: 'warning' | 'strike' | 'suspension' | 'ban';
     reason?: string;
     strikes?: number;
     warnings?: number;
     suspensionDays?: number;
     suspensionUntil?: string;
-    // SOS call data
     sosId?: string;
     agencyName?: string;
     phoneNumber?: string;
     barangay?: string;
     emergencyType?: string;
     requiresConfirmation?: boolean;
+    timeSinceReport?: number;
+    subCategory?: string;
     [key: string]: any;
   };
 }
@@ -185,11 +174,11 @@ export class NotificationService {
     this.cleanupListeners();
 
     this.notificationListener = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification received:', notification);
+      console.log('📱 Notification received:', notification);
     });
 
     this.responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notification response received:', response);
+      console.log('📱 Notification response received:', response);
       this.handleNotificationResponse(response);
     });
   }
@@ -213,19 +202,18 @@ export class NotificationService {
   private handleNotificationResponse(response: Notifications.NotificationResponse) {
     const data = response.notification.request.content.data;
     
-    // Handle SOS confirmation notifications
     if (data?.type === 'sos_confirmation') {
       this.handleSOSConfirmationNotification(data);
+    } else if (data?.type === 'report_duplicate') {
+      this.handleDuplicateReportNotification(data);
     } else if (data?.type && data?.notificationId) {
-      console.log(`Handling notification tap for type: ${data.type}`);
+      console.log(`📱 Handling notification tap for type: ${data.type}`);
     }
   }
 
-  // Handle SOS confirmation notifications
   private handleSOSConfirmationNotification(notification: any) {
     const { serviceTitle, emergencyType, reporterBarangay } = notification;
     
-    // Show confirmation alert when user taps the notification
     Alert.alert(
       "Emergency Call Confirmation",
       `Did you complete your emergency call to ${serviceTitle}?`,
@@ -234,17 +222,35 @@ export class NotificationService {
           text: "No, I cancelled",
           style: "cancel",
           onPress: () => {
-            // Handle cancelled call
             console.log('User cancelled the emergency call');
           }
         },
         {
           text: "Yes, I called",
           onPress: () => {
-            // This will trigger your existing confirmation flow
             console.log('User confirmed the emergency call');
-            // You might need to navigate to a specific screen or trigger a function
           }
+        }
+      ]
+    );
+  }
+
+  private handleDuplicateReportNotification(notification: any) {
+    const { reportId, emergencyType, barangay, timeSinceReport, status } = notification;
+    
+    Alert.alert(
+      "⚠️ Report Already Submitted",
+      `You already submitted this ${emergencyType} report in ${barangay} ${timeSinceReport} minutes ago.\n\nCurrent Status: ${this.getStatusDisplayText(status)}`,
+      [
+        {
+          text: "View Report",
+          onPress: () => {
+            console.log('Navigate to report:', reportId);
+          }
+        },
+        {
+          text: "OK",
+          style: "cancel"
         }
       ]
     );
@@ -253,86 +259,90 @@ export class NotificationService {
   private async setupNotificationChannels() {
     if (Platform.OS !== 'android') return;
 
-    await Notifications.setNotificationChannelAsync('reports', {
-      name: 'Incident Reports',
-      description: 'Updates about your incident reports',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#ef4444',
-      sound: 'default',
-    });
+    try {
+      await Notifications.setNotificationChannelAsync('reports', {
+        name: 'Incident Reports',
+        description: 'Updates about your incident reports',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#ef4444',
+        sound: 'default',
+      });
 
-    await Notifications.setNotificationChannelAsync('forum', {
-      name: 'Forum Activity',
-      description: 'Forum posts, replies, and interactions',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 150, 150, 150],
-      lightColor: '#9c27b0',
-      sound: 'default',
-    });
+      await Notifications.setNotificationChannelAsync('forum', {
+        name: 'Forum Activity',
+        description: 'Forum posts, replies, and interactions',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 150, 150, 150],
+        lightColor: '#9c27b0',
+        sound: 'default',
+      });
 
-    await Notifications.setNotificationChannelAsync('chat', {
-      name: 'Chat Messages',
-      description: 'Direct messages and chat notifications',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 200, 100, 200],
-      lightColor: '#3498db',
-      sound: 'default',
-    });
+      await Notifications.setNotificationChannelAsync('chat', {
+        name: 'Chat Messages',
+        description: 'Direct messages and chat notifications',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 200, 100, 200],
+        lightColor: '#3498db',
+        sound: 'default',
+      });
 
-    await Notifications.setNotificationChannelAsync('account', {
-      name: 'Account Security',
-      description: 'Account security and profile updates',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 100, 100, 100],
-      lightColor: '#6b7280',
-      sound: 'default',
-    });
+      await Notifications.setNotificationChannelAsync('account', {
+        name: 'Account Security',
+        description: 'Account security and profile updates',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 100, 100, 100],
+        lightColor: '#6b7280',
+        sound: 'default',
+      });
 
-    await Notifications.setNotificationChannelAsync('violations', {
-      name: 'Account Violations',
-      description: 'Warnings, strikes, and suspension notifications',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 300, 200, 300, 200, 300],
-      lightColor: '#e74c3c',
-      sound: 'default',
-    });
+      await Notifications.setNotificationChannelAsync('violations', {
+        name: 'Account Violations',
+        description: 'Warnings, strikes, and suspension notifications',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 300, 200, 300, 200, 300],
+        lightColor: '#e74c3c',
+        sound: 'default',
+      });
 
-    await Notifications.setNotificationChannelAsync('emergency', {
-      name: 'Emergency Alerts',
-      description: 'Weather alerts and emergency broadcasts',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 500, 200, 500],
-      lightColor: '#ff0000',
-      sound: 'default',
-    });
+      await Notifications.setNotificationChannelAsync('emergency', {
+        name: 'Emergency Alerts',
+        description: 'Weather alerts and emergency broadcasts',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 500, 200, 500],
+        lightColor: '#ff0000',
+        sound: 'default',
+      });
 
-    await Notifications.setNotificationChannelAsync('sos_calls', {
-      name: 'SOS Calls',
-      description: 'Emergency SOS call confirmations and updates',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 400, 200, 400],
-      lightColor: '#d73527',
-      sound: 'default',
-    });
+      await Notifications.setNotificationChannelAsync('sos_calls', {
+        name: 'SOS Calls',
+        description: 'Emergency SOS call confirmations and updates',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 400, 200, 400],
+        lightColor: '#d73527',
+        sound: 'default',
+      });
 
-    await Notifications.setNotificationChannelAsync('sos_confirmation', {
-      name: 'SOS Confirmations',
-      description: 'SOS call confirmation reminders',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 400, 200, 400],
-      lightColor: '#d73527',
-      sound: 'default',
-    });
+      await Notifications.setNotificationChannelAsync('sos_confirmation', {
+        name: 'SOS Confirmations',
+        description: 'SOS call confirmation reminders',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 400, 200, 400],
+        lightColor: '#d73527',
+        sound: 'default',
+      });
 
-    await Notifications.setNotificationChannelAsync('system', {
-      name: 'System Updates',
-      description: 'App updates and maintenance notifications',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      vibrationPattern: [0, 100],
-      lightColor: '#4ade80',
-      sound: 'default',
-    });
+      await Notifications.setNotificationChannelAsync('system', {
+        name: 'System Updates',
+        description: 'App updates and maintenance notifications',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        vibrationPattern: [0, 100],
+        lightColor: '#4ade80',
+        sound: 'default',
+      });
+    } catch (error) {
+      console.error('Error setting up notification channels:', error);
+    }
   }
 
   async storePushToken(userId: string) {
@@ -343,6 +353,7 @@ export class NotificationService {
           expoPushToken: token,
           tokenUpdatedAt: Timestamp.now(),
         });
+        console.log('✅ Push token stored for user:', userId);
       }
     } catch (error) {
       console.error('Error storing push token:', error);
@@ -360,29 +371,85 @@ export class NotificationService {
     };
 
     try {
+      console.log('📱 Creating notification:', {
+        userId: notificationData.userId,
+        type: notificationData.type,
+        title: notificationData.title
+      });
+
       const docRef = await addDoc(collection(this.db, 'notifications'), completeNotification);
 
+      // Send local notification
       await this.sendLocalNotification(
         completeNotification.title,
         completeNotification.body,
         {
           notificationId: docRef.id,
           type: completeNotification.type,
+          reportId: completeNotification.reportId,
           ...completeNotification.data,
         },
         this.getChannelForType(completeNotification.type)
       );
 
+      console.log('✅ Notification created with ID:', docRef.id);
       return docRef.id;
     } catch (error) {
-      console.error('Error creating notification:', error);
+      console.error('❌ Error creating notification:', error);
       throw error;
     }
   }
 
-  // =================== NEW METHODS FOR CLOUD FUNCTIONS ===================
+  // DUPLICATE REPORT NOTIFICATION METHOD
+  async createDuplicateReportNotification(
+    userId: string,
+    duplicateReportId: string,
+    emergencyType: string,
+    subCategory: string,
+    barangay: string,
+    timeSinceReport: number,
+    currentStatus: string
+  ) {
+    const statusText = this.getStatusDisplayText(currentStatus);
+    
+    return this.createNotification({
+      userId,
+      title: '⚠️ Report Already Submitted',
+      body: `You already submitted this ${emergencyType} report in ${barangay} ${timeSinceReport} minutes ago. Current status: ${statusText}`,
+      type: 'report_duplicate',
+      priority: 'high',
+      status: 'unread',
+      reportId: duplicateReportId,
+      data: {
+        reportId: duplicateReportId,
+        emergencyType,
+        subCategory,
+        barangay,
+        timeSinceReport,
+        status: currentStatus,
+        requiresAction: true
+      },
+    });
+  }
 
-  // Chat notification from Cloud Functions
+  // HELPER - Get status display text
+  private getStatusDisplayText(status: string): string {
+    const statusMap: { [key: string]: string } = {
+      'pending': 'Under Review',
+      'accepted': 'Accepted',
+      'verified': 'Verified',
+      'assigned': 'Assigned to Responder',
+      'in_progress': 'In Progress',
+      'resolved': 'Resolved',
+      'rejected': 'Not Approved',
+      'cancelled': 'Cancelled',
+      'failed': 'Verification Failed'
+    };
+    return statusMap[status] || status;
+  }
+
+  // =================== CHAT NOTIFICATIONS ===================
+
   async createChatNotification(
     userId: string,
     chatRoomId: string,
@@ -401,6 +468,7 @@ export class NotificationService {
       type: 'chat_message',
       priority: 'high',
       status: 'unread',
+      chatRoomId,
       data: {
         chatRoomId,
         senderId,
@@ -410,7 +478,8 @@ export class NotificationService {
     });
   }
 
-  // Weather alert notification from Cloud Functions
+  // =================== WEATHER & EMERGENCY NOTIFICATIONS ===================
+
   async createWeatherAlertNotification(
     userId: string,
     alertId: string,
@@ -432,7 +501,6 @@ export class NotificationService {
     });
   }
 
-  // Emergency tip notification from Cloud Functions
   async createEmergencyTipNotification(
     userId: string,
     tipId: string,
@@ -454,7 +522,6 @@ export class NotificationService {
     });
   }
 
-  // Announcement notification from Cloud Functions
   async createAnnouncementNotification(
     userId: string,
     announcementId: string,
@@ -468,13 +535,15 @@ export class NotificationService {
       type: 'system_announcement',
       priority: 'normal',
       status: 'unread',
+      announcementId,
       data: {
         announcementId,
       },
     });
   }
 
-  // Forum activity notification from Cloud Functions
+  // =================== FORUM NOTIFICATIONS ===================
+
   async createForumActivityNotification(
     userId: string,
     activityType: 'like' | 'reply' | 'mention',
@@ -508,6 +577,7 @@ export class NotificationService {
       type: 'forum_reply',
       priority: 'normal',
       status: 'unread',
+      forumPostId: postId,
       data: {
         activityType,
         actorName,
@@ -517,7 +587,87 @@ export class NotificationService {
     });
   }
 
-  // Account violation notification from Cloud Functions
+  async createForumPostSubmittedNotification(
+    userId: string,
+    postId: string,
+    postTitle: string
+  ) {
+    return this.createNotification({
+      userId,
+      forumPostId: postId,
+      title: 'Forum Post Submitted',
+      body: `Your post "${postTitle}" has been submitted for review.`,
+      type: 'forum_post_submitted',
+      priority: 'normal',
+      status: 'unread',
+      data: { postTitle },
+    });
+  }
+
+  async createForumPostApprovedNotification(
+    userId: string,
+    postId: string,
+    postTitle: string
+  ) {
+    return this.createNotification({
+      userId,
+      forumPostId: postId,
+      title: 'Forum Post Approved',
+      body: `Your post "${postTitle}" has been approved and is now visible to the community.`,
+      type: 'forum_post_approved',
+      priority: 'high',
+      status: 'unread',
+      data: { postTitle },
+    });
+  }
+
+  async createForumPostRejectedNotification(
+    userId: string,
+    postId: string,
+    postTitle: string,
+    reason: string
+  ) {
+    return this.createNotification({
+      userId,
+      forumPostId: postId,
+      title: 'Forum Post Not Approved',
+      body: `Your post "${postTitle}" was not approved. Reason: ${reason}`,
+      type: 'forum_post_rejected',
+      priority: 'normal',
+      status: 'unread',
+      data: { postTitle, reason },
+    });
+  }
+
+  async createForumReplyNotification(
+    userId: string,
+    postId: string,
+    postTitle: string,
+    replierName: string,
+    replyContent: string
+  ) {
+    const truncatedContent = replyContent.length > 100 
+      ? replyContent.substring(0, 97) + '...'
+      : replyContent;
+
+    return this.createNotification({
+      userId,
+      forumPostId: postId,
+      title: 'New Reply to Your Post',
+      body: `${replierName} replied to "${postTitle}": ${truncatedContent}`,
+      type: 'forum_reply',
+      priority: 'high',
+      status: 'unread',
+      data: {
+        postTitle,
+        senderName: replierName,
+        replyContent: truncatedContent,
+      },
+    });
+  }
+
+  // =================== ACCOUNT VIOLATION NOTIFICATIONS ===================
+
   async createAccountViolationNotification(
     userId: string,
     status: 'suspended' | 'banned' | 'under_review',
@@ -566,79 +716,6 @@ export class NotificationService {
       },
     });
   }
-
-  // =================== SOS CALL NOTIFICATIONS ===================
-
-  async createSOSCallPendingNotification(
-    userId: string,
-    sosCallId: string,
-    agencyName: string,
-    city: string
-  ) {
-    return this.createNotification({
-      userId,
-      sosCallId,
-      title: 'SOS Call Logged',
-      body: `Your emergency call to ${agencyName} in ${city} has been recorded and is pending review by CDRRMO.`,
-      type: 'sos_call_pending',
-      priority: 'high',
-      status: 'unread',
-      data: {
-        sosCallId,
-        agencyName,
-        city,
-        actionUrl: `/emergency/sos-status?sosId=${sosCallId}`,
-      },
-    });
-  }
-
-  async createSOSReviewedNotification(
-    userId: string,
-    sosId: string,
-    agencyName: string,
-    city: string
-  ) {
-    return this.createNotification({
-      userId,
-      sosCallId: sosId,
-      title: 'SOS Call Reviewed',
-      body: `Your emergency call to ${agencyName} in ${city} has been reviewed by CDRRMO.`,
-      type: 'sos_call_reviewed',
-      priority: 'high',
-      status: 'unread',
-      data: {
-        sosId,
-        agencyName,
-        city,
-        actionUrl: `/emergency/sos-status?sosId=${sosId}`,
-      },
-    });
-  }
-
-  async createSOSAssignedNotification(
-    userId: string,
-    sosCallId: string,
-    assignedAgency: string,
-    city: string
-  ) {
-    return this.createNotification({
-      userId,
-      sosCallId,
-      title: 'SOS Response Assigned',
-      body: `Your emergency call has been assigned to ${assignedAgency} for response in ${city}.`,
-      type: 'sos_call_assigned',
-      priority: 'high',
-      status: 'unread',
-      data: {
-        sosCallId,
-        assignedAgency,
-        city,
-        actionUrl: `/emergency/sos-status?sosId=${sosCallId}`,
-      },
-    });
-  }
-
-  // =================== VIOLATION NOTIFICATION METHODS ===================
 
   async createWarningNotification(
     userId: string,
@@ -694,88 +771,70 @@ export class NotificationService {
     });
   }
 
-  async createSuspensionNotification(
-    userId: string,
-    reason: string,
-    suspensionUntil: Date,
-    currentStrikes: number,
-    currentWarnings: number
-  ) {
-    const days = Math.ceil(
-      (suspensionUntil.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-    );
+  // =================== SOS CALL NOTIFICATIONS ===================
 
+  async createSOSCallPendingNotification(
+    userId: string,
+    sosCallId: string,
+    agencyName: string,
+    city: string
+  ) {
     return this.createNotification({
       userId,
-      title: 'Account Suspended',
-      body: `Your account has been suspended for ${days} days due to: ${reason}. Suspension ends on ${suspensionUntil.toLocaleDateString()}.`,
-      type: 'violation_suspension',
-      priority: 'urgent',
+      sosCallId,
+      title: 'SOS Call Logged',
+      body: `Your emergency call to ${agencyName} in ${city} has been recorded and is pending review by CDRRMO.`,
+      type: 'sos_call_pending',
+      priority: 'high',
       status: 'unread',
       data: {
-        violationType: 'suspension',
-        reason,
-        strikes: currentStrikes,
-        warnings: currentWarnings,
-        suspensionDays: days,
-        suspensionUntil: suspensionUntil.toISOString(),
+        sosCallId,
+        agencyName,
+        city,
       },
     });
   }
 
-  async createBanNotification(
+  async createSOSReviewedNotification(
     userId: string,
-    reason: string,
-    currentStrikes: number,
-    currentWarnings: number
+    sosId: string,
+    agencyName: string,
+    city: string
   ) {
     return this.createNotification({
       userId,
-      title: 'Account Permanently Banned',
-      body: `Your account has been permanently banned due to: ${reason}. You have accumulated ${currentStrikes} strikes.`,
-      type: 'violation_ban',
-      priority: 'urgent',
+      sosCallId: sosId,
+      title: 'SOS Call Reviewed',
+      body: `Your emergency call to ${agencyName} in ${city} has been reviewed by CDRRMO.`,
+      type: 'sos_call_reviewed',
+      priority: 'high',
       status: 'unread',
       data: {
-        violationType: 'ban',
-        reason,
-        strikes: currentStrikes,
-        warnings: currentWarnings,
+        sosId,
+        agencyName,
+        city,
       },
     });
   }
 
-  async createViolationNotification(
+  async createSOSAssignedNotification(
     userId: string,
-    type: 'warning' | 'strike' | 'suspension' | 'ban',
-    reason: string,
-    additionalData?: any
+    sosCallId: string,
+    assignedAgency: string,
+    city: string
   ) {
-    const titles = {
-      warning: 'Violation Warning',
-      strike: 'Strike Issued',
-      suspension: 'Account Suspended',
-      ban: 'Account Banned',
-    };
-
-    const bodies = {
-      warning: `You have been warned for: ${reason}. Continued violations may lead to suspension.`,
-      strike: `You have received a strike for: ${reason}. Multiple strikes may result in account suspension.`,
-      suspension: `Your account has been suspended due to: ${reason}. Please review our community guidelines.`,
-      ban: `Your account has been permanently banned for: ${reason}.`,
-    };
-
     return this.createNotification({
       userId,
-      title: titles[type],
-      body: bodies[type],
-      type: 'violation',
-      priority: type === 'ban' || type === 'suspension' ? 'urgent' : 'high',
+      sosCallId,
+      title: 'SOS Response Assigned',
+      body: `Your emergency call has been assigned to ${assignedAgency} for response in ${city}.`,
+      type: 'sos_call_assigned',
+      priority: 'high',
       status: 'unread',
       data: {
-        violationType: type,
-        reason,
-        ...additionalData,
+        sosCallId,
+        assignedAgency,
+        city,
       },
     });
   }
@@ -802,6 +861,7 @@ export class NotificationService {
       'report_assigned': 'Report Assigned',
       'report_in_progress': 'Report In Progress',
       'report_cancelled': 'Report Cancelled',
+      'report_duplicate': 'Report Already Submitted',
     };
 
     const bodies = {
@@ -814,6 +874,7 @@ export class NotificationService {
       'report_assigned': `Your ${reportType} report has been assigned to a responder.`,
       'report_in_progress': `Work has begun on your ${reportType} report.`,
       'report_cancelled': `Your ${reportType} report has been cancelled.`,
+      'report_duplicate': `You already submitted this ${reportType} report.`,
     };
 
     return this.createNotification({
@@ -926,131 +987,6 @@ export class NotificationService {
     );
   }
 
-  // =================== FORUM NOTIFICATIONS ===================
-
-  async createForumPostSubmittedNotification(
-    userId: string,
-    postId: string,
-    postTitle: string
-  ) {
-    return this.createNotification({
-      userId,
-      forumPostId: postId,
-      title: 'Forum Post Submitted',
-      body: `Your post "${postTitle}" has been submitted for review.`,
-      type: 'forum_post_submitted',
-      priority: 'normal',
-      status: 'unread',
-      data: { postTitle },
-    });
-  }
-
-  async createForumPostApprovedNotification(
-    userId: string,
-    postId: string,
-    postTitle: string
-  ) {
-    return this.createNotification({
-      userId,
-      forumPostId: postId,
-      title: 'Forum Post Approved',
-      body: `Your post "${postTitle}" has been approved and is now visible to the community.`,
-      type: 'forum_post_approved',
-      priority: 'high',
-      status: 'unread',
-      data: { postTitle },
-    });
-  }
-
-  async createForumPostRejectedNotification(
-    userId: string,
-    postId: string,
-    postTitle: string,
-    reason: string
-  ) {
-    return this.createNotification({
-      userId,
-      forumPostId: postId,
-      title: 'Forum Post Not Approved',
-      body: `Your post "${postTitle}" was not approved. Reason: ${reason}`,
-      type: 'forum_post_rejected',
-      priority: 'normal',
-      status: 'unread',
-      data: { postTitle, reason },
-    });
-  }
-
-  async createForumReplyNotification(
-    userId: string,
-    postId: string,
-    postTitle: string,
-    replierName: string,
-    replyContent: string
-  ) {
-    const truncatedContent = replyContent.length > 100 
-      ? replyContent.substring(0, 97) + '...'
-      : replyContent;
-
-    return this.createNotification({
-      userId,
-      forumPostId: postId,
-      title: 'New Reply to Your Post',
-      body: `${replierName} replied to "${postTitle}": ${truncatedContent}`,
-      type: 'forum_reply',
-      priority: 'high',
-      status: 'unread',
-      data: {
-        postTitle,
-        senderName: replierName,
-        replyContent: truncatedContent,
-      },
-    });
-  }
-
-  async createForumPostLikeNotification(
-    userId: string,
-    postId: string,
-    postTitle: string,
-    likerName: string
-  ) {
-    return this.createNotification({
-      userId,
-      forumPostId: postId,
-      title: 'Your Post Was Liked',
-      body: `${likerName} liked your post "${postTitle}"`,
-      type: 'forum_like_post',
-      priority: 'normal',
-      status: 'unread',
-      data: {
-        postTitle,
-        senderName: likerName,
-      },
-    });
-  }
-
-  async createForumReplyLikeNotification(
-    userId: string,
-    postId: string,
-    replyId: string,
-    postTitle: string,
-    likerName: string
-  ) {
-    return this.createNotification({
-      userId,
-      forumPostId: postId,
-      forumReplyId: replyId,
-      title: 'Your Reply Was Liked',
-      body: `${likerName} liked your reply on "${postTitle}"`,
-      type: 'forum_like_reply',
-      priority: 'normal',
-      status: 'unread',
-      data: {
-        postTitle,
-        senderName: likerName,
-      },
-    });
-  }
-
   // =================== NOTIFICATION MANAGEMENT ===================
 
   getUserNotifications(
@@ -1065,13 +1001,19 @@ export class NotificationService {
       limit(limitCount)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifications: NotificationData[] = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...(docSnap.data() as NotificationData),
-      }));
-      callback(notifications);
-    });
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        const notifications: NotificationData[] = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as NotificationData),
+        }));
+        callback(notifications);
+      },
+      (error) => {
+        console.error('Error fetching notifications:', error);
+        callback([]);
+      }
+    );
 
     return unsubscribe;
   }
@@ -1082,31 +1024,41 @@ export class NotificationService {
         status: 'read',
         readAt: Timestamp.now(),
       });
+      console.log('✅ Notification marked as read:', notificationId);
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error('❌ Error marking notification as read:', error);
+      throw error;
     }
   }
 
   async markMultipleAsRead(notificationIds: string[]) {
     try {
+      if (notificationIds.length === 0) return;
+
       const batch = writeBatch(this.db);
       notificationIds.forEach((id) => {
-        batch.update(doc(this.db, 'notifications', id), {
-          status: 'read',
-          readAt: Timestamp.now(),
-        });
+        if (id) {
+          batch.update(doc(this.db, 'notifications', id), {
+            status: 'read',
+            readAt: Timestamp.now(),
+          });
+        }
       });
       await batch.commit();
+      console.log(`✅ ${notificationIds.length} notifications marked as read`);
     } catch (error) {
-      console.error('Error marking multiple notifications as read:', error);
+      console.error('❌ Error marking multiple notifications as read:', error);
+      throw error;
     }
   }
 
   async deleteNotification(notificationId: string) {
     try {
       await deleteDoc(doc(this.db, 'notifications', notificationId));
+      console.log('✅ Notification deleted:', notificationId);
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      console.error('❌ Error deleting notification:', error);
+      throw error;
     }
   }
 
@@ -1120,8 +1072,29 @@ export class NotificationService {
       const snapshot = await getDocs(q);
       return snapshot.size;
     } catch (error) {
-      console.error('Error getting unread count:', error);
+      console.error('❌ Error getting unread count:', error);
       return 0;
+    }
+  }
+
+  async clearAllNotifications(userId: string) {
+    try {
+      const q = query(
+        collection(this.db, 'notifications'),
+        where('userId', '==', userId)
+      );
+      const snapshot = await getDocs(q);
+      
+      const batch = writeBatch(this.db);
+      snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      
+      await batch.commit();
+      console.log(`✅ All notifications cleared for user: ${userId}`);
+    } catch (error) {
+      console.error('❌ Error clearing all notifications:', error);
+      throw error;
     }
   }
 
@@ -1146,18 +1119,18 @@ export class NotificationService {
     data?: any,
     androidChannelId: string = 'system'
   ) {
-    const notificationRequest: Notifications.NotificationRequestInput = {
-      content: {
-        title,
-        body,
-        data,
-        sound: true,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-      },
-      trigger: null,
-    };
-
     try {
+      const notificationRequest: Notifications.NotificationRequestInput = {
+        content: {
+          title,
+          body,
+          data,
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: null,
+      };
+
       if (Platform.OS === 'android') {
         await Notifications.scheduleNotificationAsync({
           ...notificationRequest,
@@ -1166,8 +1139,10 @@ export class NotificationService {
       } else {
         await Notifications.scheduleNotificationAsync(notificationRequest);
       }
+      
+      console.log('📱 Local notification sent:', title);
     } catch (error) {
-      console.error('Error sending local notification:', error);
+      console.error('❌ Error sending local notification:', error);
     }
   }
 
@@ -1203,16 +1178,28 @@ export class NotificationService {
       'report_assigned': '👷',
       'report_in_progress': '🔄',
       'report_cancelled': '❌',
+      'report_duplicate': '⚠️',
       'forum_reply': '💬',
       'forum_like_post': '❤️',
       'forum_like_reply': '❤️',
       'forum_mention': '🔔',
+      'forum_post_submitted': '📝',
+      'forum_post_approved': '✅',
+      'forum_post_rejected': '❌',
+      'forum_new_post': '💬',
+      'forum_comment': '💬',
       'chat_message': '💬',
       'chat_priority_change': '⚡',
       'chat_assigned': '👷',
+      'chat_room_created': '💬',
+      'chat_user_joined': '👥',
+      'chat_user_left': '👥',
       'account_verified': '✅',
       'account_password_changed': '🔐',
       'account_login_alert': '🔐',
+      'account_suspended': '⏸️',
+      'account_role_changed': '👤',
+      'account_profile_updated': '👤',
       'weather_alert': '🌦️',
       'emergency_broadcast': '🚨',
       'evacuation_notice': '🚨',
@@ -1227,6 +1214,10 @@ export class NotificationService {
       'sos_call_reviewed': '✅',
       'sos_call_assigned': '👷',
       'sos_confirmation': '📞',
+      'system_maintenance': '🔧',
+      'system_update': '🔄',
+      'system_announcement': '📢',
+      'system_emergency_alert': '🚨'
     };
     return iconMap[type] || '🔔';
   }
@@ -1239,6 +1230,67 @@ export class NotificationService {
       'urgent': '#ef4444',
     };
     return colorMap[priority] || colorMap.normal;
+  }
+
+  // Batch notification operations
+  async batchUpdateNotifications(notificationIds: string[], updates: Partial<NotificationData>) {
+    try {
+      const batch = writeBatch(this.db);
+      notificationIds.forEach((id) => {
+        if (id) {
+          const notificationRef = doc(this.db, 'notifications', id);
+          batch.update(notificationRef, updates);
+        }
+      });
+      await batch.commit();
+      console.log(`✅ ${notificationIds.length} notifications updated`);
+    } catch (error) {
+      console.error('❌ Error batch updating notifications:', error);
+      throw error;
+    }
+  }
+
+  // Get notifications by type
+  async getNotificationsByType(userId: string, type: NotificationType): Promise<NotificationData[]> {
+    try {
+      const q = query(
+        collection(this.db, 'notifications'),
+        where('userId', '==', userId),
+        where('type', '==', type),
+        orderBy('createdAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as NotificationData),
+      }));
+    } catch (error) {
+      console.error('❌ Error getting notifications by type:', error);
+      return [];
+    }
+  }
+
+  // Get recent notifications (last 7 days)
+  async getRecentNotifications(userId: string, days: number = 7): Promise<NotificationData[]> {
+    try {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - days);
+      
+      const q = query(
+        collection(this.db, 'notifications'),
+        where('userId', '==', userId),
+        where('createdAt', '>=', Timestamp.fromDate(sevenDaysAgo)),
+        orderBy('createdAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as NotificationData),
+      }));
+    } catch (error) {
+      console.error('❌ Error getting recent notifications:', error);
+      return [];
+    }
   }
 }
 

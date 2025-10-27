@@ -6,6 +6,16 @@
     <title>Incident Reports | LipaAlertHub</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Add html2pdf library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Add SheetJS library for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Add Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Add html2canvas for chart rendering in PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Add jsPDF for direct PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         * {
@@ -287,6 +297,7 @@
             display: none;
         }
 
+        /* Statistics Cards */
         .stats-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -348,41 +359,7 @@
             font-weight: 600;
         }
 
-        .report-filters {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .filter-group label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #666;
-            margin-bottom: 0;
-        }
-
-        .filter-input, .filter-select {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            font-size: 13px;
-            transition: all 0.3s ease;
-        }
-
-        .filter-input:focus, .filter-select:focus {
-            outline: none;
-            border-color: #d73527;
-            box-shadow: 0 0 0 0.2rem rgba(215, 53, 39, 0.25);
-        }
-
+        /* Filter Section Styles */
         .filters-section {
             background: white;
             border-radius: 12px;
@@ -392,44 +369,322 @@
             border: 1px solid #e9ecef;
         }
 
-        .filters-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            align-items: end;
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            cursor: pointer;
         }
 
-        .filter-label {
-            font-size: 13px;
+        .filter-title {
+            font-size: 18px;
             font-weight: 600;
             color: #333;
-            margin-bottom: 6px;
+            margin: 0;
+        }
+
+        .filter-toggle {
+            background: none;
+            border: none;
+            color: #d73527;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .filter-content {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .filter-content.collapsed {
+            display: none;
+        }
+
+        .filter-category {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .filter-category:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .filter-checkbox {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .filter-checkbox input {
+            margin-right: 8px;
+        }
+
+        .filter-checkbox-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .filter-options {
+            margin-left: 24px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .filter-options.show {
             display: block;
         }
 
-        .clear-filters-btn {
-            background: linear-gradient(135deg, #6c757d, #495057);
+        .date-time-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .date-time-group {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .date-time-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .date-time-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .checkbox-item input {
+            margin: 0;
+        }
+
+        .checkbox-item label {
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+        }
+
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .radio-item input {
+            margin: 0;
+        }
+
+        .radio-item label {
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .apply-filters-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
             color: white;
             border: none;
-            padding: 10px 16px;
+            padding: 10px 20px;
             border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            height: fit-content;
-            font-size: 13px;
             display: flex;
             align-items: center;
             gap: 5px;
-            justify-self: start;
         }
 
-        .clear-filters-btn:hover {
+        .apply-filters-btn:hover {
+            background: linear-gradient(135deg, #20c997, #17a2b8);
+            transform: translateY(-2px);
+        }
+
+        .clear-all-btn {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .clear-all-btn:hover {
             background: linear-gradient(135deg, #495057, #343a40);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
         }
 
-        /* ✅ COMPLETELY REDESIGNED TABLE - NO HORIZONTAL SCROLLING */
+        /* Barangay Multi-Select Styles */
+        .barangay-checkbox-container {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px;
+            background: white;
+        }
+
+        .barangay-checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .barangay-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .barangay-checkbox-item input {
+            margin: 0;
+        }
+
+        .barangay-checkbox-item label {
+            font-size: 13px;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        /* View Report Button */
+        .view-report-btn {
+            background: linear-gradient(135deg, #6f42c1, #5a2d91);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+        }
+
+        .view-report-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #5a2d91, #4a1f7a);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(111, 66, 193, 0.4);
+        }
+
+        .view-report-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Responsive filter actions */
+        @media (max-width: 768px) {
+            .filter-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .filter-actions button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Rankings Section */
+        .rankings-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .ranking-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .ranking-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .ranking-table th {
+            text-align: left;
+            padding: 8px 5px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .ranking-table td {
+            padding: 8px 5px;
+            font-size: 12px;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .ranking-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Table Container */
         .table-container {
             background: white;
             border-radius: 12px;
@@ -583,7 +838,7 @@
             border: 1px solid #28a745;
         }
 
-        .view-btn, .patient-form-btn {
+        .view-btn, .patient-form-btn, .view-pdf-btn {
             background: linear-gradient(135deg, #007bff, #0056b3);
             color: white;
             border: none;
@@ -598,12 +853,13 @@
             transition: all 0.3s ease;
             margin-right: 4px;
             margin-bottom: 4px;
+            cursor: pointer;
         }
 
-        .view-btn:hover, .patient-form-btn:hover {
-            background: linear-gradient(135deg, #0056b3, #004085);
+        .view-btn:hover, .patient-form-btn:hover, .view-pdf-btn:hover {
             transform: scale(1.05);
             color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
         .patient-form-btn {
@@ -616,6 +872,7 @@
 
         .view-pdf-btn {
             background: linear-gradient(135deg, #dc3545, #c82333);
+            text-decoration: none !important;
         }
 
         .view-pdf-btn:hover {
@@ -714,7 +971,7 @@
             visibility: visible;
         }
 
-        /* ✅ NEW: Assignment status styles */
+        /* Assignment status styles */
         .assignment-status {
             font-size: 10px;
             padding: 3px 6px;
@@ -754,7 +1011,7 @@
             border: 1px solid #b3d9ff;
         }
 
-        /* ✅ NEW: Status Tracking Styles */
+        /* Status Tracking Styles */
         .status-tracking {
             display: flex;
             flex-direction: column;
@@ -798,7 +1055,7 @@
         .status-value.completed { background: #d4edda; color: #155724; }
         .status-value.resolved { background: #d4edda; color: #155724; }
 
-        /* ✅ NEW: Pagination Styles */
+        /* Pagination Styles */
         .pagination-container {
             display: flex;
             flex-direction: column;
@@ -878,7 +1135,7 @@
             border-color: #d73527;
         }
 
-        /* ✅ NEW: Desktop table styles */
+        /* Desktop table styles */
         @media (min-width: 1024px) {
             .reports-table {
                 display: table;
@@ -984,14 +1241,6 @@
                 grid-template-columns: repeat(4, 1fr);
             }
             
-            .report-filters {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            
-            .filters-row {
-                grid-template-columns: 2fr 1fr 1fr auto;
-            }
-            
             .user-name {
                 font-size: 16px;
             }
@@ -1082,18 +1331,6 @@
                 grid-template-columns: 1fr 1fr;
             }
             
-            .report-filters {
-                grid-template-columns: 1fr;
-            }
-            
-            .filters-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .filter-group {
-                min-width: 100%;
-            }
-            
             .table-container {
                 padding: 15px;
             }
@@ -1130,6 +1367,1056 @@
                 border: 1px solid #000;
             }
         }
+
+        /* Chart containers for PDF */
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .pdf-chart {
+            width: 100% !important;
+            height: 300px !important;
+        }
+
+        /* PDF Charts Container */
+        .pdf-charts-container {
+            display: none;
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+        }
+
+        .pdf-chart-canvas {
+            width: 600px !important;
+            height: 400px !important;
+            margin: 10px 0;
+        }
+
+        /* PDF Loading Overlay */
+        .pdf-loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+
+        .pdf-progress-bar {
+            width: 300px;
+            height: 10px;
+            background: #444;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .pdf-progress-fill {
+            height: 100%;
+            background: #d73527;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* ===========================
+           MODAL BASE STYLES
+           =========================== */
+        .report-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        .report-modal.show {
+            display: block;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .report-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+        }
+
+        .report-modal-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 95%;
+            max-width: 1200px;
+            max-height: 90vh;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            animation: modalSlideUp 0.3s ease;
+        }
+
+        @keyframes modalSlideUp {
+            from {
+                transform: translate(-50%, -45%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+
+        /* ===========================
+           MODAL HEADER (FIXED)
+           =========================== */
+        .report-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            border-bottom: 2px solid #e9ecef;
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            border-radius: 16px 16px 0 0;
+            flex-shrink: 0;
+        }
+
+        .report-modal-header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .report-modal-title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .report-modal-subtitle {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .report-modal-close {
+            background: #f8f9fa;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #666;
+            font-size: 18px;
+        }
+
+        .report-modal-close:hover {
+            background: #d73527;
+            color: white;
+            transform: rotate(90deg);
+        }
+
+        /* ===========================
+           MODAL BODY (SCROLLABLE)
+           =========================== */
+        .report-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+            background: #f8f9fa;
+        }
+
+        /* Custom scrollbar */
+        .report-modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .report-modal-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .report-modal-body::-webkit-scrollbar-thumb {
+            background: #d73527;
+            border-radius: 4px;
+        }
+
+        .report-modal-body::-webkit-scrollbar-thumb:hover {
+            background: #b92e20;
+        }
+
+        /* ===========================
+           MODAL SECTIONS
+           =========================== */
+        .modal-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e9ecef;
+        }
+
+        .modal-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .modal-section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin: 0 0 20px 0;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-section-title i {
+            color: #d73527;
+            font-size: 20px;
+        }
+
+        /* ===========================
+           FILTER SUMMARY SECTION
+           =========================== */
+        .filter-summary-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .filter-summary-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #d73527;
+        }
+
+        .filter-summary-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-summary-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            word-break: break-word;
+        }
+
+        /* ===========================
+           KPI SECTION
+           =========================== */
+        .modal-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .modal-kpi-card {
+            text-align: center;
+            padding: 20px 15px;
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .modal-kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(215, 53, 39, 0.15);
+            border-color: #d73527;
+        }
+
+        .modal-kpi-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #d73527;
+            margin-bottom: 8px;
+            line-height: 1;
+        }
+
+        .modal-kpi-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        /* ===========================
+           CHARTS SECTION
+           =========================== */
+        .modal-charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .modal-chart-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+
+        .modal-chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin: 0 0 15px 0;
+            text-align: center;
+        }
+
+        .modal-chart-container canvas {
+            max-height: 300px;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        /* ===========================
+           RANKINGS SECTION
+           =========================== */
+        .modal-rankings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .modal-ranking-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+
+        .modal-ranking-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin: 0 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .modal-ranking-table-wrapper {
+            overflow-x: auto;
+        }
+
+        .modal-ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .modal-ranking-table thead {
+            background: white;
+            position: sticky;
+            top: 0;
+        }
+
+        .modal-ranking-table th {
+            text-align: left;
+            padding: 10px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #666;
+            text-transform: uppercase;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .modal-ranking-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #f8f9fa;
+            color: #333;
+        }
+
+        .modal-ranking-table tbody tr:hover {
+            background: white;
+        }
+
+        .modal-ranking-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ===========================
+           MODAL FOOTER (FIXED)
+           =========================== */
+        .report-modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            border-top: 2px solid #e9ecef;
+            background: linear-gradient(135deg, #ffffff, #f8f9fa);
+            border-radius: 0 0 16px 16px;
+            flex-shrink: 0;
+            gap: 15px;
+        }
+
+        .report-modal-footer-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .report-modal-footer-info i {
+            color: #d73527;
+        }
+
+        .report-modal-footer-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-export-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .modal-cancel-btn {
+            background: #6c757d;
+            color: white;
+        }
+
+        .modal-cancel-btn:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+        }
+
+        .modal-pdf-btn {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+        }
+
+        .modal-pdf-btn:hover {
+            background: linear-gradient(135deg, #c82333, #bd2130);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
+        .modal-excel-btn {
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: white;
+        }
+
+        .modal-excel-btn:hover {
+            background: linear-gradient(135deg, #218838, #1e7e34);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        /* ===========================
+           RESPONSIVE DESIGN
+           =========================== */
+
+        /* Tablets (768px - 1023px) */
+        @media (max-width: 1023px) {
+            .report-modal-container {
+                width: 90%;
+                max-height: 85vh;
+            }
+            
+            .report-modal-header {
+                padding: 18px 20px;
+            }
+            
+            .report-modal-title {
+                font-size: 18px;
+            }
+            
+            .report-modal-body {
+                padding: 20px;
+            }
+            
+            .modal-charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-rankings-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-kpi-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+        }
+
+        /* Mobile Landscape (577px - 767px) */
+        @media (max-width: 767px) {
+            .report-modal-container {
+                width: 95%;
+                max-height: 90vh;
+                border-radius: 12px;
+            }
+            
+            .report-modal-header {
+                padding: 15px;
+                flex-wrap: wrap;
+            }
+            
+            .report-modal-header-left {
+                gap: 10px;
+            }
+            
+            .report-modal-header-left i {
+                font-size: 20px !important;
+            }
+            
+            .report-modal-title {
+                font-size: 16px;
+            }
+            
+            .report-modal-subtitle {
+                font-size: 11px;
+            }
+            
+            .report-modal-body {
+                padding: 15px;
+            }
+            
+            .modal-section {
+                padding: 15px;
+            }
+            
+            .modal-section-title {
+                font-size: 16px;
+            }
+            
+            .filter-summary-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            
+            .modal-kpi-card {
+                padding: 15px 10px;
+            }
+            
+            .modal-kpi-number {
+                font-size: 24px;
+            }
+            
+            .modal-kpi-label {
+                font-size: 10px;
+            }
+            
+            .report-modal-footer {
+                flex-direction: column;
+                padding: 15px;
+                gap: 12px;
+            }
+            
+            .report-modal-footer-info {
+                font-size: 12px;
+                text-align: center;
+            }
+            
+            .report-modal-footer-actions {
+                flex-direction: column;
+                width: 100%;
+                gap: 8px;
+            }
+            
+            .modal-export-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 12px 16px;
+                font-size: 13px;
+            }
+        }
+
+        /* Mobile Portrait (320px - 576px) */
+        @media (max-width: 576px) {
+            .report-modal-container {
+                width: 100%;
+                height: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+                top: 0;
+                left: 0;
+                transform: none;
+            }
+            
+            .report-modal-header {
+                border-radius: 0;
+                padding: 12px 15px;
+            }
+            
+            .report-modal-title {
+                font-size: 14px;
+            }
+            
+            .report-modal-subtitle {
+                font-size: 10px;
+            }
+            
+            .report-modal-close {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+            
+            .report-modal-body {
+                padding: 12px;
+            }
+            
+            .modal-section {
+                padding: 12px;
+                margin-bottom: 15px;
+            }
+            
+            .modal-section-title {
+                font-size: 14px;
+                padding-bottom: 10px;
+                margin-bottom: 15px;
+            }
+            
+            .modal-section-title i {
+                font-size: 16px;
+            }
+            
+            .filter-summary-item {
+                padding: 10px;
+            }
+            
+            .filter-summary-label {
+                font-size: 10px;
+            }
+            
+            .filter-summary-value {
+                font-size: 12px;
+            }
+            
+            .modal-kpi-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            
+            .modal-kpi-card {
+                padding: 12px 8px;
+            }
+            
+            .modal-kpi-number {
+                font-size: 20px;
+            }
+            
+            .modal-kpi-label {
+                font-size: 9px;
+            }
+            
+            .modal-charts-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .modal-chart-container {
+                padding: 15px;
+            }
+            
+            .modal-chart-title {
+                font-size: 12px;
+            }
+            
+            .modal-rankings-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .modal-ranking-card {
+                padding: 15px;
+            }
+            
+            .modal-ranking-title {
+                font-size: 12px;
+            }
+            
+            .modal-ranking-table {
+                font-size: 11px;
+            }
+            
+            .modal-ranking-table th,
+            .modal-ranking-table td {
+                padding: 8px 5px;
+            }
+            
+            .modal-ranking-table th {
+                font-size: 10px;
+            }
+            
+            .report-modal-footer {
+                border-radius: 0;
+                padding: 12px 15px;
+            }
+            
+            .report-modal-footer-info {
+                font-size: 11px;
+            }
+            
+            .modal-export-btn {
+                padding: 10px 14px;
+                font-size: 12px;
+            }
+        }
+
+        /* Extra Small Mobile (< 375px) */
+        @media (max-width: 374px) {
+            .modal-kpi-number {
+                font-size: 18px;
+            }
+            
+            .modal-kpi-label {
+                font-size: 8px;
+            }
+            
+            .modal-ranking-table {
+                font-size: 10px;
+            }
+            
+            .modal-ranking-table th,
+            .modal-ranking-table td {
+                padding: 6px 4px;
+            }
+        }
+
+        /* ===========================
+           ENHANCED RESPONSIVE TABLES
+           =========================== */
+
+        /* Mobile card view improvements */
+        @media (max-width: 1023px) {
+            .table-container {
+                padding: 15px;
+                overflow-x: visible; /* Remove horizontal scroll */
+            }
+            
+            .reports-table tbody tr {
+                display: block;
+                margin-bottom: 15px;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 12px;
+                background: white;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            }
+            
+            .reports-table tbody td {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                padding: 8px 0;
+                border: none;
+                border-bottom: 1px solid #f8f9fa;
+                font-size: 13px;
+            }
+            
+            .reports-table tbody td:last-child {
+                border-bottom: none;
+                padding-bottom: 0;
+            }
+            
+            .reports-table tbody td:before {
+                content: attr(data-label);
+                font-weight: 700;
+                color: #555;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+                margin-right: 10px;
+                flex: 0 0 110px;
+                white-space: normal;
+                word-break: break-word;
+            }
+            
+            .reports-table tbody td > div {
+                flex: 1;
+                text-align: right;
+                word-break: break-word;
+            }
+            
+            /* Improve action buttons on mobile */
+            .reports-table tbody td[data-label="Actions"] > div {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                width: 100%;
+            }
+            
+            .view-btn, 
+            .patient-form-btn, 
+            .view-pdf-btn {
+                width: 100%;
+                justify-content: center;
+                margin: 0;
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+        }
+
+        /* Desktop table view */
+        @media (min-width: 1024px) {
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .reports-table {
+                display: table;
+                width: 100%;
+                min-width: 1200px; /* Ensure proper spacing */
+            }
+            
+            .reports-table thead {
+                display: table-header-group;
+                background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+            
+            .reports-table thead th {
+                padding: 15px 10px;
+                font-size: 12px;
+                font-weight: 700;
+                color: #333;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                white-space: nowrap;
+                border-bottom: 2px solid #dee2e6;
+                text-align: left;
+                vertical-align: middle;
+            }
+            
+            .reports-table tbody {
+                display: table-row-group;
+            }
+            
+            .reports-table tbody tr {
+                display: table-row;
+                transition: all 0.2s ease;
+            }
+            
+            .reports-table tbody tr:hover {
+                background: #f8f9fa;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            }
+            
+            .reports-table tbody td {
+                display: table-cell;
+                padding: 12px 10px;
+                border-bottom: 1px solid #e9ecef;
+                vertical-align: middle;
+                font-size: 13px;
+            }
+            
+            .reports-table tbody td:before {
+                display: none;
+            }
+            
+            /* Action buttons desktop layout */
+            .reports-table tbody td[data-label="Actions"],
+            .reports-table tbody td:last-child {
+                white-space: nowrap;
+            }
+            
+            .view-btn, 
+            .patient-form-btn, 
+            .view-pdf-btn {
+                display: inline-flex;
+                width: auto;
+                margin-right: 5px;
+                margin-bottom: 5px;
+            }
+        }
+
+        /* Extra large screens */
+        @media (min-width: 1400px) {
+            .reports-table thead th {
+                padding: 16px 12px;
+                font-size: 13px;
+            }
+            
+            .reports-table tbody td {
+                padding: 14px 12px;
+                font-size: 14px;
+            }
+        }
+
+        /* Tablet landscape specific */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .reports-table tbody tr {
+                padding: 15px;
+            }
+            
+            .reports-table tbody td {
+                font-size: 14px;
+                padding: 10px 0;
+            }
+            
+            .reports-table tbody td:before {
+                flex: 0 0 130px;
+                font-size: 12px;
+            }
+        }
+
+        /* Small mobile specific */
+        @media (max-width: 374px) {
+            .reports-table tbody tr {
+                padding: 10px;
+            }
+            
+            .reports-table tbody td {
+                font-size: 12px;
+                padding: 6px 0;
+            }
+            
+            .reports-table tbody td:before {
+                flex: 0 0 100px;
+                font-size: 10px;
+            }
+            
+            .view-btn, 
+            .patient-form-btn, 
+            .view-pdf-btn {
+                font-size: 11px;
+                padding: 6px 10px;
+            }
+        }
+
+        /* Status and type badges responsive */
+        .status-badge,
+        .type-badge {
+            font-size: 10px;
+            padding: 4px 8px;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 576px) {
+            .status-badge,
+            .type-badge {
+                font-size: 9px;
+                padding: 3px 6px;
+            }
+        }
+
+        /* Emergency type display */
+        .emergency-type {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        @media (max-width: 1023px) {
+            .emergency-type {
+                justify-content: flex-end;
+                flex-wrap: wrap;
+            }
+        }
+
+        .emergency-icon {
+            flex-shrink: 0;
+        }
+
+        /* Report ID styling */
+        .report-id {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 12px;
+            color: #666;
+        }
+
+        @media (max-width: 576px) {
+            .report-id {
+                font-size: 11px;
+                }
+        }
+
+        /* Assignment status responsive */
+        .assignment-status {
+            font-size: 10px;
+            padding: 3px 6px;
+            display: inline-block;
+            margin: 2px 0;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 576px) {
+            .assignment-status {
+                font-size: 9px;
+                padding: 2px 5px;
+            }
+        }
+
+        /* Status tracking responsive */
+        .status-tracking {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .status-item {
+            font-size: 10px;
+            padding: 3px 6px;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 576px) {
+            .status-item {
+                font-size: 9px;
+                padding: 2px 5px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1139,6 +2426,19 @@
             <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">
                 Loading Incident Reports...
             </div>
+        </div>
+    </div>
+
+    <div id="pdfLoadingOverlay" class="pdf-loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div style="text-align: center;">
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">
+                Generating PDF Report...
+            </div>
+            <div class="pdf-progress-bar">
+                <div class="pdf-progress-fill" id="pdfProgressFill"></div>
+            </div>
+            <div id="pdfProgressText" style="font-size: 14px;">Preparing charts...</div>
         </div>
     </div>
 
@@ -1197,7 +2497,7 @@
             <div class="nav-item" data-role="admin">
                 <a href="Maps.html" class="nav-link">
                     <i class="fas fa-map"></i>
-                    Hazard Map
+                    Heat Map
                 </a>
             </div>
             
@@ -1323,42 +2623,242 @@
                     <div class="stat-number" id="resolvedCount">-</div>
                     <div class="stat-label">Resolved</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="avgResponseTime">-</div>
+                    <div class="stat-label">Avg Response Time (hrs)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeCases">-</div>
+                    <div class="stat-label">Active Cases</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="sosReports">-</div>
+                    <div class="stat-label">SOS Reports</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="responseEfficiency">-</div>
+                    <div class="stat-label">Response Efficiency (%)</div>
+                </div>
             </div>
 
-            <!-- Main Filters Section -->
+            <!-- Filter Section -->
             <div class="filters-section">
-                <div class="filters-row">
-                    <div class="filter-group">
-                        <label class="filter-label">Search Reports</label>
-                        <input type="text" id="searchInput" class="filter-input" 
-                               placeholder="Search by Report ID...">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label class="filter-label">Filter by Status</label>
-                        <select id="statusFilterOld" class="filter-select">
-                            <option value="">All Statuses</option>
-                            <option value="pending">Pending</option>
-                            <option value="assigned">Assigned</option>
-                            <option value="resolved">Resolved</option>
-                            <option value="dismissed">Dismissed</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="closed">Closed</option>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label class="filter-label">Filter by Type</label>
-                        <select id="typeFilter" class="filter-select">
-                            <option value="">All Types</option>
-                            <option value="report">Report</option>
-                            <option value="sos">SOS</option>
-                        </select>
-                    </div>
-                    
-                    <button id="clearFiltersBtn" class="clear-filters-btn">
-                        <i class="fas fa-times"></i> Clear
+                <div class="filter-header" id="filterToggle">
+                    <h3 class="filter-title">Filter Options</h3>
+                    <button class="filter-toggle" id="filterToggleBtn">
+                        <i class="fas fa-chevron-down"></i>
                     </button>
+                </div>
+                <div class="filter-content" id="filterContent">
+                    <div class="filter-category">
+                        <div class="filter-checkbox">
+                            <input type="checkbox" id="filterByDate">
+                            <label for="filterByDate" class="filter-checkbox-label">Filter by Date Range</label>
+                        </div>
+                        <div class="filter-options" id="dateFilterOptions">
+                            <div class="date-time-row">
+                                <div class="date-time-group">
+                                    <label class="date-time-label">Start Date</label>
+                                    <input type="date" id="startDate" class="date-time-input">
+                                </div>
+                                <div class="date-time-group">
+                                    <label class="date-time-label">Start Time</label>
+                                    <input type="time" id="startTime" class="date-time-input">
+                                </div>
+                            </div>
+                            <div class="date-time-row">
+                                <div class="date-time-group">
+                                    <label class="date-time-label">End Date</label>
+                                    <input type="date" id="endDate" class="date-time-input">
+                                </div>
+                                <div class="date-time-group">
+                                    <label class="date-time-label">End Time</label>
+                                    <input type="time" id="endTime" class="date-time-input">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-category">
+                        <div class="filter-checkbox">
+                            <input type="checkbox" id="filterByBarangay">
+                            <label for="filterByBarangay" class="filter-checkbox-label">Filter by Barangay</label>
+                        </div>
+                        <div class="filter-options" id="barangayFilterOptions">
+                            <div class="barangay-checkbox-container">
+                                <div class="barangay-checkbox-group" id="barangayCheckboxGroup">
+                                    <!-- Barangay checkboxes will be populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-category">
+                        <div class="filter-checkbox">
+                            <input type="checkbox" id="filterByType">
+                            <label for="filterByType" class="filter-checkbox-label">Filter by Incident Type</label>
+                        </div>
+                        <div class="filter-options" id="typeFilterOptions">
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="typeFire" value="fire">
+                                    <label for="typeFire">Fire</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="typeMedical" value="medical">
+                                    <label for="typeMedical">Medical</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="typeCrime" value="crime">
+                                    <label for="typeCrime">Crime</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="typeFlood" value="flood">
+                                    <label for="typeFlood">Flood</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="typeAccident" value="accident">
+                                    <label for="typeAccident">Accident</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="typeInfrastructure" value="infrastructure">
+                                    <label for="typeInfrastructure">Infrastructure</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-category">
+                        <div class="filter-checkbox">
+                            <input type="checkbox" id="filterByStatus">
+                            <label for="filterByStatus" class="filter-checkbox-label">Filter by Status</label>
+                        </div>
+                        <div class="filter-options" id="statusFilterOptions">
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="statusPending" value="pending">
+                                    <label for="statusPending">Pending</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="statusAssigned" value="assigned">
+                                    <label for="statusAssigned">Assigned</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="statusResolved" value="resolved">
+                                    <label for="statusResolved">Resolved</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="statusRejected" value="rejected">
+                                    <label for="statusRejected">Rejected</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="statusClosed" value="closed">
+                                    <label for="statusClosed">Closed</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-category">
+                        <div class="filter-checkbox">
+                            <input type="checkbox" id="filterByReportType">
+                            <label for="filterByReportType" class="filter-checkbox-label">Filter by Report Type</label>
+                        </div>
+                        <div class="filter-options" id="reportTypeFilterOptions">
+                            <div class="radio-group">
+                                <div class="radio-item">
+                                    <input type="radio" id="reportTypeReport" name="reportType" value="report">
+                                    <label for="reportTypeReport">Report</label>
+                                </div>
+                                <div class="radio-item">
+                                    <input type="radio" id="reportTypeSOS" name="reportType" value="sos">
+                                    <label for="reportTypeSOS">SOS</label>
+                                </div>
+                                <div class="radio-item">
+                                    <input type="radio" id="reportTypeBoth" name="reportType" value="both" checked>
+                                    <label for="reportTypeBoth">Both</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button id="clearAllBtn" class="clear-all-btn">
+                            <i class="fas fa-times"></i> Clear All
+                        </button>
+                        <button id="applyFiltersBtn" class="apply-filters-btn">
+                            <i class="fas fa-filter"></i> Apply Filters
+                        </button>
+                        <button id="viewReportBtn" class="view-report-btn" disabled>
+                            <i class="fas fa-chart-bar"></i> View Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rankings Section -->
+            <div class="rankings-section" id="rankingsSection">
+                <div class="ranking-card">
+                    <div class="ranking-title">Top 10 Barangays by Reports</div>
+                    <table class="ranking-table" id="topBarangaysTable">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Barangay</th>
+                                <th>Total Reports</th>
+                                <th>% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="ranking-card">
+                    <div class="ranking-title">Top 10 Incident Types</div>
+                    <table class="ranking-table" id="topIncidentTypesTable">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Type</th>
+                                <th>Count</th>
+                                <th>% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="ranking-card">
+                    <div class="ranking-title">Longest Resolution Times by Barangay</div>
+                    <table class="ranking-table" id="longestResolutionTable">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Barangay</th>
+                                <th>Avg Resolution Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="ranking-card">
+                    <div class="ranking-title">Response Time Analysis</div>
+                    <table class="ranking-table" id="responseTimeTable">
+                        <thead>
+                            <tr>
+                                <th>Time Range</th>
+                                <th>Reports</th>
+                                <th>% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -1385,6 +2885,203 @@
                             Next <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden PDF Charts Container -->
+    <div id="pdfChartsContainer" class="pdf-charts-container">
+        <canvas id="pdfIncidentTypeChart" class="pdf-chart-canvas"></canvas>
+        <canvas id="pdfStatusChart" class="pdf-chart-canvas"></canvas>
+        <canvas id="pdfTimelineChart" class="pdf-chart-canvas"></canvas>
+        <canvas id="pdfBarangayChart" class="pdf-chart-canvas"></canvas>
+    </div>
+
+    <!-- Report Preview Modal -->
+    <div id="reportModal" class="report-modal">
+        <div class="report-modal-overlay" onclick="closeReportModal()"></div>
+        <div class="report-modal-container">
+            <!-- Fixed Header -->
+            <div class="report-modal-header">
+                <div class="report-modal-header-left">
+                    <i class="fas fa-chart-line" style="color: #d73527; font-size: 24px;"></i>
+                    <div>
+                        <h2 class="report-modal-title">Incident Reports - Export Preview</h2>
+                        <p class="report-modal-subtitle" id="modalGeneratedDate">Generated: --</p>
+                    </div>
+                </div>
+                <button class="report-modal-close" onclick="closeReportModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable Body -->
+            <div class="report-modal-body">
+                <!-- Filter Summary -->
+                <div class="modal-section filter-summary-section">
+                    <h3 class="modal-section-title">
+                        <i class="fas fa-filter"></i> Filter Summary
+                    </h3>
+                    <div class="filter-summary-content" id="modalFilterSummary">
+                        <div class="filter-summary-item">
+                            <span class="filter-summary-label">Date Range:</span>
+                            <span class="filter-summary-value" id="modalDateRange">All Dates</span>
+                        </div>
+                        <div class="filter-summary-item">
+                            <span class="filter-summary-label">Barangays:</span>
+                            <span class="filter-summary-value" id="modalBarangays">All Barangays</span>
+                        </div>
+                        <div class="filter-summary-item">
+                            <span class="filter-summary-label">Incident Types:</span>
+                            <span class="filter-summary-value" id="modalIncidentTypes">All Types</span>
+                        </div>
+                        <div class="filter-summary-item">
+                            <span class="filter-summary-label">Status:</span>
+                            <span class="filter-summary-value" id="modalStatuses">All Statuses</span>
+                        </div>
+                        <div class="filter-summary-item">
+                            <span class="filter-summary-label">Report Type:</span>
+                            <span class="filter-summary-value" id="modalReportType">Both</span>
+                        </div>
+                        <div class="filter-summary-item">
+                            <span class="filter-summary-label">Total Reports:</span>
+                            <span class="filter-summary-value" id="modalTotalReports">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI Section -->
+                <div class="modal-section kpi-section">
+                    <h3 class="modal-section-title">
+                        <i class="fas fa-tachometer-alt"></i> Key Performance Indicators
+                    </h3>
+                    <div class="modal-kpi-grid" id="modalKpiGrid">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="modal-section charts-section">
+                    <h3 class="modal-section-title">
+                        <i class="fas fa-chart-pie"></i> Data Visualizations
+                    </h3>
+                    <div class="modal-charts-grid">
+                        <div class="modal-chart-container">
+                            <h4 class="modal-chart-title">Incident Type Distribution</h4>
+                            <canvas id="modalIncidentTypeChart"></canvas>
+                        </div>
+                        <div class="modal-chart-container">
+                            <h4 class="modal-chart-title">Report Status Distribution</h4>
+                            <canvas id="modalStatusChart"></canvas>
+                        </div>
+                        <div class="modal-chart-container">
+                            <h4 class="modal-chart-title">Reports Timeline (Last 30 Days)</h4>
+                            <canvas id="modalTimelineChart"></canvas>
+                        </div>
+                        <div class="modal-chart-container">
+                            <h4 class="modal-chart-title">Top Barangays by Reports</h4>
+                            <canvas id="modalBarangayChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rankings Section -->
+                <div class="modal-section rankings-section">
+                    <h3 class="modal-section-title">
+                        <i class="fas fa-trophy"></i> Performance Analysis
+                    </h3>
+                    <div class="modal-rankings-grid">
+                        <div class="modal-ranking-card">
+                            <h4 class="modal-ranking-title">Top 10 Barangays by Reports</h4>
+                            <div class="modal-ranking-table-wrapper">
+                                <table class="modal-ranking-table" id="modalTopBarangaysTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Barangay</th>
+                                            <th>Total</th>
+                                            <th>%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Will be populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-ranking-card">
+                            <h4 class="modal-ranking-title">Top 10 Incident Types</h4>
+                            <div class="modal-ranking-table-wrapper">
+                                <table class="modal-ranking-table" id="modalTopIncidentTypesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Type</th>
+                                            <th>Count</th>
+                                            <th>%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Will be populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-ranking-card">
+                            <h4 class="modal-ranking-title">Longest Resolution Times</h4>
+                            <div class="modal-ranking-table-wrapper">
+                                <table class="modal-ranking-table" id="modalLongestResolutionTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Barangay</th>
+                                            <th>Avg Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Will be populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-ranking-card">
+                            <h4 class="modal-ranking-title">Response Time Analysis</h4>
+                            <div class="modal-ranking-table-wrapper">
+                                <table class="modal-ranking-table" id="modalResponseTimeTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Time Range</th>
+                                            <th>Reports</th>
+                                            <th>%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Will be populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fixed Footer -->
+            <div class="report-modal-footer">
+                <div class="report-modal-footer-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Export this report to PDF or Excel format</span>
+                </div>
+                <div class="report-modal-footer-actions">
+                    <button class="modal-export-btn modal-cancel-btn" onclick="closeReportModal()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button class="modal-export-btn modal-pdf-btn" id="modalExportPdfBtn">
+                        <i class="fas fa-file-pdf"></i> Export as PDF
+                    </button>
+                    <button class="modal-export-btn modal-excel-btn" id="modalExportExcelBtn">
+                        <i class="fas fa-file-excel"></i> Export as Excel
+                    </button>
                 </div>
             </div>
         </div>
@@ -1425,19 +3122,70 @@
         let allReports = [];
         let filteredReports = [];
         let reportsListener = null;
+        let pdfCharts = {};
+        let modalCharts = {};
+        let isModalOpen = false;
 
         // Pagination variables
         let currentPage = 1;
         const reportsPerPage = 10;
         let totalPages = 1;
 
-        const searchInput = document.getElementById('searchInput');
-        const statusFilter = document.getElementById('statusFilter');
-        const agencyFilter = document.getElementById('agencyFilter');
-        const searchReports = document.getElementById('searchReports');
-        const statusFilterOld = document.getElementById('statusFilterOld');
-        const typeFilter = document.getElementById('typeFilter');
-        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        // Filter elements
+        const filterToggle = document.getElementById('filterToggle');
+        const filterToggleBtn = document.getElementById('filterToggleBtn');
+        const filterContent = document.getElementById('filterContent');
+        
+        const filterByDate = document.getElementById('filterByDate');
+        const dateFilterOptions = document.getElementById('dateFilterOptions');
+        const startDate = document.getElementById('startDate');
+        const startTime = document.getElementById('startTime');
+        const endDate = document.getElementById('endDate');
+        const endTime = document.getElementById('endTime');
+
+        const filterByBarangay = document.getElementById('filterByBarangay');
+        const barangayFilterOptions = document.getElementById('barangayFilterOptions');
+        const barangayCheckboxGroup = document.getElementById('barangayCheckboxGroup');
+
+        const filterByType = document.getElementById('filterByType');
+        const typeFilterOptions = document.getElementById('typeFilterOptions');
+        const typeCheckboxes = document.querySelectorAll('#typeFilterOptions input[type="checkbox"]');
+
+        const filterByStatus = document.getElementById('filterByStatus');
+        const statusFilterOptions = document.getElementById('statusFilterOptions');
+        const statusCheckboxes = document.querySelectorAll('#statusFilterOptions input[type="checkbox"]');
+
+        const filterByReportType = document.getElementById('filterByReportType');
+        const reportTypeFilterOptions = document.getElementById('reportTypeFilterOptions');
+        const reportTypeRadios = document.querySelectorAll('#reportTypeFilterOptions input[type="radio"]');
+
+        const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const viewReportBtn = document.getElementById('viewReportBtn');
+
+        // Statistics elements
+        const totalCount = document.getElementById('totalCount');
+        const pendingCount = document.getElementById('pendingCount');
+        const assignedCount = document.getElementById('assignedCount');
+        const resolvedCount = document.getElementById('resolvedCount');
+        const avgResponseTime = document.getElementById('avgResponseTime');
+        const activeCases = document.getElementById('activeCases');
+        const sosReports = document.getElementById('sosReports');
+        const responseEfficiency = document.getElementById('responseEfficiency');
+
+        // CDRRMO Coordination Stats Elements
+        const cdrrmoStatsRow = document.getElementById('cdrrmoStatsRow');
+        const cdrrmoAssignments = document.getElementById('cdrrmoAssignments');
+        const partnerAssignments = document.getElementById('partnerAssignments');
+        const bfpAssignments = document.getElementById('bfpAssignments');
+        const pnpAssignments = document.getElementById('pnpAssignments');
+
+        // Rankings tables
+        const topBarangaysTable = document.getElementById('topBarangaysTable');
+        const topIncidentTypesTable = document.getElementById('topIncidentTypesTable');
+        const longestResolutionTable = document.getElementById('longestResolutionTable');
+        const responseTimeTable = document.getElementById('responseTimeTable');
+
         const tableContent = document.getElementById('tableContent');
         const reportDescription = document.getElementById('reportDescription');
         const createButton = document.getElementById('createButton');
@@ -1449,17 +3197,30 @@
         const nextPageBtn = document.getElementById('nextPageBtn');
         const pageNumbers = document.getElementById('pageNumbers');
 
-        const totalCount = document.getElementById('totalCount');
-        const pendingCount = document.getElementById('pendingCount');
-        const assignedCount = document.getElementById('assignedCount');
-        const resolvedCount = document.getElementById('resolvedCount');
+        // PDF Loading elements
+        const pdfLoadingOverlay = document.getElementById('pdfLoadingOverlay');
+        const pdfProgressFill = document.getElementById('pdfProgressFill');
+        const pdfProgressText = document.getElementById('pdfProgressText');
 
-        // CDRRMO Coordination Stats Elements
-        const cdrrmoStatsRow = document.getElementById('cdrrmoStatsRow');
-        const cdrrmoAssignments = document.getElementById('cdrrmoAssignments');
-        const partnerAssignments = document.getElementById('partnerAssignments');
-        const bfpAssignments = document.getElementById('bfpAssignments');
-        const pnpAssignments = document.getElementById('pnpAssignments');
+        // Modal elements
+        const modalExportPdfBtn = document.getElementById('modalExportPdfBtn');
+        const modalExportExcelBtn = document.getElementById('modalExportExcelBtn');
+
+        // Official 72 Barangays of Lipa City
+        const officialBarangays = [
+            'Adya', 'Anilao', 'Anilao-Labac', 'Antipolo del Norte', 'Antipolo del Sur',
+            'Bagong Pook', 'Balintawak', 'Banaybanay', 'Barangay 1 (Poblacion)', 'Barangay 2 (Poblacion)',
+            'Barangay 3 (Poblacion)', 'Barangay 4 (Poblacion)', 'Barangay 5 (Poblacion)', 'Barangay 6 (Poblacion)',
+            'Barangay 7 (Poblacion)', 'Barangay 8 (Poblacion)', 'Barangay 9 (Poblacion)', 'Barangay 9-A (Poblacion)',
+            'Barangay 10 (Poblacion)', 'Barangay 11 (Poblacion)', 'Bolbok', 'Bugtong na Pulo', 'Bulacnin', 'Bulaklakan',
+            'Calamias', 'Cumba', 'Dagatan', 'Duhatan', 'Fernando Air Base', 'Halang', 'Inosloban', 'Kayumanggi',
+            'Latag', 'Lodlod', 'Lumbang', 'Mabini', 'Malagonlong', 'Malitlit', 'Marawoy', 'Mataas na Lupa',
+            'Munting Pulo', 'Pag-olingin Bata', 'Pag-olingin East', 'Pag-olingin West', 'Pangao', 'Pinagkawitan',
+            'Pinagtong-ulan', 'Plaridel', 'Pusil', 'Quezon', 'Rizal', 'Sabang', 'Sampaguita', 'San Benito',
+            'San Carlos', 'San Celestino', 'San Francisco', 'San Guillermo', 'San Isidro', 'San Jose', 'San Lucas',
+            'San Salvador', 'San Sebastián', 'Santo Niño', 'Santo Toribio', 'Sico', 'Talisay', 'Tambo', 'Tangob',
+            'Tangway', 'Tibig', 'Tipacan'
+        ];
 
         const emergencyTypeMapping = {
             'fire': 'Fire Emergency',
@@ -1478,6 +3239,130 @@
             'accident': 'fa-car-crash',
             'infrastructure': 'fa-tools'
         };
+
+        // Initialize filter checkboxes
+        function initializeFilters() {
+            // Set today's date as default for end date
+            const today = new Date();
+            const todayFormatted = today.toISOString().split('T')[0];
+            endDate.value = todayFormatted;
+            
+            // Set start date to 7 days ago
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 7);
+            const sevenDaysAgoFormatted = sevenDaysAgo.toISOString().split('T')[0];
+            startDate.value = sevenDaysAgoFormatted;
+            
+            // Set current time for end time
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            endTime.value = `${hours}:${minutes}`;
+            
+            // Set start time to 00:00
+            startTime.value = '00:00';
+            
+            // Populate barangay checkboxes
+            populateBarangayCheckboxes();
+            
+            // Add event listeners for filter checkboxes
+            filterByDate.addEventListener('change', function() {
+                dateFilterOptions.classList.toggle('show', this.checked);
+            });
+            
+            filterByBarangay.addEventListener('change', function() {
+                barangayFilterOptions.classList.toggle('show', this.checked);
+            });
+            
+            filterByType.addEventListener('change', function() {
+                typeFilterOptions.classList.toggle('show', this.checked);
+            });
+            
+            filterByStatus.addEventListener('change', function() {
+                statusFilterOptions.classList.toggle('show', this.checked);
+            });
+            
+            filterByReportType.addEventListener('change', function() {
+                reportTypeFilterOptions.classList.toggle('show', this.checked);
+            });
+            
+            // Filter toggle functionality
+            filterToggle.addEventListener('click', function() {
+                filterContent.classList.toggle('collapsed');
+                const icon = filterToggleBtn.querySelector('i');
+                if (filterContent.classList.contains('collapsed')) {
+                    icon.className = 'fas fa-chevron-up';
+                } else {
+                    icon.className = 'fas fa-chevron-down';
+                }
+            });
+            
+            // Apply filters button
+            applyFiltersBtn.addEventListener('click', applyFilters);
+            
+            // Clear all button
+            clearAllBtn.addEventListener('click', clearAllFilters);
+            
+            // View Report button
+            viewReportBtn.addEventListener('click', openReportModal);
+            
+            // Modal export buttons
+            modalExportPdfBtn.addEventListener('click', exportModalToPdf);
+            modalExportExcelBtn.addEventListener('click', exportModalToExcel);
+        }
+
+        // Populate barangay checkboxes
+        function populateBarangayCheckboxes() {
+            let checkboxesHTML = `
+                <div class="barangay-checkbox-item">
+                    <input type="checkbox" id="selectAllBarangays">
+                    <label for="selectAllBarangays"><strong>Select All</strong></label>
+                </div>
+            `;
+            
+            officialBarangays.forEach(barangay => {
+                checkboxesHTML += `
+                    <div class="barangay-checkbox-item">
+                        <input type="checkbox" id="barangay-${barangay.replace(/\s+/g, '-')}" value="${barangay}">
+                        <label for="barangay-${barangay.replace(/\s+/g, '-')}">${barangay}</label>
+                    </div>
+                `;
+            });
+            
+            barangayCheckboxGroup.innerHTML = checkboxesHTML;
+            
+            // Add event listener for "Select All" checkbox
+            const selectAllCheckbox = document.getElementById('selectAllBarangays');
+            const barangayCheckboxes = document.querySelectorAll('.barangay-checkbox-item input[type="checkbox"]:not(#selectAllBarangays)');
+            
+            selectAllCheckbox.addEventListener('change', function() {
+                barangayCheckboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+            });
+            
+            // Add event listeners to individual barangay checkboxes
+            barangayCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const allChecked = Array.from(barangayCheckboxes).every(cb => cb.checked);
+                    selectAllCheckbox.checked = allChecked;
+                });
+            });
+        }
+
+        // Get selected barangays
+        function getSelectedBarangays() {
+            const selectedBarangays = [];
+            const barangayCheckboxes = document.querySelectorAll('.barangay-checkbox-item input[type="checkbox"]:not(#selectAllBarangays)');
+            
+            barangayCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedBarangays.push(checkbox.value);
+                }
+            });
+            
+            return selectedBarangays;
+        }
 
         // Role-based Filtering Function
         function filterReportsByRole(reports, userRole, userData) {
@@ -1538,72 +3423,6 @@
             }
             
             return statusHTML;
-        }
-
-        // Search and Filter Setup
-        function setupSearchFilters() {
-            const statusFilter = document.getElementById('statusFilter');
-            const agencyFilter = document.getElementById('agencyFilter');
-            const searchInput = document.getElementById('searchReports');
-            
-            if (statusFilter) {
-                statusFilter.addEventListener('change', filterReports);
-            }
-            if (agencyFilter) {
-                agencyFilter.addEventListener('change', filterReports);
-            }
-            if (searchInput) {
-                searchInput.addEventListener('input', filterReports);
-            }
-        }
-
-        // Enhanced Filter Function
-        function filterReports() {
-            const statusFilter = document.getElementById('statusFilter')?.value;
-            const agencyFilter = document.getElementById('agencyFilter')?.value;
-            const searchTerm = document.getElementById('searchReports')?.value.toLowerCase();
-            
-            filteredReports = allReports.filter(report => {
-                // Status filter
-                if (statusFilter && statusFilter !== 'all') {
-                    const reportStatus = (report.status || 'pending').toLowerCase();
-                    if (reportStatus !== statusFilter.toLowerCase()) {
-                        return false;
-                    }
-                }
-                
-                // Agency filter
-                if (agencyFilter && agencyFilter !== 'all') {
-                    if (agencyFilter === 'CDRRMO') {
-                        if (!report.mainCoordinator || report.mainCoordinator !== 'CDRRMO') {
-                            return false;
-                        }
-                    } else if (agencyFilter === 'BFP') {
-                        if (!report.partnerAgency || !report.partnerAgency.includes('BFP')) {
-                            return false;
-                        }
-                    } else if (agencyFilter === 'PNP') {
-                        if (!report.partnerAgency || !report.partnerAgency.includes('PNP')) {
-                            return false;
-                        }
-                    }
-                }
-                
-                // Search by Report ID
-                if (searchTerm) {
-                    const reportId = generateShortId(report.id).toLowerCase();
-                    if (!reportId.includes(searchTerm)) {
-                        return false;
-                    }
-                }
-                
-                return true;
-            });
-
-            // Reset to first page when filtering
-            currentPage = 1;
-            renderTable();
-            updatePagination();
         }
 
         function updateNavigationVisibility(userRole) {
@@ -1776,34 +3595,125 @@
             pnpAssignments.textContent = stats.pnpAssignments;
         }
 
-        function updateStatistics() {
+        // Calculate all statistics
+        function calculateStatistics(reports) {
             const stats = {
-                total: allReports.length,
+                total: reports.length,
                 pending: 0,
                 assigned: 0,
-                resolved: 0
+                resolved: 0,
+                cdrrmoAssignments: 0,
+                withPartners: 0,
+                bfpSupport: 0,
+                pnpSupport: 0,
+                avgResponseTime: 0,
+                activeCases: 0,
+                sosReports: 0,
+                responseEfficiency: 0
             };
 
-            allReports.forEach(report => {
+            let totalResponseTime = 0;
+            let responseTimeCount = 0;
+
+            reports.forEach(report => {
                 const status = report.status || 'pending';
                 if (status === 'pending') stats.pending++;
                 else if (status === 'assigned') stats.assigned++;
                 else if (status === 'resolved' || status === 'closed') stats.resolved++;
+
+                // CDRRMO statistics
+                if (report.assignedRescuer) stats.cdrrmoAssignments++;
+                if (report.partnerAgency) stats.withPartners++;
+                if (report.partnerAgency && report.partnerAgency.includes('BFP')) stats.bfpSupport++;
+                if (report.partnerAgency && report.partnerAgency.includes('PNP')) stats.pnpSupport++;
+
+                // Response time calculation
+                if (report.createdAt && report.assignedAt) {
+                    const created = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+                    const assigned = report.assignedAt.toDate ? report.assignedAt.toDate() : new Date(report.assignedAt);
+                    const responseTimeHours = (assigned - created) / (1000 * 60 * 60);
+                    totalResponseTime += responseTimeHours;
+                    responseTimeCount++;
+                }
+
+                // Active cases (pending or assigned)
+                if (status === 'pending' || status === 'assigned') {
+                    stats.activeCases++;
+                }
+
+                // SOS reports
+                if (report.type === 'sos') {
+                    stats.sosReports++;
+                }
             });
+
+            // Calculate averages
+            stats.avgResponseTime = responseTimeCount > 0 ? (totalResponseTime / responseTimeCount).toFixed(1) : 0;
+            
+            // Calculate response efficiency (percentage of resolved cases)
+            const resolvedCases = reports.filter(r => r.status === 'resolved' || r.status === 'closed').length;
+            stats.responseEfficiency = reports.length > 0 ? ((resolvedCases / reports.length) * 100).toFixed(1) : 0;
+
+            return stats;
+        }
+
+        function updateStatistics() {
+            const stats = calculateStatistics(allReports);
 
             totalCount.textContent = stats.total;
             pendingCount.textContent = stats.pending;
             assignedCount.textContent = stats.assigned;
             resolvedCount.textContent = stats.resolved;
+            avgResponseTime.textContent = stats.avgResponseTime;
+            activeCases.textContent = stats.activeCases;
+            sosReports.textContent = stats.sosReports;
+            responseEfficiency.textContent = stats.responseEfficiency;
 
             // Update CDRRMO statistics
             updateCDRRMOStatistics();
         }
 
-       function updateReportDescription(userRole) {
-    if (userRole === 'rescuer') {
-        reportDescription.textContent = 'View pending reports and manage assigned incident reports';
-    } else if (userRole === 'agency') {
+        // Update statistics based on FILTERED reports
+        function updateFilteredStatistics() {
+            const stats = calculateStatistics(filteredReports);
+
+            // Update Main Statistics Cards
+            totalCount.textContent = stats.total;
+            pendingCount.textContent = stats.pending;
+            assignedCount.textContent = stats.assigned;
+            resolvedCount.textContent = stats.resolved;
+            avgResponseTime.textContent = stats.avgResponseTime;
+            activeCases.textContent = stats.activeCases;
+            sosReports.textContent = stats.sosReports;
+            responseEfficiency.textContent = stats.responseEfficiency;
+
+            // Update CDRRMO Statistics (if visible)
+            if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor')) {
+                updateFilteredCDRRMOStatistics();
+            }
+        }
+
+        // Update CDRRMO statistics based on FILTERED reports
+        function updateFilteredCDRRMOStatistics() {
+            const stats = {
+                totalAssigned: filteredReports.filter(r => r.assignedRescuer || r.partnerAgency).length,
+                cdrrmoOnly: filteredReports.filter(r => r.assignedRescuer && !r.partnerAgency).length,
+                withPartner: filteredReports.filter(r => r.partnerAgency).length,
+                bfpAssignments: filteredReports.filter(r => r.partnerAgency === 'BFP Lipa Fire Station').length,
+                pnpAssignments: filteredReports.filter(r => r.partnerAgency === 'PNP Lipa Police Station').length,
+                partnerActive: filteredReports.filter(r => r.partnerAgency && r.partnerAgencyStatus !== 'completed').length
+            };
+
+            cdrrmoAssignments.textContent = stats.totalAssigned;
+            partnerAssignments.textContent = stats.withPartner;
+            bfpAssignments.textContent = stats.bfpAssignments;
+            pnpAssignments.textContent = stats.pnpAssignments;
+        }
+
+        function updateReportDescription(userRole) {
+            if (userRole === 'rescuer') {
+                reportDescription.textContent = 'View pending reports and manage assigned incident reports';
+            } else if (userRole === 'agency') {
                 reportDescription.textContent = 'View and manage incident reports assigned to your agency';
             } else if (userRole === 'monitor') {
                 reportDescription.textContent = 'Monitor and manage all submitted incident reports';
@@ -1812,38 +3722,156 @@
             }
         }
 
+        // Apply filters function
         function applyFilters() {
-            const searchTerm = searchInput.value.toLowerCase().trim();
-            const statusValue = statusFilterOld.value.toLowerCase();
-            const typeValue = typeFilter.value.toLowerCase();
+            filteredReports = allReports;
 
-            filteredReports = allReports.filter(report => {
-                // Search by Report ID
-                if (searchTerm) {
-                    const reportId = generateShortId(report.id).toLowerCase();
-                    if (!reportId.includes(searchTerm)) {
-                        return false;
-                    }
+            // Apply Date/Time filter ONLY if checkbox checked
+            if (filterByDate.checked) {
+                const startDateTime = new Date(`${startDate.value} ${startTime.value}`);
+                const endDateTime = new Date(`${endDate.value} ${endTime.value}`);
+                
+                if (startDate.value && endDate.value) {
+                    filteredReports = filteredReports.filter(report => {
+                        const reportDate = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+                        return reportDate >= startDateTime && reportDate <= endDateTime;
+                    });
                 }
+            }
 
-                if (statusValue && statusValue !== (report.status || 'pending').toLowerCase()) {
-                    return false;
+            // Apply Barangay filter ONLY if checkbox checked
+            if (filterByBarangay.checked) {
+                const selectedBarangays = getSelectedBarangays();
+                
+                if (selectedBarangays.length > 0) {
+                    filteredReports = filteredReports.filter(report =>
+                        selectedBarangays.includes(report.barangay)
+                    );
                 }
+            }
 
-                if (typeValue) {
-                    const reportType = (report.type || 'report').toLowerCase();
-                    if (reportType !== typeValue) {
-                        return false;
-                    }
+            // Apply Incident Type filter ONLY if checkbox checked
+            if (filterByType.checked) {
+                const selectedTypes = Array.from(typeCheckboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+                
+                if (selectedTypes.length > 0) {
+                    filteredReports = filteredReports.filter(report =>
+                        selectedTypes.includes((report.emergencyType || '').toLowerCase())
+                    );
                 }
+            }
 
-                return true;
-            });
+            // Apply Status filter ONLY if checkbox checked
+            if (filterByStatus.checked) {
+                const selectedStatuses = Array.from(statusCheckboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+                
+                if (selectedStatuses.length > 0) {
+                    filteredReports = filteredReports.filter(report =>
+                        selectedStatuses.includes(report.status || 'pending')
+                    );
+                }
+            }
+
+            // Apply Report Type filter ONLY if checkbox checked
+            if (filterByReportType.checked) {
+                const selectedType = document.querySelector('input[name="reportType"]:checked').value;
+                if (selectedType !== 'both') {
+                    filteredReports = filteredReports.filter(report =>
+                        (report.type || 'report') === selectedType
+                    );
+                }
+            }
 
             // Reset to first page when filtering
             currentPage = 1;
+            
+            // ✅ UPDATE STATISTICS WITH FILTERED DATA
+            updateFilteredStatistics();
+            
             renderTable();
             updatePagination();
+            updateRankings();
+            
+            // Enable View Report button
+            viewReportBtn.disabled = false;
+            
+            showNotification(`Applied filters: ${filteredReports.length} reports found`, 'success');
+        }
+
+        // Clear all filters
+        function clearAllFilters() {
+            // Uncheck all filter checkboxes
+            filterByDate.checked = false;
+            filterByBarangay.checked = false;
+            filterByType.checked = false;
+            filterByStatus.checked = false;
+            filterByReportType.checked = false;
+            
+            // Hide all filter options
+            dateFilterOptions.classList.remove('show');
+            barangayFilterOptions.classList.remove('show');
+            typeFilterOptions.classList.remove('show');
+            statusFilterOptions.classList.remove('show');
+            reportTypeFilterOptions.classList.remove('show');
+            
+            // Reset filter values
+            startDate.value = '';
+            startTime.value = '';
+            endDate.value = '';
+            endTime.value = '';
+            
+            // Uncheck all barangay checkboxes
+            const barangayCheckboxes = document.querySelectorAll('.barangay-checkbox-item input[type="checkbox"]');
+            barangayCheckboxes.forEach(cb => cb.checked = false);
+            
+            // Uncheck all type checkboxes
+            typeCheckboxes.forEach(cb => cb.checked = false);
+            
+            // Uncheck all status checkboxes
+            statusCheckboxes.forEach(cb => cb.checked = false);
+            
+            // Reset report type to "both"
+            document.getElementById('reportTypeBoth').checked = true;
+            
+            // Reset to show all reports
+            filteredReports = allReports;
+            currentPage = 1;
+            
+            // ✅ RESET STATISTICS TO SHOW ALL DATA
+            updateStatistics();
+            
+            renderTable();
+            updatePagination();
+            updateRankings();
+            
+            // Disable View Report button
+            viewReportBtn.disabled = true;
+            
+            showNotification('All filters cleared', 'info');
+        }
+
+        // Helper function to extract date from Firestore timestamp
+        function extractDate(timestamp) {
+            if (!timestamp) return null;
+            
+            try {
+                if (timestamp.seconds) {
+                    return new Date(timestamp.seconds * 1000);
+                } else if (timestamp.toDate) {
+                    return timestamp.toDate();
+                } else if (timestamp instanceof Date) {
+                    return timestamp;
+                } else if (typeof timestamp === 'string') {
+                    return new Date(timestamp);
+                }
+            } catch (e) {
+                console.error('Error extracting date:', e);
+            }
+            return null;
         }
 
         // Patient form function
@@ -1972,6 +4000,7 @@
                     <th>Type</th>
                     <th>Emergency Type</th>
                     <th>Subcategory</th>
+                    <th>Barangay</th>
                     <th>Full Address</th>
                     <th>Status</th>
                     <th>Timestamp</th>
@@ -2040,6 +4069,7 @@
                                             </div>
                                         </td>
                                         <td>${report.subCategory || report.subcategory || report.incidentType || 'Not specified'}</td>
+                                        <td>${report.barangay || 'Unknown'}</td>
                                         <td>
                                             <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
                                                  title="${report.fullAddress || report.addressLine || report.barangay || 'Address not provided'}">
@@ -2127,7 +4157,7 @@
                                     <td data-label="Emergency Type">
                                         <div class="emergency-type">
                                             <div class="emergency-icon ${getEmergencyClass(report.emergencyType)}">
-                                                <i class="fas ${getEmergencyIcon(report.emergencyType)}"></i>
+                                                <i class="fas ${getEmergencyIcon(report.emergencyType)}</i>
                                             </div>
                                             ${getEmergencyTypeDisplay(report.emergencyType)}
                                         </div>
@@ -2136,6 +4166,11 @@
                                 <tr>
                                     <td data-label="Subcategory">
                                         <div>${report.subCategory || report.subcategory || report.incidentType || 'Not specified'}</div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Barangay">
+                                        <div>${report.barangay || 'Unknown'}</div>
                                     </td>
                                 </tr>
                                 <tr>
@@ -2169,60 +4204,225 @@
             }
         }
 
-        // Agency query for incident reports list
-       function createReportQuery(userRole, userId) {
-    const baseCollection = collection(db, "incident_reports");
-    
-    if (userRole === 'admin' || userRole === 'monitor') {
-        // ✅ ADMIN/MONITOR: See ALL reports including SOS
-        return query(baseCollection, orderBy("createdAt", "desc"));
-    } else if (userRole === 'rescuer') {
-        // ✅ RESCUER: See ONLY assigned reports (both regular reports and SOS)
-        return query(
-            baseCollection,
-            where("assignedRescuer", "==", userId),
-            orderBy("createdAt", "desc")
-        );
-    } else if (userRole === 'agency') {
-        return new Promise(async (resolve) => {
-            try {
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    const userAgency = userData.agency || userData.agencyName || userData.organization;
+        // Update rankings tables
+        function updateRankings() {
+            updateTopBarangays();
+            updateTopIncidentTypes();
+            updateLongestResolutionTimes();
+            updateResponseTimeAnalysis();
+        }
+
+        function updateTopBarangays() {
+            const barangayCounts = {};
+            
+            filteredReports.forEach(report => {
+                const barangay = report.barangay || 'Unknown';
+                barangayCounts[barangay] = (barangayCounts[barangay] || 0) + 1;
+            });
+            
+            const topBarangays = Object.entries(barangayCounts)
+                .map(([barangay, count]) => ({ barangay, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+            
+            const totalReports = filteredReports.length;
+            
+            let tableBody = '';
+            topBarangays.forEach((item, index) => {
+                const percentage = totalReports > 0 ? ((item.count / totalReports) * 100).toFixed(1) : 0;
+                tableBody += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.barangay}</td>
+                        <td>${item.count}</td>
+                        <td>${percentage}%</td>
+                    </tr>
+                `;
+            });
+            
+            topBarangaysTable.querySelector('tbody').innerHTML = tableBody;
+        }
+
+        function updateTopIncidentTypes() {
+            const typeCounts = {};
+            
+            filteredReports.forEach(report => {
+                const type = report.emergencyType || 'Unknown';
+                typeCounts[type] = (typeCounts[type] || 0) + 1;
+            });
+            
+            const topTypes = Object.entries(typeCounts)
+                .map(([type, count]) => ({ type, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+            
+            const totalReports = filteredReports.length;
+            
+            let tableBody = '';
+            topTypes.forEach((item, index) => {
+                const percentage = totalReports > 0 ? ((item.count / totalReports) * 100).toFixed(1) : 0;
+                tableBody += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${getEmergencyTypeDisplay(item.type)}</td>
+                        <td>${item.count}</td>
+                        <td>${percentage}%</td>
+                    </tr>
+                `;
+            });
+            
+            topIncidentTypesTable.querySelector('tbody').innerHTML = tableBody;
+        }
+
+        function updateLongestResolutionTimes() {
+            // Calculate average resolution time per barangay
+            const barangayResolutionTimes = {};
+            
+            filteredReports.forEach(report => {
+                if (report.createdAt && report.resolvedAt) {
+                    const barangay = report.barangay || 'Unknown';
+                    const created = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+                    const resolved = report.resolvedAt.toDate ? report.resolvedAt.toDate() : new Date(report.resolvedAt);
+                    const resolutionTimeDays = (resolved - created) / (1000 * 60 * 60 * 24);
                     
-                    if (userAgency) {
-                        // ✅ AGENCY: See ONLY agency-assigned reports (both regular reports and SOS)
-                        const agencyQuery = query(
-                            baseCollection, 
-                            or(
-                                where("supportAgency", "==", userAgency),
-                                where("assignedAgency", "==", userAgency),
-                                where("supportAgencyName", "==", userAgency),
-                                where("assignedAgencyName", "==", userAgency),
-                                where("mainCoordinator", "==", userAgency),
-                                where("partnerAgency", "==", userAgency)
-                            ),
-                            orderBy("createdAt", "desc")
-                        );
-                        resolve(agencyQuery);
+                    if (!barangayResolutionTimes[barangay]) {
+                        barangayResolutionTimes[barangay] = {
+                            totalTime: 0,
+                            count: 0
+                        };
+                    }
+                    
+                    barangayResolutionTimes[barangay].totalTime += resolutionTimeDays;
+                    barangayResolutionTimes[barangay].count++;
+                }
+            });
+            
+            // Calculate average per barangay
+            const barangayAverages = Object.entries(barangayResolutionTimes)
+                .map(([barangay, data]) => ({
+                    barangay,
+                    avgResolutionTime: data.totalTime / data.count
+                }))
+                .sort((a, b) => b.avgResolutionTime - a.avgResolutionTime)
+                .slice(0, 10);
+            
+            let tableBody = '';
+            barangayAverages.forEach((item, index) => {
+                tableBody += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.barangay}</td>
+                        <td>${item.avgResolutionTime.toFixed(1)} days</td>
+                    </tr>
+                `;
+            });
+            
+            longestResolutionTable.querySelector('tbody').innerHTML = tableBody;
+        }
+
+        function updateResponseTimeAnalysis() {
+            const timeRanges = {
+                '0-1 hour': 0,
+                '1-3 hours': 0,
+                '3-6 hours': 0,
+                '6-12 hours': 0,
+                '12-24 hours': 0,
+                '24+ hours': 0
+            };
+            
+            filteredReports.forEach(report => {
+                if (report.createdAt && report.assignedAt) {
+                    const created = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+                    const assigned = report.assignedAt.toDate ? report.assignedAt.toDate() : new Date(report.assignedAt);
+                    const responseTimeHours = (assigned - created) / (1000 * 60 * 60);
+                    
+                    if (responseTimeHours <= 1) {
+                        timeRanges['0-1 hour']++;
+                    } else if (responseTimeHours <= 3) {
+                        timeRanges['1-3 hours']++;
+                    } else if (responseTimeHours <= 6) {
+                        timeRanges['3-6 hours']++;
+                    } else if (responseTimeHours <= 12) {
+                        timeRanges['6-12 hours']++;
+                    } else if (responseTimeHours <= 24) {
+                        timeRanges['12-24 hours']++;
                     } else {
-                        // ❌ No agency specified - show nothing
+                        timeRanges['24+ hours']++;
+                    }
+                }
+            });
+            
+            const totalReports = filteredReports.length;
+            
+            let tableBody = '';
+            Object.entries(timeRanges).forEach(([range, count]) => {
+                const percentage = totalReports > 0 ? ((count / totalReports) * 100).toFixed(1) : 0;
+                tableBody += `
+                    <tr>
+                        <td>${range}</td>
+                        <td>${count}</td>
+                        <td>${percentage}%</td>
+                    </tr>
+                `;
+            });
+            
+            responseTimeTable.querySelector('tbody').innerHTML = tableBody;
+        }
+
+        // Agency query for incident reports list
+        function createReportQuery(userRole, userId) {
+            const baseCollection = collection(db, "incident_reports");
+            
+            if (userRole === 'admin' || userRole === 'monitor') {
+                // ✅ ADMIN/MONITOR: See ALL reports including SOS
+                return query(baseCollection, orderBy("createdAt", "desc"));
+            } else if (userRole === 'rescuer') {
+                // ✅ RESCUER: See ONLY assigned reports (both regular reports and SOS)
+                return query(
+                    baseCollection,
+                    where("assignedRescuer", "==", userId),
+                    orderBy("createdAt", "desc")
+                );
+            } else if (userRole === 'agency') {
+                return new Promise(async (resolve) => {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'users', userId));
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            const userAgency = userData.agency || userData.agencyName || userData.organization;
+                            
+                            if (userAgency) {
+                                // ✅ AGENCY: See ONLY agency-assigned reports (both regular reports and SOS)
+                                const agencyQuery = query(
+                                    baseCollection, 
+                                    or(
+                                        where("supportAgency", "==", userAgency),
+                                        where("assignedAgency", "==", userAgency),
+                                        where("supportAgencyName", "==", userAgency),
+                                        where("assignedAgencyName", "==", userAgency),
+                                        where("mainCoordinator", "==", userAgency),
+                                        where("partnerAgency", "==", userAgency)
+                                    ),
+                                    orderBy("createdAt", "desc")
+                                );
+                                resolve(agencyQuery);
+                            } else {
+                                // ❌ No agency specified - show nothing
+                                resolve(query(baseCollection, where("__name__", "==", "non-existent-document-id")));
+                            }
+                        } else {
+                            resolve(query(baseCollection, where("__name__", "==", "non-existent-document-id")));
+                        }
+                    } catch (error) {
+                        console.error('Error getting agency user data:', error);
                         resolve(query(baseCollection, where("__name__", "==", "non-existent-document-id")));
                     }
-                } else {
-                    resolve(query(baseCollection, where("__name__", "==", "non-existent-document-id")));
-                }
-            } catch (error) {
-                console.error('Error getting agency user data:', error);
-                resolve(query(baseCollection, where("__name__", "==", "non-existent-document-id")));
+                });
+            } else {
+                // ❌ Other roles - no access
+                return query(baseCollection, where("__name__", "==", "non-existent-document-id"));
             }
-        });
-    } else {
-        // ❌ Other roles - no access
-        return query(baseCollection, where("__name__", "==", "non-existent-document-id"));
-    }
-}
+        }
 
         function loadReports() {
             if (currentUserData.role === 'agency') {
@@ -2259,7 +4459,9 @@
 
                 updateStatistics();
                 applyFilters();
-                filterReports();
+                updateRankings();
+                
+                showNotification(`Loaded ${allReports.length} reports`, 'success');
             }, (error) => {
                 console.error("Error loading reports:", error);
                 
@@ -2285,15 +4487,1214 @@
             });
         }
 
-        function clearFilters() {
-            searchInput.value = '';
-            statusFilterOld.value = '';
-            typeFilter.value = '';
-            statusFilter.value = 'all';
-            agencyFilter.value = 'all';
-            searchReports.value = '';
-            applyFilters();
-            filterReports();
+        // ===========================
+        // MODAL CONTROL FUNCTIONS
+        // ===========================
+
+        // Open Report Modal
+        function openReportModal() {
+            const modal = document.getElementById('reportModal');
+            modal.classList.add('show');
+            isModalOpen = true;
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            
+            // Populate modal content
+            populateModalContent();
+            
+            // Generate charts
+            generateModalCharts();
+        }
+
+        // Close Report Modal
+        function closeReportModal() {
+            const modal = document.getElementById('reportModal');
+            modal.classList.remove('show');
+            isModalOpen = false;
+            document.body.style.overflow = ''; // Restore scrolling
+            
+            // Destroy charts to free memory
+            destroyModalCharts();
+        }
+
+        // Destroy Modal Charts
+        function destroyModalCharts() {
+            Object.values(modalCharts).forEach(chart => {
+                if (chart) {
+                    chart.destroy();
+                }
+            });
+            modalCharts = {};
+        }
+
+        // Populate Modal Content
+        function populateModalContent() {
+            // Set generated date
+            const now = new Date();
+            const dateStr = now.toLocaleString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            document.getElementById('modalGeneratedDate').textContent = `Generated: ${dateStr}`;
+            
+            // Populate filter summary
+            populateFilterSummary();
+            
+            // Populate KPIs
+            populateModalKPIs();
+            
+            // Populate rankings
+            populateModalRankings();
+        }
+
+        // Populate Filter Summary
+        function populateFilterSummary() {
+            // Date Range
+            const dateRangeEl = document.getElementById('modalDateRange');
+            if (filterByDate.checked && startDate.value && endDate.value) {
+                const startStr = new Date(startDate.value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const endStr = new Date(endDate.value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                dateRangeEl.textContent = `${startStr} to ${endStr}`;
+            } else {
+                dateRangeEl.textContent = 'All Dates';
+            }
+            
+            // Barangays
+            const barangaysEl = document.getElementById('modalBarangays');
+            if (filterByBarangay.checked) {
+                const selectedBarangays = getSelectedBarangays();
+                if (selectedBarangays.length > 0) {
+                    if (selectedBarangays.length <= 3) {
+                        barangaysEl.textContent = selectedBarangays.join(', ');
+                    } else {
+                        barangaysEl.textContent = `${selectedBarangays.length} barangays selected`;
+                    }
+                } else {
+                    barangaysEl.textContent = 'All Barangays';
+                }
+            } else {
+                barangaysEl.textContent = 'All Barangays';
+            }
+            
+            // Incident Types
+            const incidentTypesEl = document.getElementById('modalIncidentTypes');
+            if (filterByType.checked) {
+                const selectedTypes = Array.from(typeCheckboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value.charAt(0).toUpperCase() + cb.value.slice(1));
+                if (selectedTypes.length > 0) {
+                    if (selectedTypes.length <= 3) {
+                        incidentTypesEl.textContent = selectedTypes.join(', ');
+                    } else {
+                        incidentTypesEl.textContent = `${selectedTypes.length} types selected`;
+                    }
+                } else {
+                    incidentTypesEl.textContent = 'All Types';
+                }
+            } else {
+                incidentTypesEl.textContent = 'All Types';
+            }
+            
+            // Status
+            const statusesEl = document.getElementById('modalStatuses');
+            if (filterByStatus.checked) {
+                const selectedStatuses = Array.from(statusCheckboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value.charAt(0).toUpperCase() + cb.value.slice(1));
+                if (selectedStatuses.length > 0) {
+                    statusesEl.textContent = selectedStatuses.join(', ');
+                } else {
+                    statusesEl.textContent = 'All Statuses';
+                }
+            } else {
+                statusesEl.textContent = 'All Statuses';
+            }
+            
+            // Report Type
+            const reportTypeEl = document.getElementById('modalReportType');
+            if (filterByReportType.checked) {
+                const selectedType = document.querySelector('input[name="reportType"]:checked').value;
+                reportTypeEl.textContent = selectedType.charAt(0).toUpperCase() + selectedType.slice(1);
+            } else {
+                reportTypeEl.textContent = 'Both';
+            }
+            
+            // Total Reports
+            document.getElementById('modalTotalReports').textContent = filteredReports.length;
+        }
+
+        // Populate Modal KPIs
+        function populateModalKPIs() {
+            const stats = calculateStatistics(filteredReports);
+            const kpiGrid = document.getElementById('modalKpiGrid');
+            
+            const kpis = [
+                { label: 'Total Reports', value: stats.total },
+                { label: 'Pending', value: stats.pending },
+                { label: 'Assigned', value: stats.assigned },
+                { label: 'Resolved', value: stats.resolved },
+                { label: 'Avg Response Time (hrs)', value: stats.avgResponseTime },
+                { label: 'Active Cases', value: stats.activeCases },
+                { label: 'SOS Reports', value: stats.sosReports },
+                { label: 'Response Efficiency (%)', value: stats.responseEfficiency }
+            ];
+            
+            // Add CDRRMO stats if admin/monitor
+            if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor')) {
+                kpis.push(
+                    { label: 'CDRRMO Assignments', value: stats.cdrrmoAssignments },
+                    { label: 'With Partners', value: stats.withPartners },
+                    { label: 'BFP Support', value: stats.bfpSupport },
+                    { label: 'PNP Support', value: stats.pnpSupport }
+                );
+            }
+            
+            let kpisHtml = '';
+            kpis.forEach(kpi => {
+                kpisHtml += `
+                    <div class="modal-kpi-card">
+                        <div class="modal-kpi-number">${kpi.value}</div>
+                        <div class="modal-kpi-label">${kpi.label}</div>
+                    </div>
+                `;
+            });
+            
+            kpiGrid.innerHTML = kpisHtml;
+        }
+
+        // Generate Modal Charts
+        function generateModalCharts() {
+            // Destroy existing charts first
+            destroyModalCharts();
+            
+            // Wait a bit for modal to fully render
+            setTimeout(() => {
+                generateIncidentTypeChart();
+                generateStatusChart();
+                generateTimelineChart();
+                generateBarangayChart();
+            }, 100);
+        }
+
+        // Generate Incident Type Chart
+        function generateIncidentTypeChart() {
+            const ctx = document.getElementById('modalIncidentTypeChart');
+            if (!ctx) return;
+            
+            const typeCounts = {};
+            filteredReports.forEach(report => {
+                const type = report.emergencyType || 'Unknown';
+                typeCounts[type] = (typeCounts[type] || 0) + 1;
+            });
+            
+            const sortedTypes = Object.entries(typeCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 6);
+            
+            modalCharts.incidentType = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: sortedTypes.map(t => getEmergencyTypeDisplay(t[0])),
+                    datasets: [{
+                        data: sortedTypes.map(t => t[1]),
+                        backgroundColor: [
+                            '#d73527', '#ff6b6b', '#4ecdc4', 
+                            '#45b7d1', '#96ceb4', '#feca57'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 11 },
+                                padding: 10,
+                                boxWidth: 12
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Generate Status Chart
+        function generateStatusChart() {
+            const ctx = document.getElementById('modalStatusChart');
+            if (!ctx) return;
+            
+            const statusCounts = { 
+                pending: 0, 
+                assigned: 0, 
+                resolved: 0, 
+                rejected: 0, 
+                closed: 0 
+            };
+            
+            filteredReports.forEach(report => {
+                const status = report.status || 'pending';
+                if (statusCounts.hasOwnProperty(status)) {
+                    statusCounts[status]++;
+                }
+            });
+            
+            modalCharts.status = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Pending', 'Assigned', 'Resolved', 'Rejected', 'Closed'],
+                    datasets: [{
+                        data: [
+                            statusCounts.pending,
+                            statusCounts.assigned,
+                            statusCounts.resolved,
+                            statusCounts.rejected,
+                            statusCounts.closed
+                        ],
+                        backgroundColor: [
+                            '#ffc107', '#17a2b8', '#28a745', 
+                            '#dc3545', '#6c757d'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 11 },
+                                padding: 10,
+                                boxWidth: 12
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Generate Timeline Chart
+        function generateTimelineChart() {
+            const ctx = document.getElementById('modalTimelineChart');
+            if (!ctx) return;
+            
+            const dailyCounts = {};
+            filteredReports.forEach(report => {
+                const date = extractDate(report.createdAt);
+                if (date) {
+                    const key = date.toISOString().split('T')[0];
+                    dailyCounts[key] = (dailyCounts[key] || 0) + 1;
+                }
+            });
+            
+            const sortedDates = Object.keys(dailyCounts).sort().slice(-30);
+            const timelineData = sortedDates.map(d => dailyCounts[d]);
+            
+            modalCharts.timeline = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates.map(d => {
+                        const date = new Date(d);
+                        return date.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                    }),
+                    datasets: [{
+                        label: 'Reports',
+                        data: timelineData,
+                        borderColor: '#d73527',
+                        backgroundColor: 'rgba(215, 53, 39, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: '#d73527',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                precision: 0,
+                                font: { size: 10 }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: { size: 9 },
+                                maxRotation: 45,
+                                minRotation: 45
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        // Generate Barangay Chart
+        function generateBarangayChart() {
+            const ctx = document.getElementById('modalBarangayChart');
+            if (!ctx) return;
+            
+            const barangayCounts = {};
+            filteredReports.forEach(report => {
+                const brgy = report.barangay || 'Unknown';
+                barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
+            });
+            
+            const sortedBrgys = Object.entries(barangayCounts)
+                .filter(([name]) => name !== 'Unknown')
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 8);
+            
+            modalCharts.barangay = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedBrgys.map(b => b[0]),
+                    datasets: [{
+                        label: 'Reports',
+                        data: sortedBrgys.map(b => b[1]),
+                        backgroundColor: '#d73527',
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { 
+                            display: false 
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Reports: ${context.parsed.x}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { 
+                                precision: 0,
+                                font: { size: 10 }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                font: { size: 10 }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Populate Modal Rankings
+        function populateModalRankings() {
+            populateModalTopBarangays();
+            populateModalTopIncidentTypes();
+            populateModalLongestResolution();
+            populateModalResponseTimeAnalysis();
+        }
+
+        // Populate Modal Top Barangays
+        function populateModalTopBarangays() {
+            const tbody = document.querySelector('#modalTopBarangaysTable tbody');
+            const barangayCounts = {};
+            
+            filteredReports.forEach(report => {
+                const barangay = report.barangay || 'Unknown';
+                barangayCounts[barangay] = (barangayCounts[barangay] || 0) + 1;
+            });
+            
+            const topBarangays = Object.entries(barangayCounts)
+                .map(([barangay, count]) => ({ barangay, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+            
+            const totalReports = filteredReports.length;
+            
+            let html = '';
+            topBarangays.forEach((item, index) => {
+                const percentage = totalReports > 0 ? ((item.count / totalReports) * 100).toFixed(1) : 0;
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.barangay}</td>
+                        <td>${item.count}</td>
+                        <td>${percentage}%</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html || '<tr><td colspan="4" style="text-align: center; color: #999;">No data available</td></tr>';
+        }
+
+        // Populate Modal Top Incident Types
+        function populateModalTopIncidentTypes() {
+            const tbody = document.querySelector('#modalTopIncidentTypesTable tbody');
+            const typeCounts = {};
+            
+            filteredReports.forEach(report => {
+                const type = report.emergencyType || 'Unknown';
+                typeCounts[type] = (typeCounts[type] || 0) + 1;
+            });
+            
+            const topTypes = Object.entries(typeCounts)
+                .map(([type, count]) => ({ type, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+            
+            const totalReports = filteredReports.length;
+            
+            let html = '';
+            topTypes.forEach((item, index) => {
+                const percentage = totalReports > 0 ? ((item.count / totalReports) * 100).toFixed(1) : 0;
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${getEmergencyTypeDisplay(item.type)}</td>
+                        <td>${item.count}</td>
+                        <td>${percentage}%</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html || '<tr><td colspan="4" style="text-align: center; color: #999;">No data available</td></tr>';
+        }
+
+        // Populate Modal Longest Resolution
+        function populateModalLongestResolution() {
+            const tbody = document.querySelector('#modalLongestResolutionTable tbody');
+            const barangayResolutionTimes = {};
+            
+            filteredReports.forEach(report => {
+                if (report.createdAt && report.resolvedAt) {
+                    const barangay = report.barangay || 'Unknown';
+                    const created = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+                    const resolved = report.resolvedAt.toDate ? report.resolvedAt.toDate() : new Date(report.resolvedAt);
+                    const resolutionTimeDays = (resolved - created) / (1000 * 60 * 60 * 24);
+                    
+                    if (!barangayResolutionTimes[barangay]) {
+                        barangayResolutionTimes[barangay] = {
+                            totalTime: 0,
+                            count: 0
+                        };
+                    }
+                    
+                    barangayResolutionTimes[barangay].totalTime += resolutionTimeDays;
+                    barangayResolutionTimes[barangay].count++;
+                }
+            });
+            
+            const barangayAverages = Object.entries(barangayResolutionTimes)
+                .map(([barangay, data]) => ({
+                    barangay,
+                    avgResolutionTime: data.totalTime / data.count
+                }))
+                .sort((a, b) => b.avgResolutionTime - a.avgResolutionTime)
+                .slice(0, 10);
+            
+            let html = '';
+            barangayAverages.forEach((item, index) => {
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.barangay}</td>
+                        <td>${item.avgResolutionTime.toFixed(1)} days</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html || '<tr><td colspan="3" style="text-align: center; color: #999;">No data available</td></tr>';
+        }
+
+        // Populate Modal Response Time Analysis
+        function populateModalResponseTimeAnalysis() {
+            const tbody = document.querySelector('#modalResponseTimeTable tbody');
+            const timeRanges = {
+                '0-1 hour': 0,
+                '1-3 hours': 0,
+                '3-6 hours': 0,
+                '6-12 hours': 0,
+                '12-24 hours': 0,
+                '24+ hours': 0
+            };
+            
+            filteredReports.forEach(report => {
+                if (report.createdAt && report.assignedAt) {
+                    const created = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+                    const assigned = report.assignedAt.toDate ? report.assignedAt.toDate() : new Date(report.assignedAt);
+                    const responseTimeHours = (assigned - created) / (1000 * 60 * 60);
+                    
+                    if (responseTimeHours <= 1) {
+                        timeRanges['0-1 hour']++;
+                    } else if (responseTimeHours <= 3) {
+                        timeRanges['1-3 hours']++;
+                    } else if (responseTimeHours <= 6) {
+                        timeRanges['3-6 hours']++;
+                    } else if (responseTimeHours <= 12) {
+                        timeRanges['6-12 hours']++;
+                    } else if (responseTimeHours <= 24) {
+                        timeRanges['12-24 hours']++;
+                    } else {
+                        timeRanges['24+ hours']++;
+                    }
+                }
+            });
+            
+            const totalReports = filteredReports.length;
+            
+            let html = '';
+            Object.entries(timeRanges).forEach(([range, count]) => {
+                const percentage = totalReports > 0 ? ((count / totalReports) * 100).toFixed(1) : 0;
+                html += `
+                    <tr>
+                        <td>${range}</td>
+                        <td>${count}</td>
+                        <td>${percentage}%</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html || '<tr><td colspan="3" style="text-align: center; color: #999;">No data available</td></tr>';
+        }
+
+        // ===========================
+        // UPDATED PDF EXPORT FUNCTION
+        // ===========================
+
+        // MODAL EXPORT TO PDF - ANALYTICS STYLE (Direct Chart Capture)
+        async function exportModalToPdf() {
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                // Show loading overlay
+                pdfLoadingOverlay.style.display = 'flex';
+                pdfProgressFill.style.width = '0%';
+                pdfProgressText.textContent = 'Preparing PDF export...';
+                
+                const now = new Date();
+                const dateStr = now.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                
+                pdfProgressFill.style.width = '10%';
+                pdfProgressText.textContent = 'Getting current statistics...';
+                
+                // GET CURRENT STATISTICS FROM MAIN SCREEN
+                const mainScreenStats = {
+                    cdrrmoAssignments: document.getElementById('cdrrmoAssignments')?.textContent || '0',
+                    partnerAssignments: document.getElementById('partnerAssignments')?.textContent || '0',
+                    bfpAssignments: document.getElementById('bfpAssignments')?.textContent || '0',
+                    pnpAssignments: document.getElementById('pnpAssignments')?.textContent || '0',
+                    totalCount: document.getElementById('totalCount')?.textContent || '0',
+                    pendingCount: document.getElementById('pendingCount')?.textContent || '0',
+                    assignedCount: document.getElementById('assignedCount')?.textContent || '0',
+                    resolvedCount: document.getElementById('resolvedCount')?.textContent || '0',
+                    avgResponseTime: document.getElementById('avgResponseTime')?.textContent || '0',
+                    activeCases: document.getElementById('activeCases')?.textContent || '0',
+                    sosReports: document.getElementById('sosReports')?.textContent || '0',
+                    responseEfficiency: document.getElementById('responseEfficiency')?.textContent || '0'
+                };
+                
+                const showCDRRMOStats = currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor');
+                
+                let yPos = 20;
+                const pageHeight = pdf.internal.pageSize.height;
+                const margin = 20;
+                
+                pdfProgressFill.style.width = '15%';
+                
+                // === HEADER ===
+                pdf.setFontSize(20);
+                pdf.setTextColor(215, 53, 39);
+                pdf.text('LipaAlertHub Incident Reports', 105, yPos, { align: 'center' });
+                
+                yPos += 8;
+                pdf.setFontSize(12);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text('Executive Summary Report', 105, yPos, { align: 'center' });
+                
+                yPos += 6;
+                pdf.setFontSize(10);
+                pdf.text('Generated: ' + dateStr, 105, yPos, { align: 'center' });
+                
+                yPos += 2;
+                pdf.setDrawColor(215, 53, 39);
+                pdf.setLineWidth(0.5);
+                pdf.line(margin, yPos, 190, yPos);
+                
+                yPos += 10;
+                
+                pdfProgressFill.style.width = '20%';
+                pdfProgressText.textContent = 'Adding filter summary...';
+                
+                // === FILTER SUMMARY ===
+                pdf.setFontSize(14);
+                pdf.setTextColor(215, 53, 39);
+                pdf.text('Filter Summary', margin, yPos);
+                yPos += 8;
+                
+                pdf.setFontSize(10);
+                pdf.setTextColor(0, 0, 0);
+                
+                const filterInfo = [
+                    'Date Range: ' + (document.getElementById('modalDateRange')?.textContent || 'All Dates'),
+                    'Barangays: ' + (document.getElementById('modalBarangays')?.textContent || 'All Barangays'),
+                    'Incident Types: ' + (document.getElementById('modalIncidentTypes')?.textContent || 'All Types'),
+                    'Status: ' + (document.getElementById('modalStatuses')?.textContent || 'All Statuses'),
+                    'Report Type: ' + (document.getElementById('modalReportType')?.textContent || 'Both'),
+                    'Total Reports: ' + mainScreenStats.totalCount
+                ];
+                
+                filterInfo.forEach(function(info) {
+                    if (yPos > pageHeight - 40) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    pdf.text(info, margin + 5, yPos);
+                    yPos += 6;
+                });
+                
+                yPos += 10;
+                
+                // === CDRRMO COORDINATION STATISTICS ===
+                if (showCDRRMOStats) {
+                    pdfProgressFill.style.width = '30%';
+                    pdfProgressText.textContent = 'Adding CDRRMO statistics...';
+                    
+                    if (yPos > pageHeight - 60) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(215, 53, 39);
+                    pdf.text('CDRRMO Coordination Statistics', margin, yPos);
+                    yPos += 8;
+                    
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(0, 0, 0);
+                    
+                    const cdrrmoInfo = [
+                        'CDRRMO Assignments: ' + mainScreenStats.cdrrmoAssignments,
+                        'With Partners: ' + mainScreenStats.partnerAssignments,
+                        'BFP Support: ' + mainScreenStats.bfpAssignments,
+                        'PNP Support: ' + mainScreenStats.pnpAssignments
+                    ];
+                    
+                    cdrrmoInfo.forEach(function(info) {
+                        if (yPos > pageHeight - 40) {
+                            pdf.addPage();
+                            yPos = 20;
+                        }
+                        pdf.text(info, margin + 5, yPos);
+                        yPos += 6;
+                    });
+                    
+                    yPos += 10;
+                }
+                
+                pdfProgressFill.style.width = '40%';
+                pdfProgressText.textContent = 'Adding KPI metrics...';
+                
+                // === KEY PERFORMANCE INDICATORS ===
+                if (yPos > pageHeight - 80) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
+                
+                pdf.setFontSize(14);
+                pdf.setTextColor(215, 53, 39);
+                pdf.text('Key Performance Indicators', margin, yPos);
+                yPos += 8;
+                
+                pdf.setFontSize(10);
+                pdf.setTextColor(0, 0, 0);
+                
+                const kpiMetrics = [
+                    'Total Reports: ' + mainScreenStats.totalCount,
+                    'Pending: ' + mainScreenStats.pendingCount,
+                    'Assigned: ' + mainScreenStats.assignedCount,
+                    'Resolved: ' + mainScreenStats.resolvedCount,
+                    'Avg Response Time: ' + mainScreenStats.avgResponseTime + ' hrs',
+                    'Active Cases: ' + mainScreenStats.activeCases,
+                    'SOS Reports: ' + mainScreenStats.sosReports,
+                    'Response Efficiency: ' + mainScreenStats.responseEfficiency + '%'
+                ];
+                
+                kpiMetrics.forEach(function(metric) {
+                    if (yPos > pageHeight - 40) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    pdf.text(metric, margin + 5, yPos);
+                    yPos += 6;
+                });
+                
+                yPos += 15;
+                
+                // === CAPTURE AND ADD CHARTS (ANALYTICS STYLE) ===
+                pdfProgressFill.style.width = '50%';
+                pdfProgressText.textContent = 'Capturing charts...';
+                
+                // Wait for charts to render
+                await new Promise(function(resolve) { setTimeout(resolve, 500); });
+                
+                const chartConfigs = [
+                    { id: 'modalIncidentTypeChart', title: 'Incident Type Distribution' },
+                    { id: 'modalStatusChart', title: 'Report Status Distribution' },
+                    { id: 'modalTimelineChart', title: 'Reports Timeline (Last 30 Days)' },
+                    { id: 'modalBarangayChart', title: 'Top Barangays by Reports' }
+                ];
+                
+                for (let i = 0; i < chartConfigs.length; i++) {
+                    const config = chartConfigs[i];
+                    
+                    pdfProgressFill.style.width = (50 + (i * 10)) + '%';
+                    pdfProgressText.textContent = 'Adding ' + config.title + '...';
+                    
+                    const canvas = document.getElementById(config.id);
+                    if (canvas) {
+                        try {
+                            // Check if new page needed
+                            if (yPos > pageHeight - 90) {
+                                pdf.addPage();
+                                yPos = 20;
+                            }
+                            
+                            // Add chart title
+                            pdf.setFontSize(12);
+                            pdf.setTextColor(0, 0, 0);
+                            pdf.text(config.title, margin, yPos);
+                            yPos += 8;
+                            
+                            // ✅ DIRECT CHART CAPTURE (Like Analytics.html)
+                            const imgData = canvas.toDataURL('image/png', 1.0);
+                            
+                            // Add chart image to PDF with proper dimensions
+                            pdf.addImage(imgData, 'PNG', margin, yPos, 170, 80);
+                            yPos += 90;
+                            
+                        } catch (error) {
+                            console.error('Error capturing chart ' + config.id + ':', error);
+                            pdf.setFontSize(10);
+                            pdf.setTextColor(255, 0, 0);
+                            pdf.text('Error: Chart could not be captured', margin, yPos);
+                            yPos += 10;
+                        }
+                    } else {
+                        console.warn('Chart not found: ' + config.id);
+                        pdf.setFontSize(10);
+                        pdf.setTextColor(150, 150, 150);
+                        pdf.text('Chart not available', margin, yPos);
+                        yPos += 10;
+                    }
+                }
+                
+                // === ADD RANKINGS TABLES ===
+                pdfProgressFill.style.width = '90%';
+                pdfProgressText.textContent = 'Adding rankings...';
+                
+                if (yPos > pageHeight - 100) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
+                
+                pdf.setFontSize(14);
+                pdf.setTextColor(215, 53, 39);
+                pdf.text('Performance Analysis', margin, yPos);
+                yPos += 10;
+                
+                // Helper function to add ranking tables
+                const addRankingTable = function(tableId, title) {
+                    if (yPos > pageHeight - 60) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    
+                    pdf.setFontSize(11);
+                    pdf.setTextColor(0, 0, 0);
+                    pdf.text(title, margin, yPos);
+                    yPos += 6;
+                    
+                    const table = document.getElementById(tableId);
+                    if (!table) {
+                        pdf.setFontSize(8);
+                        pdf.setTextColor(150, 150, 150);
+                        pdf.text('Table not found', margin + 5, yPos);
+                        yPos += 10;
+                        return;
+                    }
+                    
+                    const rows = table.querySelectorAll('tbody tr');
+                    
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(100, 100, 100);
+                    
+                    let hasData = false;
+                    rows.forEach(function(row) {
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length > 0) {
+                            const firstCellText = cells[0].textContent.trim();
+                            if (firstCellText !== '' && firstCellText !== 'No data available') {
+                                hasData = true;
+                                
+                                if (yPos > pageHeight - 20) {
+                                    pdf.addPage();
+                                    yPos = 20;
+                                }
+                                
+                                let xPos = margin + 5;
+                                cells.forEach(function(cell, cellIndex) {
+                                    const text = cell.textContent.trim();
+                                    const maxWidth = cellIndex === 1 ? 80 : 25;
+                                    
+                                    if (text.length > 30 && cellIndex === 1) {
+                                        pdf.text(text.substring(0, 27) + '...', xPos, yPos);
+                                    } else {
+                                        pdf.text(text, xPos, yPos);
+                                    }
+                                    
+                                    xPos += maxWidth;
+                                });
+                                
+                                yPos += 5;
+                            }
+                        }
+                    });
+                    
+                    if (!hasData) {
+                        pdf.setTextColor(150, 150, 150);
+                        pdf.text('No data available', margin + 5, yPos);
+                        yPos += 5;
+                    }
+                    
+                    yPos += 8;
+                };
+                
+                // Add all ranking tables
+                addRankingTable('modalTopBarangaysTable', 'Top 10 Barangays by Reports');
+                addRankingTable('modalTopIncidentTypesTable', 'Top 10 Incident Types');
+                addRankingTable('modalLongestResolutionTable', 'Longest Resolution Times');
+                addRankingTable('modalResponseTimeTable', 'Response Time Analysis');
+                
+                // === ADD FOOTER TO ALL PAGES ===
+                pdfProgressFill.style.width = '95%';
+                pdfProgressText.textContent = 'Adding footers...';
+                
+                const pageCount = pdf.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    pdf.setPage(i);
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(150, 150, 150);
+                    pdf.text(
+                        'LipaAlertHub Analytics - Page ' + i + ' of ' + pageCount, 
+                        105, 
+                        pageHeight - 10, 
+                        { align: 'center' }
+                    );
+                }
+                
+                // === SAVE PDF ===
+                pdfProgressFill.style.width = '100%';
+                pdfProgressText.textContent = 'Saving PDF...';
+                
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const filename = 'incident-reports-' + now.getFullYear() + '-' + month + '-' + day + '.pdf';
+                pdf.save(filename);
+                
+                // Hide loading overlay
+                setTimeout(function() {
+                    pdfLoadingOverlay.style.display = 'none';
+                    showNotification('PDF exported successfully with all statistics and charts!', 'success');
+                }, 500);
+                
+            } catch (error) {
+                console.error('PDF export error:', error);
+                pdfLoadingOverlay.style.display = 'none';
+                showNotification('Error exporting PDF: ' + error.message, 'error');
+            }
+        }
+
+        // Modal Export to Excel
+        function exportModalToExcel() {
+            try {
+                // Create workbook
+                const workbook = XLSX.utils.book_new();
+                
+                // Sheet 1: Filter Summary
+                const filterSummary = [
+                    { 'Field': 'Generated Date', 'Value': new Date().toLocaleString() },
+                    { 'Field': 'Generated By', 'Value': currentUserData.name || currentUser.email },
+                    { 'Field': 'User Role', 'Value': currentUserData.role },
+                    { 'Field': 'Total Reports', 'Value': filteredReports.length },
+                    { 'Field': 'Date Range', 'Value': document.getElementById('modalDateRange').textContent },
+                    { 'Field': 'Barangays', 'Value': document.getElementById('modalBarangays').textContent },
+                    { 'Field': 'Incident Types', 'Value': document.getElementById('modalIncidentTypes').textContent },
+                    { 'Field': 'Status', 'Value': document.getElementById('modalStatuses').textContent },
+                    { 'Field': 'Report Type', 'Value': document.getElementById('modalReportType').textContent }
+                ];
+                const filterSheet = XLSX.utils.json_to_sheet(filterSummary);
+                XLSX.utils.book_append_sheet(workbook, filterSheet, "Filter Summary");
+                
+                // Sheet 2: Key Performance Indicators
+                const stats = calculateStatistics(filteredReports);
+                const kpiData = [
+                    { 'Metric': 'Total Reports', 'Value': stats.total },
+                    { 'Metric': 'Pending', 'Value': stats.pending },
+                    { 'Metric': 'Assigned', 'Value': stats.assigned },
+                    { 'Metric': 'Resolved', 'Value': stats.resolved },
+                    { 'Metric': 'Average Response Time (hours)', 'Value': stats.avgResponseTime },
+                    { 'Metric': 'Active Cases', 'Value': stats.activeCases },
+                    { 'Metric': 'SOS Reports', 'Value': stats.sosReports },
+                    { 'Metric': 'Response Efficiency (%)', 'Value': stats.responseEfficiency }
+                ];
+                
+                if (currentUserData && (currentUserData.role === 'admin' || currentUserData.role === 'monitor')) {
+                    kpiData.push(
+                        { 'Metric': 'CDRRMO Assignments', 'Value': stats.cdrrmoAssignments },
+                        { 'Metric': 'With Partners', 'Value': stats.withPartners },
+                        { 'Metric': 'BFP Support', 'Value': stats.bfpSupport },
+                        { 'Metric': 'PNP Support', 'Value': stats.pnpSupport }
+                    );
+                }
+                
+                const kpiSheet = XLSX.utils.json_to_sheet(kpiData);
+                XLSX.utils.book_append_sheet(workbook, kpiSheet, "KPIs");
+                
+                // Sheet 3: Individual Reports (FULL DETAILS)
+                const reportsData = filteredReports.map(report => {
+                    const created = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+                    const resolved = report.resolvedAt ? (report.resolvedAt.toDate ? report.resolvedAt.toDate() : new Date(report.resolvedAt)) : null;
+                    
+                    let responseTime = 'Pending';
+                    if (report.createdAt && report.resolvedAt) {
+                        const resolutionTimeDays = (resolved - created) / (1000 * 60 * 60 * 24);
+                        responseTime = `${resolutionTimeDays.toFixed(1)} days`;
+                    }
+                    
+                    return {
+                        'Report ID': generateShortId(report.id),
+                        'Full ID': report.id,
+                        'Date Reported': formatTimestamp(report.createdAt || report.timestamp),
+                        'Date Resolved': report.resolvedAt ? formatTimestamp(report.resolvedAt) : 'Pending',
+                        'Response Time': responseTime,
+                        'Emergency Type': getEmergencyTypeDisplay(report.emergencyType),
+                        'Incident Subcategory': report.subCategory || report.subcategory || report.incidentType || 'Not specified',
+                        'Barangay': report.barangay || 'Unknown',
+                        'Full Address': report.fullAddress || report.addressLine || 'Address not provided',
+                        'Landmark': report.landmark || 'Not provided',
+                        'Coordinates': report.coordinates ? `${report.coordinates.latitude}, ${report.coordinates.longitude}` : 'Not available',
+                        'Status': report.status || 'pending',
+                        'Assigned Rescuer Name': report.assignedRescuerName || 'Not assigned',
+                        'Partner Agency': report.partnerAgency || 'None',
+                        'Main Coordinator': report.mainCoordinator || 'None',
+                        'Rescuer Status': report.rescuerStatus || 'Not assigned',
+                        'Agency Status': report.partnerAgencyStatus || 'Not assigned',
+                        'Report Type': report.type || 'report',
+                        'Reporter Name': report.reporterName || report.requesterName || 'Unknown',
+                        'Contact Number': report.contactNumber || report.phoneNumber || 'Not provided',
+                        'Description': report.description || 'No description',
+                        'Has Patient Form': report.hasPatientForm ? 'Yes' : 'No'
+                    };
+                });
+                
+                const reportsSheet = XLSX.utils.json_to_sheet(reportsData);
+                XLSX.utils.book_append_sheet(workbook, reportsSheet, "All Reports");
+                
+                // Sheet 4: Top Barangays
+                const barangayCounts = {};
+                filteredReports.forEach(report => {
+                    const barangay = report.barangay || 'Unknown';
+                    barangayCounts[barangay] = (barangayCounts[barangay] || 0) + 1;
+                });
+                
+                const topBarangays = Object.entries(barangayCounts)
+                    .map(([barangay, count]) => ({
+                        'Rank': 0,
+                        'Barangay': barangay,
+                        'Total Reports': count,
+                        'Percentage': ((count / filteredReports.length) * 100).toFixed(1) + '%'
+                    }))
+                    .sort((a, b) => b['Total Reports'] - a['Total Reports'])
+                    .map((item, index) => ({ ...item, 'Rank': index + 1 }));
+                
+                const barangaySheet = XLSX.utils.json_to_sheet(topBarangays);
+                XLSX.utils.book_append_sheet(workbook, barangaySheet, "Top Barangays");
+                
+                // Sheet 5: Top Incident Types
+                const typeCounts = {};
+                filteredReports.forEach(report => {
+                    const type = report.emergencyType || 'Unknown';
+                    typeCounts[type] = (typeCounts[type] || 0) + 1;
+                });
+                
+                const topTypes = Object.entries(typeCounts)
+                    .map(([type, count]) => ({
+                        'Rank': 0,
+                        'Incident Type': getEmergencyTypeDisplay(type),
+                        'Count': count,
+                        'Percentage': ((count / filteredReports.length) * 100).toFixed(1) + '%'
+                    }))
+                    .sort((a, b) => b.Count - a.Count)
+                    .map((item, index) => ({ ...item, 'Rank': index + 1 }));
+                
+                const typesSheet = XLSX.utils.json_to_sheet(topTypes);
+                XLSX.utils.book_append_sheet(workbook, typesSheet, "Top Incident Types");
+                
+                // Sheet 6: Resolution Time Analysis
+                const barangayResolutionTimes = {};
+                filteredReports.forEach(report => {
+                    if (report.createdAt && report.resolvedAt) {
+                        const barangay = report.barangay || 'Unknown';
+                        const created = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+                        const resolved = report.resolvedAt.toDate ? report.resolvedAt.toDate() : new Date(report.resolvedAt);
+                        const resolutionTimeDays = (resolved - created) / (1000 * 60 * 60 * 24);
+                        
+                        if (!barangayResolutionTimes[barangay]) {
+                            barangayResolutionTimes[barangay] = {
+                                totalTime: 0,
+                                count: 0
+                            };
+                        }
+                        
+                        barangayResolutionTimes[barangay].totalTime += resolutionTimeDays;
+                        barangayResolutionTimes[barangay].count++;
+                    }
+                });
+                
+                const resolutionData = Object.entries(barangayResolutionTimes)
+                    .map(([barangay, data]) => ({
+                        'Rank': 0,
+                        'Barangay': barangay,
+                        'Average Resolution Time (days)': (data.totalTime / data.count).toFixed(1),
+                        'Total Resolved Reports': data.count
+                    }))
+                    .sort((a, b) => parseFloat(b['Average Resolution Time (days)']) - parseFloat(a['Average Resolution Time (days)']))
+                    .map((item, index) => ({ ...item, 'Rank': index + 1 }));
+                
+                const resolutionSheet = XLSX.utils.json_to_sheet(resolutionData);
+                XLSX.utils.book_append_sheet(workbook, resolutionSheet, "Resolution Times");
+                
+                // Sheet 7: Response Time Analysis
+                const timeRanges = {
+                    '0-1 hour': 0,
+                    '1-3 hours': 0,
+                    '3-6 hours': 0,
+                    '6-12 hours': 0,
+                    '12-24 hours': 0,
+                    '24+ hours': 0
+                };
+                
+                filteredReports.forEach(report => {
+                    if (report.createdAt && report.assignedAt) {
+                        const created = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+                        const assigned = report.assignedAt.toDate ? report.assignedAt.toDate() : new Date(report.assignedAt);
+                        const responseTimeHours = (assigned - created) / (1000 * 60 * 60);
+                        
+                        if (responseTimeHours <= 1) {
+                            timeRanges['0-1 hour']++;
+                        } else if (responseTimeHours <= 3) {
+                            timeRanges['1-3 hours']++;
+                        } else if (responseTimeHours <= 6) {
+                            timeRanges['3-6 hours']++;
+                        } else if (responseTimeHours <= 12) {
+                            timeRanges['6-12 hours']++;
+                        } else if (responseTimeHours <= 24) {
+                            timeRanges['12-24 hours']++;
+                        } else {
+                            timeRanges['24+ hours']++;
+                        }
+                    }
+                });
+                
+                const responseTimeData = Object.entries(timeRanges).map(([range, count]) => ({
+                    'Time Range': range,
+                    'Number of Reports': count,
+                    'Percentage': ((count / filteredReports.length) * 100).toFixed(1) + '%'
+                }));
+                
+                const responseSheet = XLSX.utils.json_to_sheet(responseTimeData);
+                XLSX.utils.book_append_sheet(workbook, responseSheet, "Response Time Analysis");
+                
+                // Save file
+                const filename = `incident-reports-${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(workbook, filename);
+                
+                showNotification('Excel file exported successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Excel export error:', error);
+                showNotification('Error exporting Excel: ' + error.message, 'error');
+            }
         }
 
         window.toggleSidebar = function() {
@@ -2312,20 +5713,19 @@
             overlay.classList.remove('show');
         };
 
-        searchInput.addEventListener('input', applyFilters);
-        statusFilterOld.addEventListener('change', applyFilters);
-        typeFilter.addEventListener('change', applyFilters);
-        clearFiltersBtn.addEventListener('click', clearFilters);
-
-        // Setup enhanced search filters
-        setupSearchFilters();
-
         // Add pagination event listeners
         prevPageBtn.addEventListener('click', goToPreviousPage);
         nextPageBtn.addEventListener('click', goToNextPage);
 
         // Add resize listener to update table layout
         window.addEventListener('resize', renderTable);
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isModalOpen) {
+                closeReportModal();
+            }
+        });
 
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', () => {
@@ -2390,6 +5790,9 @@
                 updateNavigationVisibility(userData.role);
                 updateUIForRole(userData.role);
                 updateReportDescription(userData.role);
+                
+                // Initialize filters
+                initializeFilters();
                 
                 document.getElementById('loadingOverlay').style.display = 'none';
                 

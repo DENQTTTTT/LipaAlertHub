@@ -1,4 +1,3 @@
-// services/chat.ts - COMPLETELY FIXED Chat Service
 import { getAuth } from 'firebase/auth';
 import {
   addDoc,
@@ -14,6 +13,7 @@ import {
   Timestamp,
   updateDoc
 } from 'firebase/firestore';
+import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 
 export interface ChatMessage {
   id?: string;
@@ -26,7 +26,12 @@ export interface ChatMessage {
     type: 'image' | 'file';
     url: string;
     name: string;
+    size: number;
   }[];
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  fileUrl?: string;
 }
 
 export interface ChatRoom {
@@ -47,12 +52,12 @@ export interface ChatRoom {
 export class ChatService {
   private db = getFirestore();
   private auth = getAuth();
+  private storage = getStorage();
 
   // =================== CHAT ROOM MANAGEMENT ===================
 
   /**
-   * Get or create the user's chat room - FIXED VERSION
-   * Each resident has their own room: chatRooms/{userId}
+   * Get or create the user's chat room
    */
   async getOrCreateChatRoom(): Promise<string> {
     const currentUser = this.auth.currentUser;
@@ -89,12 +94,12 @@ export class ChatService {
         throw new Error('User profile not found. Please complete your profile first.');
       }
 
-      // ✅ FIXED: Create chat room with proper structure for Firestore rules
+      // Create chat room with proper structure
       const chatRoomData: any = {
         userId: currentUser.uid,
         participants: [currentUser.uid],
         lastUpdated: serverTimestamp(),
-        hasWelcomeMessage: false, // Will be set to true after welcome message
+        hasWelcomeMessage: false,
         unreadCount: {
           user: 0,
           admin: 0,
@@ -120,7 +125,7 @@ export class ChatService {
   }
 
   /**
-   * Add welcome message to chat room - SEPARATE FUNCTION
+   * Add welcome message to chat room
    */
   private async addWelcomeMessage(chatRoomId: string): Promise<void> {
     try {
@@ -154,14 +159,12 @@ export class ChatService {
         lastMessageSender: 'admin',
         lastMessageTime: serverTimestamp(),
         lastUpdated: serverTimestamp(),
-        'unreadCount.user': 1, // Mark welcome message as unread for user
+        'unreadCount.user': 1,
       });
       console.log('✅ Chat room updated with welcome message info');
       
     } catch (error: any) {
       console.error('❌ Error adding welcome message:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
       // Don't throw - welcome message is not critical for functionality
     }
   }
@@ -169,9 +172,9 @@ export class ChatService {
   // =================== MESSAGE HANDLING ===================
 
   /**
-   * Send a message from the current user
+   * Send a text message from the current user
    */
-  async sendUserMessage(content: string, attachments?: any[]): Promise<void> {
+  async sendUserMessage(content: string): Promise<void> {
     const currentUser = this.auth.currentUser;
     if (!currentUser) {
       throw new Error('You must be logged in to send messages');
@@ -182,7 +185,7 @@ export class ChatService {
     }
 
     try {
-      console.log('📤 Sending message...');
+      console.log('📤 Sending text message...');
       const chatRoomId = await this.getOrCreateChatRoom();
       
       const messageData: Omit<ChatMessage, 'id'> = {
@@ -191,25 +194,83 @@ export class ChatService {
         content: content.trim(),
         type: 'text',
         createdAt: serverTimestamp() as Timestamp,
-        ...(attachments && attachments.length > 0 && { attachments }),
       };
 
       console.log('💾 Adding message to Firestore...');
       const messagesRef = collection(this.db, 'chatRooms', chatRoomId, 'messages');
       await addDoc(messagesRef, messageData);
-      console.log('✅ Message sent successfully');
+      console.log('✅ Text message sent successfully');
       
       // Update chat room with last message
-      console.log('🔄 Updating chat room metadata...');
       await this.updateChatRoomLastMessage(chatRoomId, messageData);
       await this.incrementUnreadCount(chatRoomId, 'admin');
       console.log('✅ Chat room metadata updated');
 
     } catch (error: any) {
       console.error('❌ Error sending message:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
       throw new Error(`Failed to send message: ${error.message}`);
+    }
+  }
+
+  /**
+   * Upload file and send file message
+   */
+  async sendFileMessage(file: { uri: string; name: string; type: string; size: number }, content?: string): Promise<void> {
+    const currentUser = this.auth.currentUser;
+    if (!currentUser) {
+      throw new Error('You must be logged in to send files');
+    }
+
+    try {
+      console.log('📤 Uploading file...', file);
+      
+      // Validate file size (15MB limit)
+      const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error(`File size exceeds 15MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+      }
+
+      const chatRoomId = await this.getOrCreateChatRoom();
+      
+      // Upload file to Firebase Storage
+      console.log('📁 Uploading file to storage...');
+      const fileRef = ref(this.storage, `chat-files/${chatRoomId}/${Date.now()}_${file.name}`);
+      
+      // Convert file URI to blob
+      const response = await fetch(file.uri);
+      const blob = await response.blob();
+      
+      const uploadResult = await uploadBytes(fileRef, blob);
+      const downloadURL = await getDownloadURL(uploadResult.ref);
+      console.log('✅ File uploaded successfully:', downloadURL);
+
+      // Create file message
+      const messageData: Omit<ChatMessage, 'id'> = {
+        senderId: currentUser.uid,
+        senderRole: 'user',
+        content: content || '',
+        type: 'file',
+        createdAt: serverTimestamp() as Timestamp,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        fileUrl: downloadURL,
+      };
+
+      console.log('💾 Adding file message to Firestore...');
+      const messagesRef = collection(this.db, 'chatRooms', chatRoomId, 'messages');
+      await addDoc(messagesRef, messageData);
+      console.log('✅ File message sent successfully');
+      
+      // Update chat room with last message
+      const lastMessageText = content ? `${file.name}: ${content}` : `Sent ${file.name}`;
+      await this.updateChatRoomLastMessage(chatRoomId, { ...messageData, content: lastMessageText });
+      await this.incrementUnreadCount(chatRoomId, 'admin');
+      console.log('✅ Chat room metadata updated');
+
+    } catch (error: any) {
+      console.error('❌ Error sending file message:', error);
+      throw new Error(`Failed to send file: ${error.message}`);
     }
   }
 
@@ -252,8 +313,6 @@ export class ChatService {
           },
           (error) => {
             console.error('❌ Error in messages listener:', error);
-            console.error('Error code:', error.code);
-            console.error('Error message:', error.message);
             callback([]);
           }
         );
@@ -283,8 +342,17 @@ export class ChatService {
   ): Promise<void> {
     try {
       const chatRoomRef = doc(this.db, 'chatRooms', chatRoomId);
+      
+      let lastMessage = messageData.content;
+      if (messageData.type === 'file') {
+        lastMessage = messageData.fileName ? `📎 ${messageData.fileName}` : '📎 File';
+        if (messageData.content) {
+          lastMessage += `: ${messageData.content}`;
+        }
+      }
+      
       await updateDoc(chatRoomRef, {
-        lastMessage: messageData.content.substring(0, 50) + (messageData.content.length > 50 ? '...' : ''),
+        lastMessage: lastMessage.substring(0, 50) + (lastMessage.length > 50 ? '...' : ''),
         lastMessageSender: messageData.senderRole,
         lastMessageTime: messageData.createdAt,
         lastUpdated: serverTimestamp(),
@@ -292,7 +360,6 @@ export class ChatService {
       console.log('✅ Updated last message for chat room');
     } catch (error) {
       console.error('⚠️ Error updating last message:', error);
-      // Don't throw - this is not critical
     }
   }
 
@@ -314,7 +381,6 @@ export class ChatService {
       }
     } catch (error) {
       console.error('⚠️ Error incrementing unread count:', error);
-      // Don't throw - this is not critical
     }
   }
 
@@ -330,7 +396,6 @@ export class ChatService {
       console.log('✅ Marked messages as read for user');
     } catch (error) {
       console.error('⚠️ Error marking messages as read:', error);
-      // Don't throw - this is not critical
     }
   }
 
@@ -395,6 +460,36 @@ export class ChatService {
     } catch (error) {
       console.error('❌ Error checking chat room existence:', error);
       return false;
+    }
+  }
+
+  /**
+   * Format file size for display
+   */
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  /**
+   * Get file icon based on file type
+   */
+  getFileIcon(fileType: string): string {
+    if (fileType.startsWith('image/')) {
+      return 'image';
+    } else if (fileType.includes('pdf')) {
+      return 'document';
+    } else if (fileType.includes('word') || fileType.includes('document')) {
+      return 'document-text';
+    } else if (fileType.includes('excel') || fileType.includes('spreadsheet')) {
+      return 'document';
+    } else if (fileType.includes('zip') || fileType.includes('compressed')) {
+      return 'archive';
+    } else {
+      return 'document';
     }
   }
 }

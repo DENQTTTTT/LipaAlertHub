@@ -136,6 +136,7 @@ function validateEmail(email) {
 
 
 // =================== CREATE STAFF ACCOUNT (WITH CORS & CORRECT REGION) ===================
+// =================== CREATE STAFF ACCOUNT (WITH CORS & CORRECT REGION) ===================
 exports.createStaffAccount = onCall({
   region: "asia-southeast1",
   cors: true,
@@ -478,36 +479,43 @@ exports.createStaffAccount = onCall({
       await admin.firestore().collection('users').doc(userRecord.uid).set(userData);
       logger.info('✅ Firestore document created');
 
-      // ✅ STEP 4: CREATE WELCOME NOTIFICATION
-      logger.info('🔔 Creating welcome notification...');
+      // =================== 🆕 PART 1: ENHANCED WELCOME NOTIFICATION WITH DEFAULT PASSWORD SYSTEM ===================
+      logger.info('🔔 Creating enhanced welcome notification...');
       
       let notificationBody = '';
-      if (role === 'admin') {
-        notificationBody = 'Welcome to LipaAlertHub! Your admin account is now active with full system access.';
-      } else if (role === 'monitor') {
-        notificationBody = 'Welcome to LipaAlertHub! Your monitor account is now active. You can view and manage reports.';
-      } else if (role === 'rescuer') {
-        notificationBody = 'Welcome to LipaAlertHub! Your rescuer account is now active. You can respond to emergencies.';
-      } else if (role === 'agency') {
-        notificationBody = `Welcome to LipaAlertHub! Your ${agencyName} agency account is now active.`;
+      let notificationTitle = '';
+
+      if (role === 'agency') {
+        notificationTitle = '🎉 Welcome to LipaAlertHub!';
+        notificationBody = `Welcome! Your ${customClaims.agencyName || 'agency'} account is now active.\n\n` +
+                         `✅ You can now login and access all emergency coordination features.\n\n` +
+                         `🔐 Security Tip:\n` +
+                         `Your account was created with a default password. ` +
+                         `You may change it anytime in Profile Settings → Change Password for better security.\n\n` +
+                         `Note: Changing your password is optional but recommended.`;
+      } else {
+        notificationTitle = '🎉 Welcome to LipaAlertHub';
+        notificationBody = `Your ${role} account has been created successfully. You can now login and access the system.`;
       }
-      
+
+      // Create the enhanced notification (one-time only)
       await admin.firestore().collection('notifications').add({
         userId: userRecord.uid,
-        title: '🎉 Account Created',
+        title: notificationTitle,
         body: notificationBody,
         type: 'account_created',
         status: 'unread',
-        priority: 'high',
+        priority: 'normal',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         data: {
           role: role,
           customClaims: customClaims,
-          createdBy: callerUid
+          createdBy: callerUid,
+          defaultPasswordUsed: role === 'agency' ? true : false
         }
       });
 
-      logger.info('✅ Notification created');
+      logger.info(`Welcome notification created for user ${userRecord.uid} (${role})`);
 
       // ✅ STEP 5: LOG ADMIN ACTION
       await admin.firestore().collection('admin_actions').add({
@@ -522,7 +530,8 @@ exports.createStaffAccount = onCall({
         details: {
           name: name,
           barangay: barangay,
-          agencyName: agencyName || null
+          agencyName: agencyName || null,
+          defaultPasswordUsed: role === 'agency' ? true : false
         }
       });
 
@@ -554,7 +563,7 @@ exports.createStaffAccount = onCall({
         if (role === 'admin') {
           successMessage = `Admin account created successfully for ${name}. Full system access granted.`;
         } else if (role === 'agency') {
-          successMessage = `${agencyName} agency account created successfully.`;
+          successMessage = `${agencyName} agency account created successfully with default password system.`;
         } else {
           successMessage = `${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully for ${name}.`;
         }
@@ -592,6 +601,439 @@ exports.createStaffAccount = onCall({
     } else {
       throw new functions.https.HttpsError('internal', `Unexpected error: ${error.message}`);
     }
+  }
+});
+
+// =================== PASSWORD CHANGE TRACKING (Optional) ===================
+exports.updateUserPassword = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    // Verify authentication
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    const { userId, newPassword } = request.data;
+    
+    if (!userId || !newPassword) {
+      throw new functions.https.HttpsError('invalid-argument', 'User ID and new password are required');
+    }
+
+    // Check if user is updating their own password or has admin privileges
+    const isOwnAccount = request.auth.uid === userId;
+    const hasAdminPrivileges = request.auth.token.admin === true || request.auth.token.monitor === true;
+
+    if (!isOwnAccount && !hasAdminPrivileges) {
+      throw new functions.https.HttpsError('permission-denied', 'Insufficient permissions to update password');
+    }
+
+    if (newPassword.length < 6) {
+      throw new functions.https.HttpsError('invalid-argument', 'Password must be at least 6 characters long');
+    }
+
+    // Update password in Firebase Auth
+    await admin.auth().updateUser(userId, {
+      password: newPassword
+    });
+
+    logger.info(`✅ Password updated for user ${userId}`);
+
+    // =================== PART 2: PASSWORD CHANGE TRACKING (Optional) ===================
+    try {
+      // Mark password as changed (for analytics/tracking only)
+      await admin.firestore().collection("users").doc(userId).update({
+        passwordChangedAt: admin.firestore.FieldValue.serverTimestamp(),
+        passwordChangedBy: userId,
+        lastPasswordUpdate: admin.firestore.FieldValue.serverTimestamp(),
+        defaultPasswordChanged: true // Mark that default password has been changed
+      });
+
+      logger.info(`User ${userId} changed their password`);
+
+      // Optional: Create a success notification
+      await admin.firestore().collection('notifications').add({
+        userId: userId,
+        title: '✅ Password Changed Successfully',
+        body: 'Your password has been updated successfully.',
+        type: 'security_update',
+        status: 'unread',
+        priority: 'normal',
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+    } catch (error) {
+      logger.error(`Error updating password tracking for user ${userId}:`, error);
+      // Don't throw - password was already changed successfully
+    }
+
+    return { 
+      success: true, 
+      message: "Password updated successfully",
+      userId: userId,
+      timestamp: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    logger.error('❌ Error in updateUserPassword:', error);
+    
+    if (error.code === 'auth/user-not-found') {
+      throw new functions.https.HttpsError('not-found', 'User not found');
+    } else if (error.code === 'auth/invalid-password') {
+      throw new functions.https.HttpsError('invalid-argument', 'Password is too weak');
+    }
+    
+    throw new functions.https.HttpsError('internal', `Failed to update password: ${error.message}`);
+  }
+});
+
+
+// =================== PASSWORD CHANGE TRACKING (Optional) ===================
+exports.updateUserPassword = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    // Verify authentication
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    const { userId, newPassword } = request.data;
+    
+    if (!userId || !newPassword) {
+      throw new functions.https.HttpsError('invalid-argument', 'User ID and new password are required');
+    }
+
+    // Check if user is updating their own password or has admin privileges
+    const isOwnAccount = request.auth.uid === userId;
+    const hasAdminPrivileges = request.auth.token.admin === true || request.auth.token.monitor === true;
+
+    if (!isOwnAccount && !hasAdminPrivileges) {
+      throw new functions.https.HttpsError('permission-denied', 'Insufficient permissions to update password');
+    }
+
+    if (newPassword.length < 6) {
+      throw new functions.https.HttpsError('invalid-argument', 'Password must be at least 6 characters long');
+    }
+
+    // Update password in Firebase Auth
+    await admin.auth().updateUser(userId, {
+      password: newPassword
+    });
+
+    logger.info(`✅ Password updated for user ${userId}`);
+
+    // =================== PART 2: PASSWORD CHANGE TRACKING (Optional) ===================
+    try {
+      // Mark password as changed (for analytics/tracking only)
+      await admin.firestore().collection("users").doc(userId).update({
+        passwordChangedAt: admin.firestore.FieldValue.serverTimestamp(),
+        passwordChangedBy: userId,
+        lastPasswordUpdate: admin.firestore.FieldValue.serverTimestamp(),
+        defaultPasswordChanged: true // Mark that default password has been changed
+      });
+
+      logger.info(`User ${userId} changed their password`);
+
+      // Optional: Create a success notification
+      await admin.firestore().collection('notifications').add({
+        userId: userId,
+        title: '✅ Password Changed Successfully',
+        body: 'Your password has been updated successfully.',
+        type: 'security_update',
+        status: 'unread',
+        priority: 'normal',
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+    } catch (error) {
+      logger.error(`Error updating password tracking for user ${userId}:`, error);
+      // Don't throw - password was already changed successfully
+    }
+
+    return { 
+      success: true, 
+      message: "Password updated successfully",
+      userId: userId,
+      timestamp: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    logger.error('❌ Error in updateUserPassword:', error);
+    
+    if (error.code === 'auth/user-not-found') {
+      throw new functions.https.HttpsError('not-found', 'User not found');
+    } else if (error.code === 'auth/invalid-password') {
+      throw new functions.https.HttpsError('invalid-argument', 'Password is too weak');
+    }
+    
+    throw new functions.https.HttpsError('internal', `Failed to update password: ${error.message}`);
+  }
+});
+
+exports.submitIncidentReport = onDocumentCreated({
+  document: 'incident_reports/{reportId}',
+  region: "asia-southeast1"
+}, async (event) => {
+  try {
+    const reportData = event.data.data();
+    const { reportId } = event.params;
+
+    console.log(`🔄 [CLOUD FUNCTION] Processing new report: ${reportId}`);
+    console.log('📋 [CLOUD FUNCTION] Report data:', {
+      userId: reportData.userId,
+      emergencyType: reportData.emergencyType,
+      subCategory: reportData.subCategory,
+      barangay: reportData.barangay,
+      establishment: reportData.establishment || 'none',
+      imagesCount: reportData.images ? reportData.images.length : 0
+    });
+
+    // ✅ REMOVED: Server-side duplicate check and deletion logic
+    // ✅ ALL REPORTS ARE NOW ACCEPTED REGARDLESS OF POTENTIAL DUPLICATES
+
+    console.log(`✅ [CLOUD FUNCTION] Accepting report ${reportId} - No server-side duplicate checks`);
+
+    // ✅ 1. INCREMENT USER'S REPORT COUNT (ALWAYS DO THIS)
+    try {
+      const userRef = admin.firestore().collection('users').doc(reportData.userId);
+      await userRef.update({
+        reportsCount: admin.firestore.FieldValue.increment(1),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      console.log('✅ [CLOUD FUNCTION] User report count incremented');
+    } catch (userError) {
+      console.error('❌ [CLOUD FUNCTION] Error updating user count:', userError);
+      // Don't throw error - continue processing
+    }
+
+    // ✅ 2. SEND NOTIFICATIONS TO ADMINS/MONITORS
+    try {
+      const adminsSnapshot = await admin.firestore()
+        .collection('users')
+        .where('role', 'in', ['admin', 'monitor', 'moderator'])
+        .where('status', '==', 'active')
+        .get();
+
+      const notificationPromises = [];
+      
+      adminsSnapshot.forEach((adminDoc) => {
+        const adminData = adminDoc.data();
+        
+        // Only send to admins who have notifications enabled
+        if (adminData.notificationsEnabled !== false) {
+          const notificationData = {
+            userId: adminDoc.id,
+            reportId: reportId,
+            title: '🆕 New Incident Report',
+            body: `New ${reportData.emergencyType} - ${reportData.subCategory} in ${reportData.barangay}`,
+            type: 'new_report',
+            emergencyType: reportData.emergencyType,
+            priority: 'high',
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            data: {
+              reportId: reportId,
+              emergencyType: reportData.emergencyType,
+              subCategory: reportData.subCategory,
+              barangay: reportData.barangay,
+              establishment: reportData.establishment,
+              timestamp: new Date().toISOString()
+            }
+          };
+          
+          notificationPromises.push(
+            admin.firestore().collection('notifications').add(notificationData)
+          );
+        }
+      });
+
+      await Promise.all(notificationPromises);
+      console.log(`✅ [CLOUD FUNCTION] Notifications sent to ${notificationPromises.length} admins/monitors`);
+    } catch (notificationError) {
+      console.error('❌ [CLOUD FUNCTION] Error sending admin notifications:', notificationError);
+      // Don't throw error - continue processing
+    }
+
+    // ✅ 3. SEND SUCCESS NOTIFICATION TO USER
+    try {
+      await admin.firestore().collection('notifications').add({
+        userId: reportData.userId,
+        reportId: reportId,
+        title: '✅ Report Submitted Successfully',
+        body: `Your ${reportData.emergencyType} report in ${reportData.barangay} has been received and is under review.`,
+        type: 'report_submitted',
+        priority: 'normal',
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        data: {
+          reportId: reportId,
+          emergencyType: reportData.emergencyType,
+          subCategory: reportData.subCategory,
+          barangay: reportData.barangay,
+          establishment: reportData.establishment,
+          actionUrl: `/report/status?reportId=${reportId}`,
+          timestamp: new Date().toISOString()
+        }
+      });
+      console.log('✅ [CLOUD FUNCTION] Success notification sent to user');
+    } catch (userNotificationError) {
+      console.error('❌ [CLOUD FUNCTION] Error sending user notification:', userNotificationError);
+      // Don't throw error - continue processing
+    }
+
+    // ✅ 4. UPDATE REPORT WITH PROCESSING TIMESTAMP
+    try {
+      await admin.firestore()
+        .collection('incident_reports')
+        .doc(reportId)
+        .update({
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          cloudFunctionProcessed: true,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+        });
+      console.log('✅ [CLOUD FUNCTION] Report marked as processed');
+    } catch (updateError) {
+      console.error('❌ [CLOUD FUNCTION] Error updating report timestamp:', updateError);
+    }
+
+    console.log(`🎉 [CLOUD FUNCTION] Report ${reportId} processed successfully - NO DELETION`);
+
+    return {
+      success: true,
+      message: 'Report processed successfully',
+      reportId: reportId
+    };
+
+  } catch (error) {
+    console.error('❌ [CLOUD FUNCTION] Error in submitIncidentReport:', error);
+    
+    // ✅ MARK REPORT AS FAILED PROCESSING (BUT DON'T DELETE)
+    try {
+      await admin.firestore()
+        .collection('incident_reports')
+        .doc(reportId)
+        .update({
+          processingError: error.message,
+          cloudFunctionProcessed: false,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (updateError) {
+      console.error('❌ [CLOUD FUNCTION] Error updating failed status:', updateError);
+    }
+    
+    throw error;
+  }
+});
+
+// ✅ OPTIONAL: Additional function for status updates
+exports.onReportStatusUpdate = onDocumentCreated({
+  document: 'incident_reports/{reportId}',
+  region: "asia-southeast1"
+}, async (event) => {
+  // This function can be used for additional processing if needed
+  // But the main submitIncidentReport function above is the critical one
+  
+  const reportData = event.data.data();
+  const { reportId } = event.params;
+  
+  console.log(`📝 [CLOUD FUNCTION] Additional processing for report: ${reportId}`);
+  
+  return { success: true };
+});
+
+// ✅ HELPER FUNCTIONS (KEPT FOR REFERENCE BUT NOT USED FOR DELETION)
+
+/**
+ * ✅ KEPT FOR REFERENCE: Server-side duplicate check
+ * BUT NO LONGER USED TO DELETE REPORTS
+ */
+async function checkForDuplicateReportServerSide(
+  userId, 
+  emergencyType, 
+  subCategory, 
+  location, 
+  barangay, 
+  establishment
+) {
+  // This function is kept for reference but no longer blocks submissions
+  console.log(`🔍 [CLOUD FUNCTION] Info: Duplicate check available but not blocking`);
+  
+  return {
+    isDuplicate: false,
+    message: 'Duplicate checks are informational only - no blocking'
+  };
+}
+
+/**
+ * ✅ KEPT FOR REFERENCE: Send duplicate notification
+ * BUT NO LONGER USED SINCE WE DON'T DELETE
+ */
+async function sendDuplicateNotification(
+  userId, 
+  duplicateReport, 
+  emergencyType, 
+  subCategory, 
+  barangay, 
+  timeSinceReport
+) {
+  // This function is kept for reference but no longer used
+  console.log(`📱 [CLOUD FUNCTION] Info: Duplicate notification available but not used`);
+}
+
+// ✅ CLIENT-SIDE CALLABLE FUNCTION FOR DUPLICATE CHECK
+exports.checkDuplicateReport = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    // Verify authentication
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    const { 
+      emergencyType, 
+      subCategory, 
+      location, 
+      barangay, 
+      establishment 
+    } = request.data;
+
+    // Validate required fields
+    if (!emergencyType || !subCategory || !location || !barangay) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+    }
+
+    console.log('🔍 [CLIENT DUPLICATE CHECK] Starting check for user:', request.auth.uid);
+
+    const duplicateCheck = await checkForDuplicateReportServerSide(
+      request.auth.uid,
+      emergencyType,
+      subCategory,
+      location,
+      barangay,
+      establishment
+    );
+
+    return {
+      success: true,
+      isDuplicate: duplicateCheck.isDuplicate,
+      duplicateReportId: duplicateCheck.duplicateReportId,
+      timeSinceReport: duplicateCheck.timeSinceReport,
+      message: duplicateCheck.message
+    };
+
+  } catch (error) {
+    console.error('❌ [CLIENT DUPLICATE CHECK] Error:', error);
+    
+    if (error.code === 'unauthenticated' || error.code === 'invalid-argument') {
+      throw error;
+    }
+    
+    throw new functions.https.HttpsError('internal', 'Failed to check for duplicates');
   }
 });
 // =================== HELPER: VERIFY CUSTOM CLAIMS ===================
@@ -3388,18 +3830,21 @@ async function sendPushNotificationBatches(messages) {
 exports.processIncidentPhoto = onObjectFinalized({
   bucket: "lipaalerthub.firebasestorage.app",
   region: "asia-southeast1",
-  cpu: 1,                    // Add this line
-  memory: "512MiB",          // Add this line
-  timeoutSeconds: 300        // Add this line
+  cpu: 1,
+  memory: "512MiB",
+  timeoutSeconds: 300
 }, async (event) => {
   const filePath = event.data.name;
   
+  // ✅ ENHANCED: Support for multiple photos (photo1, photo2, photo3)
   if (!filePath || !filePath.includes("incident_photos/")) {
     logger.info("Not an incident photo — skip:", filePath);
     return;
   }
 
   const metadata = event.data.metadata || {};
+  
+  // ✅ ENHANCED: Skip if already processed or no timestamp required
   if (metadata.embedTimestamp !== "true" || metadata.processed === "true") {
     logger.info("No timestamp embedding required or already processed:", filePath);
     return;
@@ -3409,33 +3854,58 @@ exports.processIncidentPhoto = onObjectFinalized({
   const file = bucket.file(filePath);
 
   try {
-    logger.info("Processing incident image:", filePath);
+    logger.info("🔄 Processing incident image:", filePath);
+    logger.info("📸 Photo metadata:", {
+      timestampText: metadata.timestampText,
+      location: metadata.location,
+      photoIndex: metadata.photoIndex || 'single',
+      totalPhotos: metadata.totalPhotos || 1
+    });
     
-    // Check if file exists and is accessible
+    // ✅ ENHANCED: Check if file exists and is accessible
     const [exists] = await file.exists();
     if (!exists) {
-      throw new Error("File no longer exists");
+      throw new Error("File no longer exists in storage");
     }
 
-    // Download with retry logic
+    // ✅ ENHANCED: Download with better retry logic
     const buffer = await retryOperation(async () => {
-      const [downloadBuffer] = await file.download();
-      return downloadBuffer;
+      try {
+        const [downloadBuffer] = await file.download();
+        logger.info(`✅ Downloaded photo: ${filePath} (${downloadBuffer.length} bytes)`);
+        return downloadBuffer;
+      } catch (downloadError) {
+        logger.error("❌ Download failed:", downloadError);
+        throw new Error(`Failed to download image: ${downloadError.message}`);
+      }
     });
 
-    // Get image metadata
+    // ✅ ENHANCED: Get image metadata with validation
     const imageMetadata = await sharp(buffer).metadata();
     const { width = 800, height = 600, format } = imageMetadata;
 
-    // Validate image
+    logger.info("📊 Image metadata:", {
+      width,
+      height,
+      format,
+      size: buffer.length
+    });
+
+    // ✅ ENHANCED: Validate image format
     if (!format || !['jpeg', 'jpg', 'png', 'webp'].includes(format)) {
-      throw new Error(`Unsupported image format: ${format}`);
+      throw new Error(`Unsupported image format: ${format}. Supported: jpeg, jpg, png, webp`);
     }
 
+    // ✅ ENHANCED: Handle large images with warning
     if (width > 4000 || height > 4000) {
-      logger.warn("Large image detected, may require more processing time");
+      logger.warn("⚠️ Large image detected, may require more processing time:", {
+        width,
+        height,
+        filePath
+      });
     }
 
+    // ✅ ENHANCED: Timestamp and location text
     const timestampText = metadata.timestampText || 
       new Date().toLocaleString("en-US", { 
         timeZone: "Asia/Manila",
@@ -3447,9 +3917,10 @@ exports.processIncidentPhoto = onObjectFinalized({
         second: '2-digit'
       });
       
-    const location = metadata.location || "";
+    const location = metadata.location || "LipaAlertHub";
     const lines = [timestampText, location].filter(Boolean);
 
+    // ✅ ENHANCED: Dynamic font sizing based on image dimensions
     const fontSize = Math.max(14, Math.floor(Math.min(width, height) * 0.03));
     const padding = Math.floor(fontSize * 1.0);
     const lineHeight = Math.floor(fontSize * 1.3);
@@ -3458,6 +3929,7 @@ exports.processIncidentPhoto = onObjectFinalized({
     const bgWidth = Math.max(250, Math.floor(maxLineLength * fontSize * 0.6));
     const bgHeight = lines.length * lineHeight + padding * 3;
 
+    // ✅ ENHANCED: SVG overlay with better styling
     const svg = `
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -3470,13 +3942,15 @@ exports.processIncidentPhoto = onObjectFinalized({
           </linearGradient>
         </defs>
 
+        <!-- Background rectangle -->
         <rect x="${width - bgWidth - padding * 2}" y="${height - bgHeight - padding * 2}" 
               width="${bgWidth + padding * 2}" height="${bgHeight + padding}" 
               rx="12" fill="url(#bgGradient)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
 
+        <!-- Timestamp and location text -->
         ${lines.map((line, idx) => {
           const y = height - (lines.length - idx - 1) * lineHeight - padding * 2.5;
-          const color = idx === 0 ? "#ffffff" : "#ffd700";
+          const color = idx === 0 ? "#ffffff" : "#ffd700"; // White for timestamp, gold for location
           const fSize = idx === 0 ? fontSize : Math.floor(fontSize * 0.85);
           const weight = idx === 0 ? "bold" : "normal";
           
@@ -3487,61 +3961,512 @@ exports.processIncidentPhoto = onObjectFinalized({
                   </text>`;
         }).join("")}
 
+        <!-- Verification badge -->
         <circle cx="${width - padding * 3 - 15}" cy="${height - bgHeight - padding + 15}" r="12" 
                 fill="#27ae60" stroke="white" stroke-width="2" filter="url(#shadow)"/>
         <text x="${width - padding * 3 - 15}" y="${height - bgHeight - padding + 20}" 
               text-anchor="middle" fill="white" font-size="14" font-weight="bold">✓</text>
+
+        <!-- Photo counter (if multiple photos) -->
+        ${metadata.photoIndex ? `
+          <circle cx="${padding * 3 + 15}" cy="${height - padding * 3 - 15}" r="16" 
+                  fill="#e74c3c" stroke="white" stroke-width="2" filter="url(#shadow)"/>
+          <text x="${padding * 3 + 15}" y="${height - padding * 3 - 10}" 
+                text-anchor="middle" fill="white" font-size="14" font-weight="bold">
+            ${metadata.photoIndex}
+          </text>
+        ` : ''}
       </svg>
     `;
 
-    // Process image with enhanced quality settings
+    // ✅ ENHANCED: Process image with better quality settings
+    logger.info("🎨 Processing image with timestamp overlay...");
+    
     const compositeBuffer = await sharp(buffer)
       .composite([{ input: Buffer.from(svg), gravity: "southeast" }])
       .jpeg({ 
         quality: 92,
         progressive: true,
-        mozjpeg: true
+        mozjpeg: true,
+        chromaSubsampling: '4:4:4'
       })
       .toBuffer();
 
-    // Save with enhanced metadata
+    logger.info(`✅ Image processed: ${compositeBuffer.length} bytes`);
+
+    // ✅ ENHANCED: Save with comprehensive metadata
     await retryOperation(async () => {
+      const enhancedMetadata = {
+        ...metadata,
+        processed: "true",
+        processedAt: new Date().toISOString(),
+        timestampEmbedded: "true",
+        originalFormat: format,
+        processedSize: compositeBuffer.length,
+        processingVersion: "3.0", // Updated version for multiple photos
+        dimensions: { width, height },
+        timestamp: timestampText,
+        location: location,
+        // ✅ ADDED: Multiple photo tracking
+        photoInfo: {
+          index: metadata.photoIndex || 1,
+          total: metadata.totalPhotos || 1,
+          isMultiple: (metadata.totalPhotos && metadata.totalPhotos > 1) || false
+        }
+      };
+
       await file.save(compositeBuffer, {
         metadata: {
           contentType: "image/jpeg",
-          metadata: {
-            ...metadata,
-            processed: "true",
-            processedAt: new Date().toISOString(),
-            timestampEmbedded: "true",
-            originalFormat: format,
-            processedSize: compositeBuffer.length,
-            processingVersion: "2.0"
-          },
+          metadata: enhancedMetadata,
+          cacheControl: 'public, max-age=31536000' // Cache for 1 year
         },
       });
+
+      logger.info("💾 Saved processed image with enhanced metadata");
     });
 
-    logger.info(`Incident image processed successfully: ${filePath}, size: ${compositeBuffer.length} bytes`);
+    logger.info(`🎉 Incident image processed successfully: ${filePath}`);
+    
+    // ✅ ENHANCED: Log success with details
+    await admin.firestore().collection("photo_processing_logs").add({
+      filePath: filePath,
+      status: "success",
+      originalSize: buffer.length,
+      processedSize: compositeBuffer.length,
+      dimensions: { width, height },
+      format: format,
+      timestamp: timestampText,
+      location: location,
+      photoIndex: metadata.photoIndex || 1,
+      totalPhotos: metadata.totalPhotos || 1,
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      processingTime: Date.now() - (metadata.uploadTime ? parseInt(metadata.uploadTime) : Date.now())
+    });
 
   } catch (error) {
-    logger.error("Error processing incident photo:", error);
+    logger.error("❌ Error processing incident photo:", {
+      filePath: filePath,
+      error: error.message,
+      stack: error.stack,
+      metadata: metadata
+    });
     
-    // Set detailed failure metadata
+    // ✅ ENHANCED: Set detailed failure metadata
     try {
+      const failureMetadata = {
+        ...metadata,
+        processed: "failed",
+        processedAt: new Date().toISOString(),
+        error: String(error.message || error).substring(0, 500),
+        errorType: error.name || 'Unknown',
+        retryCount: (parseInt(metadata.retryCount) || 0) + 1,
+        lastRetry: new Date().toISOString()
+      };
+
       await file.setMetadata({
-        metadata: {
-          ...metadata,
-          processed: "failed",
-          processedAt: new Date().toISOString(),
-          error: String(error.message || error).substring(0, 500),
-          errorType: error.name || 'Unknown',
-          retryCount: (parseInt(metadata.retryCount) || 0) + 1
-        },
+        metadata: failureMetadata
       });
+
+      logger.info("📝 Set failure metadata on file");
+
+      // ✅ ENHANCED: Log failure for debugging
+      await admin.firestore().collection("photo_processing_logs").add({
+        filePath: filePath,
+        status: "failed",
+        error: error.message,
+        errorType: error.name,
+        metadata: metadata,
+        failedAt: admin.firestore.FieldValue.serverTimestamp(),
+        retryCount: (parseInt(metadata.retryCount) || 0) + 1
+      });
+
     } catch (metaError) {
-      logger.error("Failed to set error metadata:", metaError);
+      logger.error("💥 Failed to set error metadata:", metaError);
     }
+    
+    // ✅ ENHANCED: Notify admins of critical failures
+    if (error.message.includes("corrupt") || error.message.includes("format")) {
+      try {
+        const admins = await admin.firestore()
+          .collection("users")
+          .where("role", "in", ["admin", "monitor"])
+          .where("status", "==", "active")
+          .get();
+
+        for (const adminDoc of admins.docs) {
+          await admin.firestore().collection("notifications").add({
+            userId: adminDoc.id,
+            title: "🖼️ Photo Processing Failed",
+            body: `Failed to process ${filePath}: ${error.message}`,
+            type: "photo_processing_error",
+            priority: "normal",
+            status: "unread",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            data: {
+              filePath: filePath,
+              error: error.message,
+              timestamp: new Date().toISOString()
+            }
+          });
+        }
+      } catch (notifyError) {
+        logger.error("Failed to notify admins:", notifyError);
+      }
+    }
+  }
+});
+/* ===================================================================
+   DUPLICATE REPORT DETECTION SYSTEM - WITH PUSH NOTIFICATIONS
+=================================================================== */
+
+// ✅ HELPER: Calculate distance between coordinates
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+  
+  return distance;
+}
+
+// ✅ ENHANCED: Send duplicate notification to user
+async function sendDuplicateNotification(userId, duplicateReport, emergencyType, subCategory, barangay, timeSinceReport) {
+  try {
+    console.log(`📱 Sending duplicate notification to user: ${userId}`);
+    
+    // Get user data for notification
+    const userDoc = await admin.firestore().collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      console.log('User not found for notification');
+      return;
+    }
+
+    const userData = userDoc.data();
+    const expoPushToken = userData?.expoPushToken;
+
+    // Create in-app notification
+    await admin.firestore().collection('notifications').add({
+      userId: userId,
+      title: '⚠️ Report Already Submitted',
+      body: `You already submitted this ${emergencyType} report in ${barangay}. Tap to view status.`,
+      type: 'report_duplicate',
+      priority: 'high',
+      status: 'unread',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      data: {
+        reportId: duplicateReport.id,
+        emergencyType: emergencyType,
+        subCategory: subCategory,
+        barangay: barangay,
+        timeSinceReport: timeSinceReport,
+        status: duplicateReport.status,
+        actionUrl: `/report/status?reportId=${duplicateReport.id}`,
+        timestamp: new Date().toISOString()
+      },
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+      )
+    });
+
+    console.log('✅ In-app duplicate notification created');
+
+    // Send push notification if user has token
+    if (expoPushToken && typeof expoPushToken === 'string' && expoPushToken.trim()) {
+      const message = {
+        to: expoPushToken,
+        sound: 'default',
+        title: '⚠️ Report Already Submitted',
+        body: `You already reported this ${emergencyType.toLowerCase()} in ${barangay}. Tap to view status.`,
+        data: {
+          type: 'report_duplicate',
+          reportId: duplicateReport.id,
+          emergencyType: emergencyType,
+          barangay: barangay,
+          timeSinceReport: timeSinceReport,
+          timestamp: Date.now()
+        },
+        channelId: 'reports',
+        priority: 'high',
+        ttl: 3600 // 1 hour
+      };
+
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+      });
+
+      if (response.ok) {
+        console.log('✅ Push notification sent for duplicate report');
+      } else {
+        console.error('❌ Push notification failed:', response.status);
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Error sending duplicate notification:', error);
+    // Don't throw - notification failure shouldn't break the duplicate check
+  }
+}
+
+// ✅ SERVER-SIDE DUPLICATE CHECK FUNCTION
+// ✅ UPDATED DUPLICATE CHECK FUNCTION (Server-side)
+// ✅ UPDATED DUPLICATE CHECK FUNCTION (Server-side)
+async function checkForDuplicateReportServerSide(userId, emergencyType, subCategory, location, barangay, establishment) {
+  try {
+    console.log('🔍 [CLOUD FUNCTION - ENHANCED] Checking for duplicate report...');
+    console.log('🔍 Duplicate Check Criteria:', {
+      userId,
+      emergencyType,
+      subCategory,
+      barangay,
+      establishment: establishment || 'none',
+      latitude: location.latitude,
+      longitude: location.longitude
+    });
+
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+    
+    // ✅ FIXED: Extended time window to 2 hours for better duplicate detection
+    const twoHoursAgo = new Date(now.toDate().getTime() - 2 * 60 * 60 * 1000);
+
+    // ✅ FIXED: Query includes ALL required fields for proper duplicate detection
+    const reportsRef = db.collection('incident_reports');
+    const snapshot = await reportsRef
+      .where('userId', '==', userId)
+      .where('emergencyType', '==', emergencyType) // ✅ MUST match emergency type
+      .where('subCategory', '==', subCategory)     // ✅ MUST match subcategory
+      .where('barangay', '==', barangay)           // ✅ MUST match barangay
+      .where('createdAt', '>', admin.firestore.Timestamp.fromDate(twoHoursAgo))
+      .where('status', 'in', ['pending', 'accepted', 'verified', 'assigned'])
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get();
+
+    console.log(`📋 [CLOUD FUNCTION] Found ${snapshot.size} potential duplicate(s) to check`);
+
+    if (snapshot.empty) {
+      console.log('✅ [CLOUD FUNCTION] No potential duplicates found');
+      return { isDuplicate: false };
+    }
+
+    // ✅ CHECK EACH REPORT FOR LOCATION MATCH WITH 50m RADIUS
+    for (const doc of snapshot.docs) {
+      const report = doc.data();
+      
+      console.log(`🔍 Checking report ${doc.id}:`, {
+        emergency: report.emergencyType,
+        subCategory: report.subCategory,
+        barangay: report.barangay,
+        establishment: report.establishment || 'none',
+        status: report.status,
+        createdAt: report.createdAt?.toDate().toISOString()
+      });
+
+      let isLocationMatch = false;
+
+      // ✅ SMART LOCATION MATCHING - SAME LOGIC AS CLIENT
+      if (establishment && report.establishment) {
+        // Establishment exact match
+        isLocationMatch = (
+          establishment.toLowerCase().trim() === 
+          report.establishment.toLowerCase().trim()
+        );
+        console.log(`📍 [CLOUD FUNCTION] Establishment match: ${isLocationMatch} (${establishment} vs ${report.establishment})`);
+      } else {
+        // 50-meter radius check
+        const reportLat = report.location?.latitude || report.lat;
+        const reportLng = report.location?.longitude || report.lng;
+
+        if (reportLat && reportLng) {
+          const distance = calculateDistance(
+            location.latitude,
+            location.longitude,
+            reportLat,
+            reportLng
+          );
+
+          console.log(`📏 [CLOUD FUNCTION] Distance: ${distance.toFixed(3)}km (${(distance * 1000).toFixed(0)}m)`);
+          isLocationMatch = distance <= 0.05; // 50 meters
+          console.log(`📍 [CLOUD FUNCTION] 50m radius check: ${isLocationMatch}`);
+        } else {
+          console.log('⚠️ [CLOUD FUNCTION] Report missing coordinates - cannot check distance');
+        }
+      }
+
+      // ✅ ONLY BLOCK IF ALL CRITERIA MATCH: same user + same emergency type + same subcategory + same location
+      if (isLocationMatch) {
+        const reportTime = report.createdAt?.toDate() || new Date(0);
+        const timeDiff = Math.floor((now.toDate().getTime() - reportTime.getTime()) / (1000 * 60));
+
+        console.log('🚨 [CLOUD FUNCTION] DUPLICATE FOUND! Blocking submission.');
+        console.log(`📋 Duplicate Details - Report ID: ${doc.id}, Time difference: ${timeDiff} minutes, Status: ${report.status}`);
+
+        return {
+          isDuplicate: true,
+          duplicateReport: { id: doc.id, ...report },
+          duplicateReportId: doc.id,
+          timeSinceReport: timeDiff,
+          message: `Duplicate report found: ${report.emergencyType} - ${report.subCategory} in ${report.barangay}`
+        };
+      }
+    }
+
+    console.log('✅ [CLOUD FUNCTION] No duplicates found after location check');
+    return { isDuplicate: false };
+
+  } catch (error) {
+    console.error('❌ [CLOUD FUNCTION] Error in duplicate check:', error);
+    // Don't block submission on error (fail open)
+    return { 
+      isDuplicate: false,
+      message: 'Duplicate check failed, allowing submission'
+    };
+  }
+}
+
+// ✅ CLIENT-SIDE CALLABLE FUNCTION FOR DUPLICATE CHECK
+exports.checkDuplicateReport = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    // Verify authentication
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    const { 
+      emergencyType, 
+      subCategory, 
+      location, 
+      barangay, 
+      establishment 
+    } = request.data;
+
+    // Validate required fields
+    if (!emergencyType || !subCategory || !location || !barangay) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+    }
+
+    console.log('🔍 [CLIENT DUPLICATE CHECK] Starting check for user:', request.auth.uid);
+
+    const duplicateCheck = await checkForDuplicateReportServerSide(
+      request.auth.uid,
+      emergencyType,
+      subCategory,
+      location,
+      barangay,
+      establishment
+    );
+
+    // ✅ SEND NOTIFICATION IMMEDIATELY IF DUPLICATE FOUND (Client-side check)
+    if (duplicateCheck.isDuplicate && duplicateCheck.duplicateReport) {
+      console.log('📱 Sending immediate duplicate notification to user');
+      
+      await sendDuplicateNotification(
+        request.auth.uid,
+        duplicateCheck.duplicateReport,
+        emergencyType,
+        subCategory,
+        barangay,
+        duplicateCheck.timeSinceReport
+      );
+    }
+
+    return {
+      success: true,
+      isDuplicate: duplicateCheck.isDuplicate,
+      duplicateReportId: duplicateCheck.duplicateReportId,
+      timeSinceReport: duplicateCheck.timeSinceReport,
+      message: duplicateCheck.message
+    };
+
+  } catch (error) {
+    console.error('❌ [CLIENT DUPLICATE CHECK] Error:', error);
+    
+    if (error.code === 'unauthenticated' || error.code === 'invalid-argument') {
+      throw error;
+    }
+    
+    throw new functions.https.HttpsError('internal', 'Failed to check for duplicates');
+  }
+});
+
+// ✅ NEW: MANUAL DUPLICATE CHECK FOR TESTING
+exports.manualDuplicateCheck = onCall({
+  region: "asia-southeast1",
+  cors: true
+}, async (request) => {
+  try {
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    const { 
+      emergencyType = 'medical', 
+      subCategory = 'heart_attack', 
+      barangay = 'Lipa City',
+      testMode = false 
+    } = request.data;
+
+    // For testing, create a mock location in Lipa
+    const testLocation = {
+      latitude: 13.9411,
+      longitude: 121.1631
+    };
+
+    console.log('🧪 [MANUAL DUPLICATE CHECK] Testing for user:', request.auth.uid);
+
+    const duplicateCheck = await checkForDuplicateReportServerSide(
+      request.auth.uid,
+      emergencyType,
+      subCategory,
+      testLocation,
+      barangay,
+      'Test Establishment'
+    );
+
+    let notificationSent = false;
+    
+    // If duplicate found and in test mode, send notification
+    if (duplicateCheck.isDuplicate && duplicateCheck.duplicateReport && testMode) {
+      await sendDuplicateNotification(
+        request.auth.uid,
+        duplicateCheck.duplicateReport,
+        emergencyType,
+        subCategory,
+        barangay,
+        duplicateCheck.timeSinceReport || 5
+      );
+      notificationSent = true;
+    }
+
+    return {
+      success: true,
+      isDuplicate: duplicateCheck.isDuplicate,
+      duplicateReportId: duplicateCheck.duplicateReportId,
+      timeSinceReport: duplicateCheck.timeSinceReport,
+      notificationSent: notificationSent,
+      message: duplicateCheck.message || 'Check completed'
+    };
+
+  } catch (error) {
+    console.error('❌ [MANUAL DUPLICATE CHECK] Error:', error);
+    throw new functions.https.HttpsError('internal', 'Manual check failed');
   }
 });
 

@@ -1,3 +1,4 @@
+//code from the app create report form 
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from '@react-native-picker/picker';
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
@@ -8,23 +9,23 @@ import { doc, getDoc } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Image,
-  Linking,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    Image,
+    Linking,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { useAuth } from "../../../hooks/useAuth";
 import { auth, db } from "../../../services/firebase";
-import { submitIncidentReport } from "../../../services/reports";
+import { checkDuplicateReport, submitIncidentReport } from "../../../services/reports";
 
 const { width } = Dimensions.get('window');
 
@@ -66,6 +67,7 @@ const lipaBarangays = [
   "Santo Niño", "Santo Toribio", "Sapac", "Sico", "Talisay",
   "Tambo", "Tangob", "Tangway", "Tibig", "Tipacan"
 ];
+
 const isWithinLipaCityBounds = (latitude: number, longitude: number): boolean => {
   const LIPA_BOUNDS = {
     north: 14.0500,
@@ -92,13 +94,11 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 };
 
-// ENHANCED: Better barangay matching
 const matchBarangayName = (detectedName: string): string | null => {
   if (!detectedName || detectedName.length < 2) return null;
   
   const cleanName = detectedName.trim();
   
-  // Direct exact match (case-insensitive)
   const exactMatch = lipaBarangays.find(b => 
     b.toLowerCase() === cleanName.toLowerCase()
   );
@@ -107,9 +107,7 @@ const matchBarangayName = (detectedName: string): string | null => {
     return exactMatch;
   }
   
-  // Handle Poblacion barangays specifically
   if (cleanName.toLowerCase().includes('poblacion')) {
-    // Extract number from patterns like "Poblacion 6", "Poblacion Barangay 6", "Barangay 6"
     const numberMatch = cleanName.match(/(\d+[-A-Za-z]*)/);
     if (numberMatch) {
       const num = numberMatch[1];
@@ -123,7 +121,6 @@ const matchBarangayName = (detectedName: string): string | null => {
     }
   }
   
-  // Handle numbered barangays (e.g., "Barangay 12")
   const barangayNumberMatch = cleanName.match(/barangay\s*(\d+)/i);
   if (barangayNumberMatch) {
     const num = barangayNumberMatch[1];
@@ -137,7 +134,6 @@ const matchBarangayName = (detectedName: string): string | null => {
     }
   }
   
-  // Partial match (contains)
   const partialMatch = lipaBarangays.find(b => 
     b.toLowerCase().includes(cleanName.toLowerCase()) ||
     cleanName.toLowerCase().includes(b.toLowerCase())
@@ -150,7 +146,6 @@ const matchBarangayName = (detectedName: string): string | null => {
   return null;
 };
 
-// ENHANCED: Better establishment detection with larger radius
 const getEnhancedAddress = async (latitude: number, longitude: number): Promise<AddressComponents | null> => {
   const GOOGLE_API_KEY = "AIzaSyACw2laKXQGTW634IejVAdK8m0PKngvaRo";
   
@@ -162,7 +157,6 @@ const getEnhancedAddress = async (latitude: number, longitude: number): Promise<
     let bestBarangay = null;
     let bestConfidence = 0;
     
-    // STEP 1: Try Places API with LARGER radius for establishments
     try {
       const placesResponse = await fetch(
         `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=200&key=${GOOGLE_API_KEY}`
@@ -175,7 +169,6 @@ const getEnhancedAddress = async (latitude: number, longitude: number): Promise<
         nearbyPlaces = placesData.results.slice(0, 5).map((p: any) => p.name);
         console.log(`Found ${placesData.results.length} nearby places`);
         
-        // Try to find an establishment within 200m
         for (const place of placesData.results.slice(0, 3)) {
           const detailsResponse = await fetch(
             `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=address_components,formatted_address,name,types,geometry&key=${GOOGLE_API_KEY}`
@@ -215,7 +208,6 @@ const getEnhancedAddress = async (latitude: number, longitude: number): Promise<
                   };
                   console.log(`📍 Found establishment: ${placeDetail.name} (${Math.round(distance)}m)`);
                   
-                  // Try to extract barangay from establishment's address
                   const barangay = extractBarangayFromComponents(placeDetail.address_components);
                   if (barangay && barangay !== "Unknown Barangay") {
                     const matched = matchBarangayName(barangay);
@@ -236,7 +228,6 @@ const getEnhancedAddress = async (latitude: number, longitude: number): Promise<
       console.log("Places API failed:", error);
     }
     
-    // STEP 2: If no barangay from establishment, try geocoding
     if (!bestBarangay) {
       const resultTypes = ['premise', 'street_address', 'route', 'neighborhood', 'sublocality_level_1', 'sublocality'];
       
@@ -270,7 +261,6 @@ const getEnhancedAddress = async (latitude: number, longitude: number): Promise<
       }
     }
     
-    // STEP 3: Build formatted address
     if (bestBarangay) {
       let formattedAddress = "";
       
@@ -329,7 +319,6 @@ const extractBarangayFromComponents = (components: any[]): string | null => {
         
         let cleanName = name.trim();
         
-        // Remove common prefixes
         if (cleanName.toLowerCase().startsWith('barangay ')) {
           cleanName = cleanName.substring(9);
         }
@@ -432,7 +421,7 @@ const uploadImage = async (uri: string, user: any, timestamp: Date, reportId: st
     console.log("Starting image upload for reportId:", reportId);
     const storage = getStorage();
     const timestampStr = new Date().toISOString().replace(/[:.]/g, "-");
-       const imageRef = ref(storage, `incident_photos/photo-${timestampStr}.jpg`);
+    const imageRef = ref(storage, `incident_photos/photo-${timestampStr}.jpg`);
 
     const response = await fetch(uri);
     const blob = await response.blob();
@@ -539,13 +528,18 @@ const CreateEmergencyReport: React.FC = () => {
   const [emergencyType, setEmergencyType] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [description, setDescription] = useState("");
-  const [additionalNotes, setAdditionalNotes] = useState(""); // ADDED: Additional Notes field
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [processedPhotoUri, setProcessedPhotoUri] = useState<string | null>(null);
-  const [photoTimestamp, setPhotoTimestamp] = useState<Date | null>(null);
+  const [additionalNotes, setAdditionalNotes] = useState("");
+  
+  // ✅ UPDATED: Multi-photo state
+  const [photos, setPhotos] = useState<Array<{
+    uri: string;
+    processedUri: string;
+    timestamp: Date;
+  }>>([]);
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingUserData, setIsLoadingUserData] = useState(true);
-  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   
   const [showCamera, setShowCamera] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
@@ -860,16 +854,27 @@ const CreateEmergencyReport: React.FC = () => {
     }
   };
 
+  // ✅ UPDATED: Multi-photo takePicture function
   const takePicture = async () => {
     if (!cameraRef.current) {
       Alert.alert("Error", "Camera not ready. Please try again.");
       return;
     }
 
+    // ✅ CHECK: Maximum 3 photos
+    if (photos.length >= 3) {
+      Alert.alert(
+        "Photo Limit Reached", 
+        "You have already taken 3 photos. You can remove a photo to take a new one.",
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     try {
       setIsProcessingPhoto(true);
       const currentTime = new Date();
-      console.log("Taking photo with timestamp:", currentTime.toISOString());
+      console.log("📸 Taking photo with timestamp:", currentTime.toISOString());
 
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.9,
@@ -881,16 +886,22 @@ const CreateEmergencyReport: React.FC = () => {
         throw new Error("Failed to capture photo.");
       }
 
-      console.log("Photo captured successfully:", photo.uri);
+      console.log("✅ Photo captured successfully:", photo.uri);
+      
+      // Process with timestamp
       const processedUri = await processImageWithTimestamp(photo.uri, currentTime);
 
-      setPhotoUri(photo.uri);
-      setProcessedPhotoUri(processedUri);
-      setPhotoTimestamp(currentTime);
+      // ✅ ADD to photos array
+      setPhotos(prev => [...prev, {
+        uri: photo.uri,
+        processedUri: processedUri,
+        timestamp: currentTime
+      }]);
+
       setShowCamera(false);
 
       Alert.alert(
-        'Photo Captured Successfully!',
+        `Photo ${photos.length + 1} Captured Successfully! 📸`,
         `Timestamp: ${currentTime.toLocaleString('en-US', {
           year: 'numeric',
           month: '2-digit',
@@ -899,54 +910,73 @@ const CreateEmergencyReport: React.FC = () => {
           minute: '2-digit',
           second: '2-digit',
           hour12: true
-        })} - LipaAlertHub\n\nPhoto processed and ready for submission.`,
+        })} - LipaAlertHub\n\n` +
+        `Photos: ${photos.length + 1}/3\n` +
+        (photos.length < 2 ? "You can take up to 2 more photos." : 
+         photos.length === 2 ? "You can take 1 more photo." : 
+         "Maximum photos reached."),
         [{ text: 'OK' }]
       );
+
     } catch (error) {
-      console.error("Error taking picture:", error);
+      console.error("❌ Error taking picture:", error);
       Alert.alert("Error", "Failed to take picture. Please try again.");
     } finally {
       setIsProcessingPhoto(false);
     }
   };
 
+  // ✅ UPDATED: Enhanced handleSubmit with duplicate check
   const handleSubmit = async () => {
     try {
-      if (!name.trim()) {
-        Alert.alert("Validation Error", "Please enter your name.");
-        return;
-      }
-      if (!emergencyType) {
-        Alert.alert("Validation Error", "Please select emergency type.");
-        return;
-      }
-      if (!subCategory) {
-        Alert.alert("Validation Error", "Please select subcategory.");
-        return;
-      }
-      if (!selectedLocation) {
-        Alert.alert("Validation Error", "Please select location.");
-        return;
-      }
-      if (!selectedBarangay) {
-        Alert.alert("Validation Error", "Please select barangay.");
-        return;
-      }
+      console.log('🚀 [UI] Submit button pressed - Starting validation...');
       
-      // MANDATORY PHOTO REQUIREMENT
-      if (!processedPhotoUri || !photoTimestamp) {
+      // ✅ BASIC VALIDATION
+      if (!name.trim()) {
+        Alert.alert("Missing Information", "Please enter your name.");
+        return;
+      }
+
+      if (!emergencyType) {
+        Alert.alert("Missing Information", "Please select an emergency type.");
+        return;
+      }
+
+      if (!subCategory) {
+        Alert.alert("Missing Information", "Please select a subcategory.");
+        return;
+      }
+
+      if (!selectedBarangay) {
+        Alert.alert("Missing Information", "Please select your barangay.");
+        return;
+      }
+
+      if (!selectedLocation) {
+        Alert.alert("Missing Information", "Please select a location on the map.");
+        return;
+      }
+
+      // ✅ PHOTO VALIDATION (minimum 1 photo required)
+      if (photos.length === 0) {
         Alert.alert(
           "Photo Required", 
-          "Please take a photo of the incident. Photos with timestamps are mandatory for all emergency reports.",
+          "Please take at least 1 photo of the incident. Photos with timestamps are mandatory for all emergency reports.",
           [{ text: 'OK' }]
         );
         return;
       }
 
-      if (!isWithinLipaCityBounds(selectedLocation.latitude, selectedLocation.longitude)) {
-        Alert.alert("Invalid Location", "Emergency reports can only be submitted within Lipa City limits.");
-        return;
-      }
+      console.log('✅ [UI] All validations passed');
+      console.log('📋 [UI] Form data:', {
+        name,
+        emergencyType,
+        subCategory,
+        selectedBarangay,
+        photosCount: photos.length,
+        location: selectedLocation,
+        establishment: addressComponents?.establishment
+      });
 
       setIsSubmitting(true);
 
@@ -955,16 +985,85 @@ const CreateEmergencyReport: React.FC = () => {
         throw new Error("Not authenticated");
       }
 
-      console.log("Starting emergency report submission...");
+      // ✅ CHECK FOR DUPLICATES **BEFORE ANY UPLOAD OR SUBMISSION**
+      console.log("🔍 [UI] Checking for duplicate reports...");
+      
+      const duplicateCheck = await checkDuplicateReport(
+        currentUser.uid,
+        emergencyType,
+        subCategory,
+        selectedLocation,
+        selectedBarangay,
+        addressComponents?.establishment
+      );
 
-      let photoUrl = null;
+      console.log('🔍 [UI] Duplicate check result:', duplicateCheck);
+
+      if (duplicateCheck.isDuplicate && duplicateCheck.duplicateReport) {
+        const duplicate = duplicateCheck.duplicateReport;
+        const timeAgo = duplicateCheck.timeSinceReport || 0;
+        
+        setIsSubmitting(false);
+        
+        // ✅ SHOW BLOCKING ALERT - NO SUBMISSION TO ADMIN
+        Alert.alert(
+          "⚠️ Report Already Submitted",
+          `You have already submitted this report:\n\n` +
+          `Emergency: ${emergencyTypes.find(t => t.value === emergencyType)?.label || emergencyType} - ${subCategoryOptions[emergencyType]?.find(o => o.value === subCategory)?.label || subCategory}\n` +
+          `Location: ${selectedBarangay}\n` +
+          `Time: ${timeAgo} minute${timeAgo !== 1 ? 's' : ''} ago\n` +
+          `Status: ${duplicate.status}\n\n` +
+          `Your report is currently being processed. Please wait for updates.`,
+          [
+            {
+              text: "View My Report",
+              onPress: () => {
+                resetForm();
+                router.push({
+                  pathname: "/(main)/report/status",
+                  params: { reportId: duplicate.id },
+                });
+              },
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ]
+        );
+        return; // ❌ BLOCK SUBMISSION COMPLETELY - NO UPLOAD, NO FIREBASE
+      }
+
+      // ✅ NO DUPLICATE - PROCEED WITH PHOTO UPLOAD AND SUBMISSION
+      console.log("✅ [UI] No duplicate found - proceeding with submission");
+
+      console.log(`📸 [UI] Starting upload of ${photos.length} photo(s)...`);
+
+      // ✅ UPLOAD ALL PHOTOS (only if no duplicate)
+      let photoUrls = [];
       try {
         const tempId = `temp_${Date.now()}`;
-        photoUrl = await uploadImage(processedPhotoUri, currentUser, photoTimestamp, tempId);
-        console.log("Photo uploaded successfully:", photoUrl);
+        
+        for (let i = 0; i < photos.length; i++) {
+          const photo = photos[i];
+          console.log(`📤 [UI] Uploading photo ${i + 1}/${photos.length}...`);
+          
+          const url = await uploadImage(
+            photo.processedUri, 
+            currentUser, 
+            photo.timestamp, 
+            `${tempId}_photo${i + 1}`
+          );
+          
+          photoUrls.push(url);
+          console.log(`✅ [UI] Photo ${i + 1} uploaded successfully: ${url.substring(0, 50)}...`);
+        }
+        
+        console.log(`✅ [UI] All ${photoUrls.length} photos uploaded successfully`);
+        
       } catch (uploadError) {
-        console.error("Photo upload failed:", uploadError);
-        Alert.alert("Upload Error", "Failed to upload photo. Please try again.");
+        console.error("❌ [UI] Photo upload failed:", uploadError);
+        Alert.alert("Upload Error", "Failed to upload photos. Please try again.");
         setIsSubmitting(false);
         return;
       }
@@ -977,35 +1076,46 @@ const CreateEmergencyReport: React.FC = () => {
         type => type.value === emergencyType
       )?.label || emergencyType;
 
-      // UPDATED: Include subCategory and additionalNotes in submission
+      // ✅ SUBMIT TO FIREBASE (only if no duplicate)
+      console.log('📤 [UI] Submitting report to Firebase...');
       const result = await submitIncidentReport({
         userId: currentUser.uid,
         reporterName: name.trim(),
         address: addressComponents?.formattedAddress || `${selectedBarangay}, Lipa City`,
         category: emergencyType,
         description: description.trim() || `${emergencyTypeLabel} - ${subCategoryLabel}`,
-        images: [photoUrl],
+        images: photoUrls, // ✅ Multiple photos
         location: {
           latitude: selectedLocation.latitude,
           longitude: selectedLocation.longitude
         },
-        subCategory: subCategory, // ADDED: Subcategory field
-        additionalNotes: additionalNotes.trim() // ADDED: Additional notes field
+        subCategory: subCategory,
+        additionalNotes: additionalNotes.trim()
       });
 
-      if (result.success) {
-        console.log("Report submitted successfully:", result);
+      console.log('📨 [UI] Submit result:', result);
+
+      if (result.success && result.id) {
+        console.log("✅ [UI] Report submitted successfully:", result);
+        
         Alert.alert(
-          "Emergency Report Submitted!", 
-          `Your report has been submitted.\n\nID: ${result.id}\nType: ${emergencyTypeLabel}\nSubcategory: ${subCategoryLabel}\n${addressComponents?.establishment ? `Location: ${addressComponents.establishment}\n` : ''}Barangay: ${selectedBarangay}`,
+          "Emergency Report Submitted Successfully! 🎉", 
+          `Report ID: ${result.id}\n` +
+          `Type: ${emergencyTypeLabel}\n` +
+          `Subcategory: ${subCategoryLabel}\n` +
+          `${addressComponents?.establishment ? `Location: ${addressComponents.establishment}\n` : ''}` +
+          `Barangay: ${selectedBarangay}\n` +
+          `Photos: ${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} uploaded\n\n` +
+          `Your report has been submitted and is being reviewed by CDRRMO.`,
           [
             {
               text: "View Status",
               onPress: () => {
+                console.log('📱 [UI] Navigating to status page with reportId:', result.id);
                 resetForm();
                 router.push({
                   pathname: "/(main)/report/status",
-                  params: { reportId: result.id },
+                  params: { reportId: result.id }, // ✅ Pass correct reportId
                 });
               },
             },
@@ -1020,25 +1130,28 @@ const CreateEmergencyReport: React.FC = () => {
           ]
         );
       } else {
+        console.error('❌ [UI] Submit failed:', result.error);
         throw new Error(result.error || "Failed to submit");
       }
 
     } catch (error) {
-      console.error("Submit error:", error);
+      console.error("❌ [UI] Submit error:", error);
       Alert.alert("Error", `Failed to submit: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ✅ UPDATED: Reset form to clear photos array
   const resetForm = () => {
     setEmergencyType("");
     setSubCategory("");
     setDescription("");
-    setAdditionalNotes(""); // ADDED: Reset additional notes
-    setPhotoUri(null);
-    setProcessedPhotoUri(null);
-    setPhotoTimestamp(null);
+    setAdditionalNotes("");
+    
+    // ✅ CLEAR PHOTOS ARRAY
+    setPhotos([]);
+    
     setAddressComponents(null);
     setSelectedBarangay("");
     setCurrentLocation(null);
@@ -1347,31 +1460,109 @@ const CreateEmergencyReport: React.FC = () => {
           </Text>
         </View>
 
+        {/* ✅ UPDATED: Multi-photo UI */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Evidence Photo * (Required)</Text>
           <Text style={styles.helperText}>
-            A timestamped photo is mandatory for all emergency reports.
+            Take 1-3 timestamped photos. Minimum 1 photo required.
           </Text>
+          
+          {/* Take Photo Button */}
           <View style={styles.photoContainer}>
             <TouchableOpacity
-              style={styles.takePhotoButton}
+              style={[
+                styles.takePhotoButton,
+                photos.length >= 3 && styles.takePhotoButtonDisabled
+              ]}
               onPress={() => setShowCamera(true)}
+              disabled={photos.length >= 3}
             >
               <Ionicons name="camera" size={20} color="#fff" />
-              <Text style={styles.takePhotoButtonText}>TAKE PHOTO</Text>
-              {processedPhotoUri && (
-                <View style={styles.cameraIcon}>
-                  <Ionicons name="checkmark" size={16} color="#fff" />
+              <Text style={styles.takePhotoButtonText}>
+                {photos.length === 0 ? 'TAKE PHOTO (Required)' : 
+                 photos.length < 3 ? `TAKE ANOTHER PHOTO (${photos.length}/3)` : 
+                 'MAXIMUM PHOTOS REACHED (3/3)'}
+              </Text>
+              {photos.length > 0 && (
+                <View style={styles.photoCountBadge}>
+                  <Text style={styles.photoCountText}>{photos.length}</Text>
                 </View>
               )}
             </TouchableOpacity>
           </View>
-          
-          {processedPhotoUri && photoTimestamp && (
-            <TimestampOverlayPreview 
-              photoUri={processedPhotoUri} 
-              timestamp={photoTimestamp} 
-            />
+
+          {/* Photos Preview Grid */}
+          {photos.length > 0 && (
+            <View style={styles.photosPreviewContainer}>
+              <Text style={styles.photosPreviewLabel}>
+                Captured Photos ({photos.length}/3):
+              </Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.photosScrollView}
+              >
+                {photos.map((photo, index) => (
+                  <View key={index} style={styles.photoPreviewItem}>
+                    <View style={styles.imageWithOverlay}>
+                      <Image 
+                        source={{ uri: photo.processedUri }} 
+                        style={styles.photoThumbnail} 
+                      />
+                      
+                      {/* Timestamp Overlay Preview */}
+                      <View style={styles.thumbnailTimestampOverlay}>
+                        <Text style={styles.thumbnailTimestampText}>
+                          {photo.timestamp.toLocaleTimeString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                          })}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <Text style={styles.photoLabel}>Photo {index + 1}</Text>
+                    <Text style={styles.photoTimestamp}>
+                      {photo.timestamp.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </Text>
+                    
+                    {/* Remove Photo Button */}
+                    <TouchableOpacity 
+                      style={styles.removePhotoBtn}
+                      onPress={() => {
+                        Alert.alert(
+                          'Remove Photo?',
+                          `Remove Photo ${index + 1}?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Remove',
+                              style: 'destructive',
+                              onPress: () => setPhotos(prev => prev.filter((_, i) => i !== index))
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <Ionicons name="close-circle" size={28} color="#e74c3c" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+              
+              <Text style={styles.photoHint}>
+                {photos.length < 3 ? 
+                  `💡 You can add ${3 - photos.length} more photo${3 - photos.length > 1 ? 's' : ''}.` :
+                  '✅ Maximum photos reached. Remove a photo to add a new one.'}
+              </Text>
+            </View>
           )}
         </View>
 
@@ -1775,6 +1966,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
+  takePhotoButtonDisabled: {
+    backgroundColor: "#999",
+    opacity: 0.6,
+  },
   takePhotoButtonText: {
     color: "#fff",
     fontSize: 16,
@@ -1782,28 +1977,109 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  cameraIcon: {
+  photoCountBadge: {
     position: 'absolute',
-    right: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    top: 8,
+    right: 8,
+    backgroundColor: '#27ae60',
     borderRadius: 12,
     width: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  imagePreviewContainer: {
-    alignItems: 'center',
+  photoCountText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  photosPreviewContainer: {
     marginTop: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  photosPreviewLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  photosScrollView: {
+    marginBottom: 10,
+  },
+  photoPreviewItem: {
+    marginRight: 15,
+    alignItems: 'center',
+    width: 160,
   },
   imageWithOverlay: {
     position: 'relative',
-    width: 280,
-    height: 210,
+    width: 160,
+    height: 160,
     borderRadius: 12,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderWidth: 2,
+    borderColor: '#e74c3c',
+  },
+  photoThumbnail: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  thumbnailTimestampOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  thumbnailTimestampText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  photoLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 8,
+  },
+  photoTimestamp: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
+  },
+  removePhotoBtn: {
+    position: 'absolute',
+    top: -10,
+    right: -10,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  photoHint: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 10,
+  },
+  imagePreviewContainer: {
+    alignItems: 'center',
+    marginTop: 15,
   },
   imagePreview: {
     width: '100%',
@@ -1999,21 +2275,19 @@ const styles = StyleSheet.create({
   },
   cameraControls: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 40 : 20, // I-taas yung buong controls from bottom: 0
+    bottom: Platform.OS === 'ios' ? 40 : 20,
     left: 0,
     right: 0,
-    paddingBottom: 20, // Reduce padding
-    paddingTop: 20, // Add top padding
+    paddingBottom: 20,
+    paddingTop: 20,
     paddingHorizontal: 20,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
   },
-  
- captureContainer: {
+  captureContainer: {
     alignItems: 'center',
-    marginBottom: 15, // Reduce from 20
+    marginBottom: 15,
   },
-  
   captureButton: {
     width: 80,
     height: 80,
@@ -2043,14 +2317,13 @@ const styles = StyleSheet.create({
   },
   cameraInstructions: {
     color: '#fff',
-    fontSize: 13, // Reduce size
+    fontSize: 13,
     textAlign: 'center',
     opacity: 0.9,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    marginBottom: 6, // Reduce spacing
+    marginBottom: 6,
     fontWeight: '500',
   },
-  
 });
 
 export default CreateEmergencyReport;

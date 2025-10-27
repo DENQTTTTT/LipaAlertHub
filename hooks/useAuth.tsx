@@ -1,3 +1,4 @@
+// hooks/useAuth.tsx
 import { auth, db } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import { User, onAuthStateChanged } from "firebase/auth";
