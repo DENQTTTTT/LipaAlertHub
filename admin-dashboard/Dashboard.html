@@ -222,39 +222,41 @@
             background: linear-gradient(135deg, #6f42c1, #5a2d91);
         }
 
+        /* Enhanced dashboard content layout */
         .dashboard-content {
-            padding: 30px;
             height: calc(100vh - 80px);
-            display: flex;
-            flex-direction: column;
+            overflow: hidden;
+            padding: 30px;
         }
 
         .dashboard-grid {
+            height: 100%;
+            overflow: hidden;
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 30px;
-            flex: 1;
-            min-height: 0;
         }
 
         .content-card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
             background: white;
             border-radius: 15px;
             padding: 25px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.08);
             border: 1px solid #e9ecef;
-            display: flex;
-            flex-direction: column;
         }
 
         .card-header {
+            flex-shrink: 0;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f3f4;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f1f3f4;
-            flex-shrink: 0;
         }
 
         .card-title {
@@ -270,12 +272,68 @@
             color: #d53b2c;
         }
 
-        .reports-container {
+        .reports-container, .forum-container {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             min-height: 0;
+            padding-right: 10px;
         }
 
+        /* Enhanced status badge system */
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.pending {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
+            animation: pulse-red 2s infinite;
+        }
+
+        .status-badge.verified {
+            background: linear-gradient(135deg, #ffc107, #ff9800);
+            color: #000;
+            font-weight: 700;
+        }
+
+        .status-badge.assigned {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: white;
+        }
+
+        .status-badge.resolved {
+            background: linear-gradient(135deg, #4CAF50, #388E3C);
+            color: white;
+        }
+
+        .status-badge.dismissed {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 15px rgba(220, 53, 69, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+            }
+        }
+
+        /* Enhanced report item styling */
         .report-item {
             display: flex;
             justify-content: space-between;
@@ -288,19 +346,29 @@
             transition: all 0.3s ease;
         }
 
-        .report-item.unread {
-            background: #ffeaea;
-            border-left: 4px solid #ff0000;
-            animation: pulse 2s infinite;
+        /* Only apply unread styling if status is pending */
+        .report-item.unread.pending {
+            background: linear-gradient(135deg, #ffeaea 0%, #ffe0e0 100%);
+            border-left: 4px solid #dc3545;
+            animation: pulse-background 3s infinite;
+        }
+
+        @keyframes pulse-background {
+            0%, 100% {
+                background: linear-gradient(135deg, #ffeaea 0%, #ffe0e0 100%);
+            }
+            50% {
+                background: linear-gradient(135deg, #ffd5d5 0%, #ffcccc 100%);
+            }
+        }
+
+        .report-item.unread.pending:hover {
+            background: linear-gradient(135deg, #ffd5d5 0%, #ffcccc 100%);
         }
 
         .report-item:hover {
             background: #e9ecef;
             transform: translateX(5px);
-        }
-
-        .report-item.unread:hover {
-            background: #ffdada;
         }
 
         .report-info h6 {
@@ -317,44 +385,6 @@
             font-size: 13px;
             color: #666;
             margin-bottom: 8px;
-        }
-
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .status-badge.pending {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-
-        .status-badge.verified {
-            background: #cce5ff;
-            color: #004085;
-            border: 1px solid #b3d7ff;
-        }
-
-        .status-badge.assigned {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .status-badge.resolved {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status-badge.dismissed {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
         }
 
         .report-type-badge {
@@ -406,6 +436,24 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
+        /* Smooth scrollbar styling */
+        .reports-container::-webkit-scrollbar,
+        .forum-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .reports-container::-webkit-scrollbar-track,
+        .forum-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .reports-container::-webkit-scrollbar-thumb,
+        .forum-container::-webkit-scrollbar-thumb {
+            background: #d53b2c;
+            border-radius: 10px;
+        }
+
         .analytics-chart {
             height: 300px;
             display: flex;
@@ -450,12 +498,6 @@
             font-size: 14px;
             font-weight: bold;
             color: #d53b2c;
-        }
-
-        .forum-container {
-            flex: 1;
-            overflow-y: auto;
-            min-height: 0;
         }
 
         .forum-post {
@@ -579,18 +621,6 @@
             }
         }
 
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.4);
-            }
-            70% {
-                box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
-            }
-        }
-
         .sidebar-overlay {
             position: fixed;
             top: 0;
@@ -699,6 +729,33 @@
             opacity: 0.5;
         }
 
+        /* NEW: Red highlight for unread reports */
+        .report-item.unread {
+            background: #ffeaea !important;
+            border-left: 4px solid #ff0000 !important;
+            animation: pulse 2s infinite;
+        }
+
+        .report-item.unread:hover {
+            background: #ffdada !important;
+        }
+
+        .report-info h6.unread {
+            color: #ff0000;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+            }
+        }
+
         /* Mobile responsiveness */
         @media (min-width: 992px) {
             .sidebar {
@@ -736,6 +793,12 @@
             .dashboard-content {
                 padding: 20px 15px;
                 height: auto;
+                overflow: auto;
+            }
+
+            .content-card {
+                height: auto;
+                max-height: 70vh;
             }
 
             .header {
@@ -793,9 +856,36 @@
             }
         }
 
+        @media (max-width: 768px) {
+            .btn-action {
+                min-height: 44px;
+                width: 100%;
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+            
+            .report-item {
+                padding: 16px;
+            }
+            
+            .status-badge {
+                padding: 5px 12px;
+                font-size: 10px;
+            }
+            
+            .dashboard-content {
+                padding: 20px 15px;
+            }
+        }
+
         @media (max-width: 576px) {
             .dashboard-content {
                 padding: 15px 10px;
+            }
+            
+            .status-badge {
+                padding: 4px 10px;
+                font-size: 9px;
             }
 
             .header {
@@ -987,6 +1077,10 @@
                     <h1 class="page-title">Dashboard</h1>
                 </div>
                 
+                <button class="btn btn-sm btn-outline-danger ms-3" onclick="testAlertSound()" title="Test Alert Sound">
+    <i class="fas fa-volume-up"></i> Test Sound
+</button>
+
                 <div class="user-info">
                     <div class="user-details">
                         <div class="user-name" data-user-info="name">Loading...</div>
@@ -1067,7 +1161,7 @@
         </div>
     </div>
 
-    <!-- Audio element for alert sound - FIXED TO USE LOCAL FILE -->
+    <!-- Audio element for alert sound -->
     <audio id="alertSound" preload="auto">
         <source src="assets/alert.mp3" type="audio/mpeg">
         Your browser does not support the audio element.
@@ -1142,9 +1236,74 @@
         let currentUserInfo = null;
         let reportsListener = null;
         let forumListener = null;
-        let viewedReports = new Set(); // Track which reports have been viewed
-        let lastReportCount = 0; // Track the number of reports for alert comparison
-        let currentPostId = null; // Track the current post being viewed in modal
+        let viewedReports = new Set();
+        let lastReportCount = 0;
+        let currentPostId = null;
+        let isFirstLoad = true;
+        let reportIds = new Set();
+
+        // Test alert sound function
+        window.testAlertSound = function() {
+            console.log('🔊 Testing alert sound...');
+            const alertSound = document.getElementById('alertSound');
+            
+            if (!alertSound) {
+                console.error('❌ Alert sound element not found!');
+                alert('Alert sound element not found!');
+                return;
+            }
+            
+            console.log('Alert sound element found:', alertSound);
+            console.log('Audio source:', alertSound.src || alertSound.currentSrc);
+            console.log('Audio ready state:', alertSound.readyState);
+            console.log('Audio network state:', alertSound.networkState);
+            
+            alertSound.currentTime = 0;
+            alertSound.volume = 0.7;
+            
+            alertSound.play()
+                .then(() => {
+                    console.log('✅ Sound played successfully!');
+                    alert('Sound test successful! 🔊');
+                })
+                .catch(error => {
+                    console.error('❌ Sound play failed:', error);
+                    alert('Sound play failed: ' + error.message + '\nCheck console for details.');
+                });
+        };
+       
+        // Load viewed reports from localStorage
+        function loadViewedReports() {
+            const stored = localStorage.getItem(`viewedReports_${currentUserInfo.user.uid}`);
+            if (stored) {
+                viewedReports = new Set(JSON.parse(stored));
+            }
+        }
+
+        // Save viewed reports to localStorage
+        function saveViewedReports() {
+            localStorage.setItem(
+                `viewedReports_${currentUserInfo.user.uid}`, 
+                JSON.stringify([...viewedReports])
+            );
+        }
+
+        // Play alert sound for new reports
+        function playAlertSound() {
+            console.log('🚨 Playing alert for new report...');
+            const alertSound = document.getElementById('alertSound');
+            if (alertSound) {
+                alertSound.currentTime = 0;
+                alertSound.volume = 0.7;
+                alertSound.play()
+                    .then(() => console.log('✅ Alert sound played for new report!'))
+                    .catch(e => {
+                        console.warn('⚠️ Could not play alert sound:', e.message);
+                    });
+            } else {
+                console.error('❌ Alert sound element not found!');
+            }
+        }
 
         // Role-based navigation visibility
         function updateNavigationVisibility(userRole) {
@@ -1333,6 +1492,9 @@
                 updateUserInfo();
                 document.getElementById('loadingOverlay').style.display = 'none';
                 document.getElementById('dashboardContainer').style.display = 'block';
+                
+                // Load viewed reports from localStorage BEFORE loading reports
+                loadViewedReports();
                 await loadDashboardData();
                 
                 const welcomeMessage = `Welcome back, ${currentUserInfo.userData?.name || currentUserInfo.user.email}!`;
@@ -1389,9 +1551,6 @@
             try {
                 console.log('Loading dashboard data...');
                 
-                // Load viewed reports from localStorage
-                loadViewedReports();
-                
                 await loadRecentReports();
                 
                 if (currentUserInfo.role === USER_ROLES.ADMIN) {
@@ -1407,47 +1566,44 @@
             }
         }
 
-        // Load viewed reports from localStorage
-        function loadViewedReports() {
-            const storedViewedReports = localStorage.getItem(`viewedReports_${currentUserInfo.user.uid}`);
-            if (storedViewedReports) {
-                viewedReports = new Set(JSON.parse(storedViewedReports));
-            }
-        }
-
-        // Save viewed reports to localStorage
-        function saveViewedReports() {
-            localStorage.setItem(`viewedReports_${currentUserInfo.user.uid}`, JSON.stringify([...viewedReports]));
-        }
-
-        // Play alert sound for new reports - FIXED TO USE LOCAL FILE
-        function playAlertSound() {
-            const alertSound = document.getElementById('alertSound');
-            if (alertSound) {
-                alertSound.currentTime = 0;
-                alertSound.play().catch(e => {
-                    console.log('Could not play alert sound:', e);
-                });
-            }
-        }
-
+        // UPDATED: Firestore query that shows ALL reports without status filtering
         async function createReportQuery(userRole, userId, userData) {
             const baseCollection = collection(db, "incident_reports");
             
             console.log(`Creating dashboard query for ${userRole}:`, { userId, userData });
             
             if (userRole === USER_ROLES.ADMIN || userRole === USER_ROLES.MONITOR) {
-                console.log(`Creating dashboard query for ${userRole}: All reports (no restrictions)`);
-                return query(baseCollection, orderBy("createdAt", "desc"), limit(20));
+                console.log(`Creating dashboard query for ${userRole}: All reports`);
+                try {
+                    return query(
+                        baseCollection, 
+                        orderBy("createdAt", "desc"),
+                        limit(20)
+                    );
+                } catch (error) {
+                    console.error("Query error, falling back to basic query:", error);
+                    showNotification("Please create Firestore composite indexes for optimal performance", "warning");
+                    return query(baseCollection, orderBy("createdAt", "desc"), limit(20));
+                }
             } 
             else if (userRole === USER_ROLES.RESCUER) {
                 console.log(`Creating dashboard query for rescuer: Reports where assignedRescuer == ${userId}`);
-                return query(
-                    baseCollection, 
-                    where("assignedRescuer", "==", userId),
-                    orderBy("createdAt", "desc"),
-                    limit(15)
-                );
+                try {
+                    return query(
+                        baseCollection, 
+                        where("assignedRescuer", "==", userId),
+                        orderBy("createdAt", "desc"),
+                        limit(15)
+                    );
+                } catch (error) {
+                    console.error("Query error, falling back to basic query:", error);
+                    return query(
+                        baseCollection, 
+                        where("assignedRescuer", "==", userId),
+                        orderBy("createdAt", "desc"),
+                        limit(15)
+                    );
+                }
             } 
             else if (userRole === USER_ROLES.AGENCY) {
                 console.log(`Creating dashboard query for agency user: ${userId}`);
@@ -1461,12 +1617,22 @@
                 
                 console.log(`Querying reports for agency: ${userAgency}`);
                 
-                return query(
-                    baseCollection, 
-                    where("partnerAgency", "==", userAgency),
-                    orderBy("createdAt", "desc"),
-                    limit(15)
-                );
+                try {
+                    return query(
+                        baseCollection, 
+                        where("partnerAgency", "==", userAgency),
+                        orderBy("createdAt", "desc"),
+                        limit(15)
+                    );
+                } catch (error) {
+                    console.error("Query error, falling back to basic query:", error);
+                    return query(
+                        baseCollection, 
+                        where("partnerAgency", "==", userAgency),
+                        orderBy("createdAt", "desc"),
+                        limit(15)
+                    );
+                }
             } 
             else {
                 console.log(`Creating fallback query for role: ${userRole}`);
@@ -1479,14 +1645,17 @@
             }
         }
 
+        // ✅ FIXED: Real-time report loading with onSnapshot - using GLOBAL isFirstLoad
         async function loadRecentReports() {
             const container = document.getElementById('reportsContainer');
             const titleElement = document.getElementById('reportsTitle');
             const filterInfoElement = document.getElementById('filterInfo');
             
+            // ❌ REMOVED: Local isFirstLoad declaration - using GLOBAL variable instead
+            
             try {
                 let title = 'Recent Reports';
-                let filterInfo = 'Showing all reports';
+                let filterInfo = 'Showing all reports (including pending)';
                 
                 if (currentUserInfo.role === USER_ROLES.RESCUER) {
                     title = 'Your Assigned Reports';
@@ -1505,21 +1674,51 @@
                     currentUserInfo.userData
                 );
 
+                // Clean up old listener if exists
                 if (reportsListener) {
                     reportsListener();
                 }
 
+                // Set up real-time listener with ID-based tracking
                 reportsListener = onSnapshot(q, (snapshot) => {
+                    console.log('\n═══ SNAPSHOT UPDATE ═══');
+                    console.log('isFirstLoad:', isFirstLoad);
+                    console.log('snapshot.size:', snapshot.size);
+                    console.log('lastReportCount:', lastReportCount);
+                    console.log('reportIds.size:', reportIds.size);
+                    
                     container.innerHTML = '';
                     
-                    // Check for new reports and play alert sound if needed
-                    if (snapshot.size > lastReportCount && lastReportCount > 0) {
-                        const newReportCount = snapshot.size - lastReportCount;
-                        playAlertSound();
-                        showNotification(`${newReportCount} new report${newReportCount > 1 ? 's' : ''} received!`, 'warning');
+                    // Get current report IDs
+                    const currentReportIds = new Set();
+                    snapshot.forEach(doc => currentReportIds.add(doc.id));
+                    
+                    // ✅ BETTER DETECTION: Check for NEW report IDs
+                    if (!isFirstLoad && reportIds.size > 0) {
+                        const newReports = [...currentReportIds].filter(id => !reportIds.has(id));
+                        
+                        if (newReports.length > 0) {
+                            console.log('🚨🚨🚨 NEW REPORTS DETECTED! 🚨🚨🚨');
+                            console.log('New report IDs:', newReports);
+                            console.log('🔊 PLAYING ALERT SOUND...');
+                            
+                            playAlertSound();
+                            showNotification(`${newReports.length} new report${newReports.length > 1 ? 's' : ''} received!`, 'warning');
+                        } else {
+                            console.log('No new reports (just an update to existing reports)');
+                        }
                     }
                     
+                    // Update tracking
+                    if (isFirstLoad) {
+                        console.log('✅ First load complete');
+                        isFirstLoad = false;
+                    }
+                    
+                    reportIds = currentReportIds; // Update tracked IDs
                     lastReportCount = snapshot.size;
+                    console.log('Updated reportIds:', Array.from(reportIds));
+                    console.log('═══════════════════════\n');
                     
                     if (snapshot.empty) {
                         let noDataMessage = 'No emergency reports found';
@@ -1533,6 +1732,7 @@
                             <div class="no-data">
                                 <i class="fas fa-inbox fa-2x mb-3"></i>
                                 <p>${noDataMessage}</p>
+                                <small class="text-muted">New reports will appear here automatically</small>
                             </div>
                         `;
                         return;
@@ -1545,19 +1745,28 @@
                         container.appendChild(reportElement);
                     });
                     
-                    console.log(`Loaded ${snapshot.size} reports for role: ${currentUserInfo.role}`);
+                    console.log(`✅ Rendered ${snapshot.size} reports`);
                 }, (error) => {
-                    console.error('Error loading reports:', error);
+                    console.error('❌ Snapshot error:', error);
+                    
+                    let errorMessage = 'Failed to load emergency reports';
+                    if (error.code === 'failed-precondition') {
+                        errorMessage += '. Please create the required Firestore composite indexes.';
+                        showNotification('Firestore indexes needed. Check console for link.', 'error');
+                    }
+                    
                     container.innerHTML = `
                         <div class="error-content">
                             <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                            <p>Failed to load emergency reports</p>
+                            <p>${errorMessage}</p>
+                            ${error.code === 'failed-precondition' ? 
+                                '<small>Check the browser console for the index creation link</small>' : ''}
                         </div>
                     `;
                 });
 
             } catch (error) {
-                console.error('Error setting up reports listener:', error);
+                console.error('❌ Error setting up listener:', error);
                 container.innerHTML = `
                     <div class="error-content">
                         <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
@@ -1567,8 +1776,33 @@
             }
         }
 
+        // UPDATED: Report element creation with unread status and assignment info
         function createReportElement(id, data, isUnread) {
             const reportDiv = document.createElement('div');
+            
+            // Determine badge color based on status and assignment
+            let statusClass = data.status || 'pending';
+            let statusIcon = 'fas fa-clock';
+            
+            // Enhanced status badge logic
+            if (data.status === 'verified' && !data.assignedRescuer && !data.partnerAgency) {
+                statusClass = 'verified'; // Yellow for verified but unassigned
+                statusIcon = 'fas fa-check-circle';
+            } else if (data.status === 'assigned' || data.assignedRescuer || data.partnerAgency) {
+                statusClass = 'assigned'; // Blue for assigned
+                statusIcon = 'fas fa-user-check';
+            } else if (data.status === 'resolved') {
+                statusClass = 'resolved'; // Green for resolved
+                statusIcon = 'fas fa-check-double';
+            } else if (data.status === 'dismissed') {
+                statusClass = 'dismissed'; // Gray for dismissed
+                statusIcon = 'fas fa-times-circle';
+            } else {
+                statusClass = 'pending'; // Red for pending
+                statusIcon = 'fas fa-exclamation-circle';
+            }
+            
+            // Apply unread styling for unread reports
             reportDiv.className = `report-item ${isUnread ? 'unread' : ''}`;
             
             const isSOS = data.type === 'sos';
@@ -1601,11 +1835,14 @@
                 emergencyType = `SOS: ${data.selectedAgency}`;
             }
 
+            // UPDATED: Assignment status display logic
             let assignmentInfo = '';
-            if (data.assignedRescuerName && currentUserInfo.role === USER_ROLES.RESCUER) {
-                assignmentInfo = `<br><small class="text-info"><i class="fas fa-user-md"></i> Assigned to you</small>`;
-            } else if (data.partnerAgency && currentUserInfo.role === USER_ROLES.AGENCY) {
-                assignmentInfo = `<br><small class="text-info"><i class="fas fa-building"></i> Assigned to your agency</small>`;
+            if (!data.assignedRescuerName && !data.partnerAgency) {
+                assignmentInfo = `<br><small class="text-muted"><i class="fas fa-check-circle"></i> Accepted</small>`;
+            } else if (data.assignedRescuerName) {
+                assignmentInfo = `<br><small class="text-info"><i class="fas fa-user-md"></i> Assigned to ${data.assignedRescuerName}</small>`;
+            } else if (data.partnerAgency) {
+                assignmentInfo = `<br><small class="text-info"><i class="fas fa-building"></i> Assigned to ${data.partnerAgency}</small>`;
             }
 
             reportDiv.innerHTML = `
@@ -1620,7 +1857,9 @@
                         <i class="fas fa-user me-1"></i>${reporterName} • 
                         <i class="fas fa-clock me-1"></i>${formatTimestamp(data.createdAt || data.timestamp)}
                     </div>
-                    <span class="status-badge ${data.status || 'pending'}">${(data.status || 'pending').toUpperCase()}</span>
+                    <span class="status-badge ${statusClass}">
+                        <i class="${statusIcon}"></i>${(data.status || 'pending').toUpperCase()}
+                    </span>
                     ${assignmentInfo}
                 </div>
                 
@@ -1971,15 +2210,15 @@
             console.log('Already on dashboard');
         };
 
+        // UPDATED: Mark reports as viewed on click
         window.viewReport = function(id) {
-            // Mark report as viewed
             viewedReports.add(id);
             saveViewedReports();
             window.location.href = `report.html?id=${id}`;
         };
 
+        // UPDATED: Mark reports as viewed on click
         window.viewSOS = function(id) {
-            // Mark SOS as viewed
             viewedReports.add(id);
             saveViewedReports();
             window.location.href = `sos.html?id=${id}`;
@@ -2070,6 +2309,7 @@
             });
         }
 
+        // UPDATED: Cleanup listeners on page unload
         window.addEventListener('beforeunload', () => {
             if (reportsListener) reportsListener();
             if (forumListener) forumListener();

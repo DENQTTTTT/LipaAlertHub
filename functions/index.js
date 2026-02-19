@@ -135,8 +135,7 @@ function validateEmail(email) {
 }
 
 
-// =================== CREATE STAFF ACCOUNT (WITH CORS & CORRECT REGION) ===================
-// =================== CREATE STAFF ACCOUNT (WITH CORS & CORRECT REGION) ===================
+// =================== CREATE STAFF ACCOUNT (WITH DEFAULT PASSWORD) ===================
 exports.createStaffAccount = onCall({
   region: "asia-southeast1",
   cors: true,
@@ -145,20 +144,16 @@ exports.createStaffAccount = onCall({
   cpu: 1
 }, async (request) => {
   try {
-    logger.info('=== CREATE STAFF ACCOUNT STARTED ===', {
-      timestamp: new Date().toISOString(),
-      caller: request.auth ? request.auth.uid : 'no-auth'
-    });
+    logger.info('=== CREATE STAFF ACCOUNT WITH DEFAULT PASSWORD STARTED ===');
 
     // ✅ VERIFY AUTHENTICATION
     if (!request.auth) {
-      logger.error('❌ No authentication token provided');
       throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
     }
 
     const callerUid = request.auth.uid;
     
-    // ✅ CHECK ADMIN PERMISSIONS (Custom Claims + Firestore)
+    // ✅ CHECK ADMIN PERMISSIONS
     const [callerDoc, callerAuth] = await Promise.all([
       admin.firestore().collection('users').doc(callerUid).get(),
       admin.auth().getUser(callerUid)
@@ -171,233 +166,58 @@ exports.createStaffAccount = onCall({
     const callerData = callerDoc.data();
     const hasAdminClaim = callerAuth.customClaims?.admin === true;
     
-    logger.info('📋 Caller verification:', { 
-      uid: callerUid, 
-      role: callerData.role,
-      hasAdminClaim: hasAdminClaim
-    });
-    
-    // Must have BOTH admin role AND custom claim
     if (callerData.role !== 'admin' || !hasAdminClaim) {
-      logger.error('❌ Permission denied: Not an admin');
       throw new functions.https.HttpsError('permission-denied', 'Only admins can create accounts');
     }
 
     // ✅ VALIDATE INPUT
     const { email, password, name, phoneNumber, barangay, role, agencyName } = request.data;
     
-    if (!email || !password || !name || !phoneNumber || !barangay || !role) {
+    if (!email || !name || !phoneNumber || !barangay || !role) {
       throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
     }
 
-    const validRoles = ['rescuer', 'monitor', 'agency', 'admin'];
-    if (!validRoles.includes(role)) {
-      throw new functions.https.HttpsError('invalid-argument', 'Invalid role');
+    // ✅ DEFAULT PASSWORD SYSTEM
+    let finalPassword = password;
+    let isDefaultPassword = false;
+    
+    // If no password provided OR role is agency, use default password
+    if (!password || role === 'agency') {
+      // Generate default password based on agency name or use generic
+      if (role === 'agency' && agencyName) {
+        // Example: "BFP@2025!" or "PNP@2025!"
+        finalPassword = `${agencyName.split(' ')[0]}@2025!`; // First word of agency name
+      } else {
+        finalPassword = "Default@2025!"; // Generic default password
+      }
+      isDefaultPassword = true;
+      
+      logger.info('🔐 Using default password system:', {
+        role: role,
+        agencyName: agencyName,
+        isDefaultPassword: isDefaultPassword
+      });
     }
 
-    if (role === 'agency' && !agencyName) {
-      throw new functions.https.HttpsError('invalid-argument', 'Agency name required for agency role');
-    }
-
-    if (password.length < 6) {
+    if (finalPassword.length < 6) {
       throw new functions.https.HttpsError('invalid-argument', 'Password must be at least 6 characters');
     }
 
+    // ✅ EMAIL VALIDATION
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       throw new functions.https.HttpsError('invalid-argument', 'Invalid email format');
     }
 
-    logger.info('✅ Input validation passed');
+    logger.info('✅ Input validation passed with password system');
 
-    // =================== 🆕 STEP 4.2: DUPLICATE WARNING SYSTEM ===================
-    logger.info('🔍 [DUPLICATE WARNING] Starting pre-creation duplicate check');
-
-    let duplicateFound = false;
-    let duplicateDetails = [];
-    let suspendedUsersFound = false;
-
-    // 1. CHECK FIREBASE AUTH FOR EXISTING EMAIL
-    try {
-      const existingAuthUser = await admin.auth().getUserByEmail(email);
-      logger.warn('⚠️ [DUPLICATE WARNING] User already exists in Firebase Auth:', {
-        uid: existingAuthUser.uid,
-        email: existingAuthUser.email
-      });
-      
-      duplicateFound = true;
-      duplicateDetails.push({
-        matchType: 'firebase_auth_email',
-        existingUser: {
-          id: existingAuthUser.uid,
-          name: existingAuthUser.displayName || 'Unknown',
-          email: existingAuthUser.email,
-          barangay: 'Unknown',
-          status: 'active',
-          role: 'unknown'
-        },
-        isSuspended: false
-      });
-      
-    } catch (authError) {
-      // If error is "user not found", that's GOOD - continue
-      if (authError.code !== 'auth/user-not-found') {
-        // Re-throw if it's a different error
-        throw authError;
-      }
-      logger.info('✅ [DUPLICATE WARNING] No duplicate in Firebase Auth');
-    }
-
-    // 2. CHECK FIRESTORE FOR DUPLICATES
-    const duplicateChecks = [];
-    
-    // Check by email (case-insensitive)
-    duplicateChecks.push(
-      admin.firestore()
-        .collection("users")
-        .where("email", ">=", email.toLowerCase())
-        .where("email", "<=", email.toLowerCase() + '\uf8ff')
-        .limit(3)
-        .get()
-    );
-
-    // Check by phone (normalized)
-    if (phoneNumber) {
-      const normalizedPhone = phoneNumber.replace(/\s/g, '');
-      duplicateChecks.push(
-        admin.firestore()
-          .collection("users")
-          .where("number", "==", normalizedPhone)
-          .limit(3)
-          .get()
-      );
-    }
-
-    // Check by name + barangay
-    if (name && barangay) {
-      duplicateChecks.push(
-        admin.firestore()
-          .collection("users")
-          .where("name", "==", name)
-          .where("barangay", "==", barangay)
-          .limit(3)
-          .get()
-      );
-    }
-
-    const results = await Promise.all(duplicateChecks);
-    
-    // Process email duplicates
-    if (!results[0].empty) {
-      duplicateFound = true;
-      results[0].docs.forEach(doc => {
-        const userData = doc.data();
-        const isSuspended = ['suspended', 'suspended_3d', 'suspended_2w', 'banned'].includes(userData.status);
-        
-        duplicateDetails.push({
-          matchType: 'email',
-          existingUser: {
-            id: doc.id,
-            name: userData.name,
-            email: userData.email,
-            phone: userData.phone || userData.number,
-            barangay: userData.barangay,
-            status: userData.status || 'unknown',
-            role: userData.role
-          },
-          isSuspended: isSuspended
-        });
-        
-        if (isSuspended) {
-          suspendedUsersFound = true;
-        }
-      });
-    }
-
-    // Process phone duplicates
-    if (phoneNumber && !results[1].empty) {
-      duplicateFound = true;
-      results[1].docs.forEach(doc => {
-        const userData = doc.data();
-        const isSuspended = ['suspended', 'suspended_3d', 'suspended_2w', 'banned'].includes(userData.status);
-        
-        // Check if user already in duplicates
-        const existingIndex = duplicateDetails.findIndex(d => d.existingUser.id === doc.id);
-        if (existingIndex === -1) {
-          duplicateDetails.push({
-            matchType: 'phone',
-            existingUser: {
-              id: doc.id,
-              name: userData.name,
-              email: userData.email,
-              phone: userData.phone || userData.number,
-              barangay: userData.barangay,
-              status: userData.status || 'unknown',
-              role: userData.role
-            },
-            isSuspended: isSuspended
-          });
-        } else {
-          duplicateDetails[existingIndex].matchType += '+phone';
-        }
-        
-        if (isSuspended) {
-          suspendedUsersFound = true;
-        }
-      });
-    }
-
-    // Process name + barangay duplicates
-    if (name && barangay && !results[2].empty) {
-      duplicateFound = true;
-      results[2].docs.forEach(doc => {
-        const userData = doc.data();
-        const isSuspended = ['suspended', 'suspended_3d', 'suspended_2w', 'banned'].includes(userData.status);
-        
-        // Check if user already in duplicates
-        const existingIndex = duplicateDetails.findIndex(d => d.existingUser.id === doc.id);
-        if (existingIndex === -1) {
-          duplicateDetails.push({
-            matchType: 'name+barangay',
-            existingUser: {
-              id: doc.id,
-              name: userData.name,
-              email: userData.email,
-              phone: userData.phone || userData.number,
-              barangay: userData.barangay,
-              status: userData.status || 'unknown',
-              role: userData.role
-            },
-            isSuspended: isSuspended
-          });
-        } else {
-          duplicateDetails[existingIndex].matchType += '+name_location';
-        }
-        
-        if (isSuspended) {
-          suspendedUsersFound = true;
-        }
-      });
-    }
-
-    // ⚠️ LOG WARNING BUT CONTINUE WITH ACCOUNT CREATION
-    if (duplicateFound) {
-      logger.warn('⚠️ [DUPLICATE WARNING] Potential duplicates found - proceeding with creation:', {
-        totalDuplicates: duplicateDetails.length,
-        suspendedUsers: suspendedUsersFound,
-        details: duplicateDetails
-      });
-    } else {
-      logger.info('✅ [DUPLICATE WARNING] No duplicates found - clean account creation');
-    }
-    // =================== END OF DUPLICATE WARNING SYSTEM ===================
-
+    // =================== ACCOUNT CREATION LOGIC ===================
     try {
       // ✅ STEP 1: CREATE FIREBASE AUTH ACCOUNT
       logger.info('👤 Creating Firebase Auth account...');
       const userRecord = await admin.auth().createUser({
         email: email,
-        password: password,
+        password: finalPassword, // Use the determined password
         displayName: name,
         emailVerified: false
       });
@@ -409,23 +229,18 @@ exports.createStaffAccount = onCall({
       
       if (role === 'admin') {
         customClaims.admin = true;
-        logger.info('🔑 Setting ADMIN custom claim');
       } else if (role === 'monitor') {
         customClaims.monitor = true;
-        logger.info('🔑 Setting MONITOR custom claim');
       } else if (role === 'rescuer') {
         customClaims.rescuer = true;
-        logger.info('🔑 Setting RESCUER custom claim');
       } else if (role === 'agency') {
         customClaims.agency = true;
-        logger.info('🔑 Setting AGENCY custom claim');
       }
 
-      // ⭐ THIS IS THE KEY FIX - SET CUSTOM CLAIMS IMMEDIATELY
       await admin.auth().setCustomUserClaims(userRecord.uid, customClaims);
       logger.info('✅ Custom claims set successfully');
 
-      // ✅ STEP 3: CREATE FIRESTORE DOCUMENT
+      // ✅ STEP 3: CREATE FIRESTORE DOCUMENT WITH PASSWORD INFO
       logger.info('📄 Creating Firestore document...');
       
       const userData = {
@@ -445,60 +260,63 @@ exports.createStaffAccount = onCall({
         
         // Role & Status
         role: role,
-        status: 'active', // ⭐ CHANGED: Auto-approve admin/staff accounts
+        status: 'active',
         
-        // Custom Claims (for reference)
+        // ✅ PASSWORD SYSTEM FIELDS
+        passwordSystem: {
+          isDefaultPassword: isDefaultPassword,
+          defaultPassword: isDefaultPassword ? finalPassword : null,
+          passwordChanged: false,
+          passwordChangedAt: null,
+          requiresPasswordChange: isDefaultPassword // Recommend change for default passwords
+        },
+        
+        // Custom Claims
         customClaims: customClaims,
         
         // Admin tracking
         adminCreated: true,
         createdBy: callerUid,
         
-        // Violation tracking
-        warnings: 0,
-        strikes: 0,
-        lastViolationReason: null,
-        lastViolationDate: null,
-        suspensionUntil: null,
-        
         // Timestamps
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        
-        // Device
-        deviceType: 'web'
       };
 
       // Add agencyName if role is agency
       if (role === 'agency' && agencyName) {
         userData.agencyName = agencyName;
-        userData.agency = agencyName; // For compatibility
+        userData.agency = agencyName;
         logger.info('🏢 Added agency name:', agencyName);
       }
 
       await admin.firestore().collection('users').doc(userRecord.uid).set(userData);
-      logger.info('✅ Firestore document created');
+      logger.info('✅ Firestore document created with password system');
 
-      // =================== 🆕 PART 1: ENHANCED WELCOME NOTIFICATION WITH DEFAULT PASSWORD SYSTEM ===================
+      // =================== ENHANCED WELCOME NOTIFICATION ===================
       logger.info('🔔 Creating enhanced welcome notification...');
       
       let notificationBody = '';
       let notificationTitle = '';
 
-      if (role === 'agency') {
+      if (role === 'agency' && isDefaultPassword) {
         notificationTitle = '🎉 Welcome to LipaAlertHub!';
-        notificationBody = `Welcome! Your ${customClaims.agencyName || 'agency'} account is now active.\n\n` +
+        notificationBody = `Welcome! Your ${agencyName} agency account is now active.\n\n` +
                          `✅ You can now login and access all emergency coordination features.\n\n` +
-                         `🔐 Security Tip:\n` +
-                         `Your account was created with a default password. ` +
-                         `You may change it anytime in Profile Settings → Change Password for better security.\n\n` +
-                         `Note: Changing your password is optional but recommended.`;
+                         `🔐 Security Information:\n` +
+                         `• Default password has been set for your account\n` +
+                         `• You may change it anytime in Profile Settings → Change Password\n` +
+                         `• Changing password is optional but recommended for security\n\n` +
+                         `Note: Contact admin if you need assistance.`;
+      } else if (isDefaultPassword) {
+        notificationTitle = '🎉 Welcome to LipaAlertHub';
+        notificationBody = `Your ${role} account has been created with a default password. You can change it in your profile settings.`;
       } else {
         notificationTitle = '🎉 Welcome to LipaAlertHub';
-        notificationBody = `Your ${role} account has been created successfully. You can now login and access the system.`;
+        notificationBody = `Your ${role} account has been created successfully.`;
       }
 
-      // Create the enhanced notification (one-time only)
+      // Create the enhanced notification
       await admin.firestore().collection('notifications').add({
         userId: userRecord.uid,
         title: notificationTitle,
@@ -511,11 +329,10 @@ exports.createStaffAccount = onCall({
           role: role,
           customClaims: customClaims,
           createdBy: callerUid,
-          defaultPasswordUsed: role === 'agency' ? true : false
+          defaultPasswordUsed: isDefaultPassword,
+          requiresPasswordChange: isDefaultPassword
         }
       });
-
-      logger.info(`Welcome notification created for user ${userRecord.uid} (${role})`);
 
       // ✅ STEP 5: LOG ADMIN ACTION
       await admin.firestore().collection('admin_actions').add({
@@ -531,57 +348,51 @@ exports.createStaffAccount = onCall({
           name: name,
           barangay: barangay,
           agencyName: agencyName || null,
-          defaultPasswordUsed: role === 'agency' ? true : false
+          defaultPasswordUsed: isDefaultPassword,
+          passwordSystem: {
+            isDefaultPassword: isDefaultPassword,
+            requiresPasswordChange: isDefaultPassword
+          }
         }
       });
 
       logger.info('🎉 Account creation completed successfully');
       
-      // 🆕 ENHANCED: RETURN WARNING INFORMATION IF DUPLICATES FOUND
-      if (duplicateFound) {
-        let successMessage = `Admin account created successfully for ${name}.`;
-        
-        return { 
-          success: true, 
-          uid: userRecord.uid,
-          message: successMessage,
-          role: role,
-          customClaims: customClaims,
-          status: 'active',
-          // 🆕 NEW: Include warning information
-          warnings: {
-            hasDuplicates: true,
-            hasSuspendedUsers: suspendedUsersFound,
-            duplicateDetails: duplicateDetails,
-            warningMessage: suspendedUsersFound ? 
-              "⚠️ WARNING: Created account matches suspended/banned users. Please review." :
-              "ℹ️ NOTE: Created account matches existing users. Please review."
-          }
-        };
-      } else {
-        let successMessage = '';
-        if (role === 'admin') {
-          successMessage = `Admin account created successfully for ${name}. Full system access granted.`;
-        } else if (role === 'agency') {
+      // ✅ RETURN SUCCESS WITH PASSWORD INFO
+      let successMessage = '';
+      
+      if (role === 'admin') {
+        successMessage = `Admin account created successfully for ${name}.`;
+      } else if (role === 'agency') {
+        if (isDefaultPassword) {
           successMessage = `${agencyName} agency account created successfully with default password system.`;
         } else {
-          successMessage = `${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully for ${name}.`;
+          successMessage = `${agencyName} agency account created successfully.`;
         }
-        
-        return { 
-          success: true, 
-          uid: userRecord.uid,
-          message: successMessage,
-          role: role,
-          customClaims: customClaims,
-          status: 'active'
-        };
+      } else {
+        successMessage = `${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully for ${name}.`;
       }
+      
+      return { 
+        success: true, 
+        uid: userRecord.uid,
+        message: successMessage,
+        role: role,
+        customClaims: customClaims,
+        status: 'active',
+        passwordSystem: {
+          isDefaultPassword: isDefaultPassword,
+          defaultPassword: isDefaultPassword ? finalPassword : null,
+          requiresPasswordChange: isDefaultPassword,
+          message: isDefaultPassword ? 
+            'Default password was set. User can change it in profile settings.' : 
+            'Custom password was set.'
+        }
+      };
 
     } catch (error) {
       logger.error('❌ Error in account creation:', error);
       
-      // Handle specific Firebase Auth errors
       if (error.code === 'auth/email-already-exists') {
         throw new functions.https.HttpsError('already-exists', 'This email is already in use');
       } else if (error.code === 'auth/invalid-email') {
@@ -595,16 +406,11 @@ exports.createStaffAccount = onCall({
 
   } catch (error) {
     logger.error('💥 FATAL ERROR in createStaffAccount:', error);
-    
-    if (error.code && error.message) {
-      throw error;
-    } else {
-      throw new functions.https.HttpsError('internal', `Unexpected error: ${error.message}`);
-    }
+    throw new functions.https.HttpsError('internal', `Unexpected error: ${error.message}`);
   }
 });
 
-// =================== PASSWORD CHANGE TRACKING (Optional) ===================
+// =================== ENHANCED PASSWORD CHANGE WITH TRACKING ===================
 exports.updateUserPassword = onCall({
   region: "asia-southeast1",
   cors: true
@@ -615,7 +421,7 @@ exports.updateUserPassword = onCall({
       throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
     }
 
-    const { userId, newPassword } = request.data;
+    const { userId, newPassword, currentPassword } = request.data;
     
     if (!userId || !newPassword) {
       throw new functions.https.HttpsError('invalid-argument', 'User ID and new password are required');
@@ -640,27 +446,55 @@ exports.updateUserPassword = onCall({
 
     logger.info(`✅ Password updated for user ${userId}`);
 
-    // =================== PART 2: PASSWORD CHANGE TRACKING (Optional) ===================
+    // =================== PASSWORD CHANGE TRACKING ===================
     try {
-      // Mark password as changed (for analytics/tracking only)
-      await admin.firestore().collection("users").doc(userId).update({
+      // Get current user data to check if it was a default password
+      const userDoc = await admin.firestore().collection("users").doc(userId).get();
+      const userData = userDoc.data();
+      
+      const wasDefaultPassword = userData?.passwordSystem?.isDefaultPassword === true;
+      
+      // Update password tracking
+      const updateData = {
         passwordChangedAt: admin.firestore.FieldValue.serverTimestamp(),
         passwordChangedBy: userId,
         lastPasswordUpdate: admin.firestore.FieldValue.serverTimestamp(),
-        defaultPasswordChanged: true // Mark that default password has been changed
-      });
+        'passwordSystem.passwordChanged': true,
+        'passwordSystem.defaultPasswordChanged': wasDefaultPassword,
+        'passwordSystem.lastPasswordChange': admin.firestore.FieldValue.serverTimestamp()
+      };
 
-      logger.info(`User ${userId} changed their password`);
+      // If changing from default password, mark that it's no longer default
+      if (wasDefaultPassword) {
+        updateData['passwordSystem.isDefaultPassword'] = false;
+        updateData['passwordSystem.requiresPasswordChange'] = false;
+      }
 
-      // Optional: Create a success notification
+      await admin.firestore().collection("users").doc(userId).update(updateData);
+
+      logger.info(`User ${userId} changed their password (was default: ${wasDefaultPassword})`);
+
+      // Create appropriate notification
+      let notificationTitle = '✅ Password Changed Successfully';
+      let notificationBody = 'Your password has been updated successfully.';
+      
+      if (wasDefaultPassword) {
+        notificationTitle = '🔐 Default Password Changed';
+        notificationBody = 'You have successfully changed your default password. Your account security has been improved.';
+      }
+
       await admin.firestore().collection('notifications').add({
         userId: userId,
-        title: '✅ Password Changed Successfully',
-        body: 'Your password has been updated successfully.',
+        title: notificationTitle,
+        body: notificationBody,
         type: 'security_update',
         status: 'unread',
         priority: 'normal',
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        data: {
+          wasDefaultPassword: wasDefaultPassword,
+          timestamp: new Date().toISOString()
+        }
       });
 
     } catch (error) {
@@ -672,7 +506,8 @@ exports.updateUserPassword = onCall({
       success: true, 
       message: "Password updated successfully",
       userId: userId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      wasDefaultPassword: wasDefaultPassword || false
     };
     
   } catch (error) {
@@ -687,7 +522,6 @@ exports.updateUserPassword = onCall({
     throw new functions.https.HttpsError('internal', `Failed to update password: ${error.message}`);
   }
 });
-
 
 // =================== PASSWORD CHANGE TRACKING (Optional) ===================
 exports.updateUserPassword = onCall({

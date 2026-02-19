@@ -624,6 +624,40 @@
             opacity: 1;
         }
 
+        /* Default Password System Styles */
+        .password-info-container {
+            margin-top: 8px;
+        }
+
+        .alert-info {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 1px solid #bae6fd;
+            color: #0369a1;
+        }
+
+        .code-password {
+            background: #1e293b;
+            color: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            border: 1px solid #334155;
+        }
+
+        /* Form field states */
+        .form-control[readonly] {
+            background-color: #f0f9ff;
+            border-color: #3b82f6;
+            color: #1e40af;
+        }
+
+        .form-control[readonly]:focus {
+            background-color: #f0f9ff;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+        }
+
         @media (max-width: 768px) {
             .mobile-menu-toggle {
                 display: block;
@@ -1040,7 +1074,7 @@
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="newAccountPassword" class="form-label">Temporary Password *</label>
+                                <label for="newAccountPassword" class="form-label"> Password *</label>
                                 <input type="password" class="form-control" id="newAccountPassword" minlength="6" required>
                                 <div class="form-text">Minimum 6 characters. User can change this in their profile settings.</div>
                             </div>
@@ -1300,6 +1334,8 @@
                 console.log('🚀 Initializing Account Management...');
                 await checkAuthentication();
                 setupEventListeners();
+                // Initialize default password system
+                setupDefaultPasswordSystem();
             } catch (error) {
                 console.error('❌ Account management initialization failed:', error);
                 showNotification('Failed to load account management. Please try again.', 'error');
@@ -2847,147 +2883,183 @@ async function performFinalDuplicateCheck(formData) {
     }
 }
 
-// =================== AUTO-SET DEFAULT PASSWORD FOR AGENCIES ===================
-// Add this code BEFORE the closing </script> tag
-
-document.addEventListener('DOMContentLoaded', function() {
-  setupDefaultPasswordForAgencies();
-});
-
-function setupDefaultPasswordForAgencies() {
-  const roleSelect = document.getElementById('newAccountRole');
-  const passwordField = document.getElementById('newAccountPassword');
-  const agencyNameSelect = document.getElementById('newAccountAgencyName');
-  
-  if (!roleSelect || !passwordField) {
-    console.log('Password fields not found');
-    return;
-  }
-
-  // When role changes
-  roleSelect.addEventListener('change', function() {
-    handleRoleChange(this.value, passwordField, agencyNameSelect);
-  });
-
-  // When agency name changes (optional: create agency-specific password)
-  if (agencyNameSelect) {
-    agencyNameSelect.addEventListener('change', function() {
-      if (roleSelect.value === 'agency' && this.value) {
-        updateAgencyPassword(this.value, passwordField);
-      }
+// =================== DEFAULT PASSWORD SYSTEM ===================
+function setupDefaultPasswordSystem() {
+    const roleSelect = document.getElementById('newAccountRole');
+    const passwordField = document.getElementById('newAccountPassword');
+    const agencyNameSelect = document.getElementById('newAccountAgencyName');
+    
+    if (!roleSelect || !passwordField) {
+        console.log('🔐 Default password system: Required elements not found');
+        return;
+    }
+    
+    console.log('🔐 Setting up default password system...');
+    
+    // When role changes
+    roleSelect.addEventListener('change', function() {
+        handleRoleChange(this.value, passwordField, agencyNameSelect);
     });
-  }
+
+    // When agency name changes
+    if (agencyNameSelect) {
+        agencyNameSelect.addEventListener('change', function() {
+            if (roleSelect.value === 'agency' && this.value) {
+                updateAgencyPassword(this.value, passwordField);
+            }
+        });
+    }
 }
 
 function handleRoleChange(role, passwordField, agencyNameSelect) {
-  if (role === 'agency') {
-    // Set default password
-    const defaultPassword = 'Agency@2025';
-    passwordField.value = defaultPassword;
-    passwordField.readOnly = true;
-    passwordField.style.backgroundColor = '#f0f0f0';
-    passwordField.style.cursor = 'not-allowed';
-    
-    // Remove any existing info message
-    removePasswordInfo(passwordField);
-    
-    // Show password info to admin
-    showPasswordInfo(passwordField, defaultPassword);
-    
-    // Show alert with password
-    setTimeout(() => {
-      showNotification(
-        `✅ Default password set: ${defaultPassword}\n\n` +
-        `ℹ️ The agency can change this password anytime in their Profile Settings.\n\n` +
-        `Note: Password change is optional but recommended for security.`,
-        'info'
-      );
-    }, 300);
-    
-  } else {
-    // Reset for other roles
-    passwordField.value = '';
-    passwordField.readOnly = false;
-    passwordField.style.backgroundColor = '';
-    passwordField.style.cursor = 'text';
-    removePasswordInfo(passwordField);
-  }
+    if (role === 'agency') {
+        // Set default password
+        let defaultPassword = 'Agency@2025!';
+        
+        // If agency name is selected, create agency-specific password
+        if (agencyNameSelect && agencyNameSelect.value) {
+            const agencyCode = agencyNameSelect.value.split(' ')[0]; // Get first word
+            defaultPassword = `${agencyCode}@2025!`;
+        }
+        
+        passwordField.value = defaultPassword;
+        passwordField.readOnly = true;
+        passwordField.style.backgroundColor = '#f0f9ff';
+        passwordField.style.borderColor = '#3b82f6';
+        passwordField.style.cursor = 'not-allowed';
+        
+        // Show password info to admin
+        showPasswordInfo(passwordField, defaultPassword);
+        
+        console.log('🔐 Default password set for agency role:', defaultPassword);
+        
+    } else {
+        // Reset for other roles
+        passwordField.value = '';
+        passwordField.readOnly = false;
+        passwordField.style.backgroundColor = '';
+        passwordField.style.borderColor = '';
+        passwordField.style.cursor = 'text';
+        removePasswordInfo(passwordField);
+    }
 }
 
 function updateAgencyPassword(agencyName, passwordField) {
-  // Option 1: Keep simple default (RECOMMENDED - simple lang)
-  const defaultPassword = 'Agency@2025';
-  
-  // Option 2: Agency-specific password (uncomment if you want this)
-  // const agencyCode = agencyName.split(' ')[0]; // Get first word
-  // const defaultPassword = `${agencyCode}@2025`;
-  
-  passwordField.value = defaultPassword;
-  updatePasswordInfo(passwordField, defaultPassword);
+    const agencyCode = agencyName.split(' ')[0]; // Get first word
+    const defaultPassword = `${agencyCode}@2025!`;
+    
+    passwordField.value = defaultPassword;
+    updatePasswordInfo(passwordField, defaultPassword);
+    
+    console.log('🔐 Agency-specific password generated:', defaultPassword);
 }
 
 function showPasswordInfo(passwordField, password) {
-  const infoDiv = document.createElement('div');
-  infoDiv.id = 'password-info-message';
-  infoDiv.className = 'alert alert-info mt-2';
-  infoDiv.style.fontSize = '13px';
-  infoDiv.innerHTML = `
-    <i class="fas fa-info-circle"></i> 
-    <strong>Default Password:</strong> <code style="background: #fff; padding: 2px 8px; border-radius: 4px;">${password}</code>
-    <br>
-    <small>
-      <i class="fas fa-shield-alt"></i> Agency can change this anytime in Profile Settings (optional)
-    </small>
-  `;
-  passwordField.parentElement.appendChild(infoDiv);
+    // Remove existing info first
+    removePasswordInfo(passwordField);
+    
+    const infoDiv = document.createElement('div');
+    infoDiv.id = 'password-info-message';
+    infoDiv.className = 'alert alert-info mt-2';
+    infoDiv.style.fontSize = '13px';
+    infoDiv.style.borderLeft = '4px solid #3b82f6';
+    infoDiv.innerHTML = `
+        <div class="d-flex align-items-start">
+            <i class="fas fa-info-circle mt-1 me-2" style="color: #3b82f6;"></i>
+            <div>
+                <strong class="text-primary">Default Password System Active</strong><br>
+                <small>
+                    🔐 Password: <code class="bg-light px-2 py-1 rounded border">${password}</code><br>
+                    📝 Agency can change this anytime in their Profile Settings
+                </small>
+            </div>
+        </div>
+    `;
+    
+    passwordField.parentNode.appendChild(infoDiv);
 }
 
 function updatePasswordInfo(passwordField, password) {
-  const infoDiv = document.getElementById('password-info-message');
-  if (infoDiv) {
-    infoDiv.querySelector('code').textContent = password;
-  }
+    const infoDiv = document.getElementById('password-info-message');
+    if (infoDiv) {
+        const codeElement = infoDiv.querySelector('code');
+        if (codeElement) {
+            codeElement.textContent = password;
+        }
+    }
 }
 
 function removePasswordInfo(passwordField) {
-  const infoDiv = document.getElementById('password-info-message');
-  if (infoDiv) {
-    infoDiv.remove();
-  }
+    const infoDiv = document.getElementById('password-info-message');
+    if (infoDiv) {
+        infoDiv.remove();
+    }
 }
 
-// =================== ENHANCED SUCCESS MESSAGE ===================
-// Call this function AFTER successful account creation
-// Replace or enhance your existing success notification
-
-function showAgencyCreationSuccess(name, email, role, agencyName, password) {
-  let successMessage = `✅ Agency Account Created Successfully!\n\n`;
-  successMessage += `👤 Name: ${name}\n`;
-  successMessage += `📧 Email: ${email}\n`;
-  successMessage += `🏢 Agency: ${agencyName}\n`;
-  successMessage += `👔 Role: ${role.toUpperCase()}\n`;
-  successMessage += `🔑 Default Password: ${password}\n\n`;
-  successMessage += `📋 Status: ACTIVE ✓\n\n`;
-  successMessage += `📝 REMINDERS:\n`;
-  successMessage += `1. Agency has been notified via in-app notification\n`;
-  successMessage += `2. They can login immediately with the credentials above\n`;
-  successMessage += `3. They can change password anytime (optional)\n`;
-  successMessage += `4. Default password: ${password}\n\n`;
-  successMessage += `💡 TIP: Send credentials via secure channel if needed`;
-  
-  showNotification(successMessage, 'success');
+// =================== ENHANCED SUCCESS MESSAGES ===================
+function showAgencyCreationSuccess(result) {
+    const { name, email, role, agencyName } = result.data;
+    const defaultPassword = result.data.passwordSystem?.defaultPassword || 'Agency@2025!';
+    
+    let successMessage = `✅ Agency Account Created Successfully!\n\n`;
+    successMessage += `👤 Name: ${name}\n`;
+    successMessage += `📧 Email: ${email}\n`;
+    successMessage += `🏢 Agency: ${agencyName}\n`;
+    successMessage += `👔 Role: ${role.toUpperCase()}\n`;
+    successMessage += `🔑 Default Password: ${defaultPassword}\n\n`;
+    successMessage += `📋 Account Status: ACTIVE ✓\n\n`;
+    successMessage += `📝 IMPORTANT NOTES:\n`;
+    successMessage += `• Agency has been notified via in-app notification\n`;
+    successMessage += `• They can login immediately with the credentials above\n`;
+    successMessage += `• Password change is OPTIONAL but recommended\n`;
+    successMessage += `• Default password: ${defaultPassword}\n\n`;
+    successMessage += `💡 TIP: Share credentials via secure channel if needed`;
+    
+    showNotification(successMessage, 'success');
 }
 
-// =================== INTEGRATION WITH EXISTING CODE ===================
-// In your existing confirmCreateAccount() function, after successful account creation:
+function showRegularCreationSuccess(result) {
+    const { name, email, role } = result.data;
+    
+    let successMessage = `✅ Account Created Successfully!\n\n`;
+    successMessage += `👤 Name: ${name}\n`;
+    successMessage += `📧 Email: ${email}\n`;
+    successMessage += `👔 Role: ${role.toUpperCase()}\n`;
+    successMessage += `📋 Status: ACTIVE ✓\n\n`;
+    successMessage += `The user can now login to the system.`;
+    
+    showNotification(successMessage, 'success');
+}
 
-// Example integration:
-// if (role === 'agency') {
-//   showAgencyCreationSuccess(name, email, role, agencyName, 'Agency@2025');
-// } else {
-//   // Your existing success message
-//   showNotification('Account created successfully!', 'success');
-// }
+// =================== ENHANCED CREATE ACCOUNT SUCCESS HANDLING ===================
+// Enhanced success handling for account creation
+function enhanceAccountCreationSuccess(result) {
+    if (result.data.role === 'agency' && result.data.passwordSystem?.isDefaultPassword) {
+        showAgencyCreationSuccess(result);
+    } else {
+        showRegularCreationSuccess(result);
+    }
+    
+    // Close modal and reset form
+    const modal = bootstrap.Modal.getInstance(document.getElementById('createAccountModal'));
+    if (modal) modal.hide();
+    document.getElementById('createAccountForm').reset();
+    
+    // Reset agency field
+    document.getElementById('agencyNameField').style.display = 'none';
+    document.getElementById('newAccountAgencyName').required = false;
+    removePasswordInfo(document.getElementById('newAccountPassword'));
+}
+
+// =================== INITIALIZATION ===================
+// Initialize default password system when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait a bit for the DOM to be fully ready
+    setTimeout(() => {
+        setupDefaultPasswordSystem();
+        console.log('🎯 Default password system initialized');
+    }, 500);
+});
     </script>
 </body>
 </html>

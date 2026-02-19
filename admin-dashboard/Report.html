@@ -163,12 +163,12 @@
             transition: margin-left 0.3s ease;
         }
 
-        .header {
+          .header {
             background: white;
             padding: 15px 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #dee2e6;
         }
@@ -177,9 +177,11 @@
             display: flex;
             align-items: center;
             gap: 15px;
+            flex: 1;
         }
 
-        .mobile-menu-toggle {
+
+          .mobile-menu-toggle {
             background: none;
             border: none;
             color: #d73527;
@@ -194,13 +196,13 @@
             background-color: rgba(215, 53, 39, 0.1);
         }
 
-        .page-title {
+         .page-title {
             font-size: 24px;
             font-weight: 600;
             color: #333;
+            margin: 0;
         }
-
-        .user-info {
+          .user-info {
             display: flex;
             align-items: center;
             gap: 15px;
@@ -210,19 +212,21 @@
             text-align: right;
         }
 
-        .user-name {
+         .user-name {
             font-weight: 600;
             color: #333;
             font-size: 14px;
+            margin: 0;
         }
 
-        .user-role {
+         .user-role {
             font-size: 11px;
             color: #666;
             text-transform: uppercase;
+            margin: 0;
         }
 
-        .role-badge {
+          .role-badge {
             padding: 0.25rem 0.75rem;
             border-radius: 20px;
             font-size: 11px;
@@ -231,10 +235,9 @@
             color: white;
         }
 
-        .role-badge.admin {
+         .role-badge.admin {
             background: linear-gradient(135deg, #d73527, #b92e20);
         }
-
         .role-badge.monitor {
             background: linear-gradient(135deg, #17a2b8, #138496);
         }
@@ -247,7 +250,7 @@
             background: linear-gradient(135deg, #28a745, #218838);
         }
 
-        .back-button {
+         .back-button {
             background: linear-gradient(135deg, #6c757d, #495057);
             color: white;
             border: none;
@@ -262,7 +265,6 @@
             gap: 8px;
             font-size: 13px;
         }
-
         .back-button:hover {
             background: linear-gradient(135deg, #495057, #343a40);
             transform: translateY(-2px);
@@ -3787,72 +3789,91 @@ function formatTimestamp(timestamp) {
 
         // Render partner agency status
         // Render partner agency status with Role-Based Access
-        function renderPartnerAgencyStatus(reportData) {
-            const partnerSection = document.getElementById('partnerStatusSection');
-            const statusDisplay = document.getElementById('partnerStatusDisplay');
-            const controls = document.getElementById('partnerStatusControls');
-            
-            if (!reportData.partnerAgency) {
-                partnerSection.style.display = 'none';
-                return;
-            }
-            
-            // ✅ CHECK PERMISSIONS
-            const userRole = currentUserData.role;
-            const isAssignedAgency = userRole === 'agency' && currentUserData.agencyName === reportData.partnerAgency;
-            const isAdminMonitor = userRole === 'admin' || userRole === 'monitor';
-            
-            if (!isAssignedAgency && !isAdminMonitor) {
-                partnerSection.style.display = 'none';
-                return;
-            }
-            
-            partnerSection.style.display = 'block';
-            const status = reportData.partnerAgencyStatus || 'assigned';
-            
-            const statusMap = {
-                'assigned': { text: 'Assigned - Waiting Response', class: 'info', icon: '🟡' },
-                'dispatched': { text: 'Dispatched - On the Way', class: 'warning', icon: '🚗' },
-                'on_scene': { text: 'On Scene - At Location', class: 'primary', icon: '📍' },
-                'completed': { text: 'Completed - Mission Done', class: 'success', icon: '✅' }
-            };
-            
-            const statusInfo = statusMap[status] || statusMap['assigned'];
-            statusDisplay.innerHTML = `
-                <div class="alert alert-${statusInfo.class}">
-                    <strong>${reportData.partnerAgency}</strong><br>
-                    ${statusInfo.icon} ${statusInfo.text}
-                    ${reportData.partnerStatusUpdatedAt ? `
-                        <br><small>Last updated: ${formatTimestamp(reportData.partnerStatusUpdatedAt)}</small>
-                    ` : ''}
-                </div>
+      // ✅ FIXED: Render partner agency status with proper null checks
+function renderPartnerAgencyStatus(reportData) {
+    const partnerSection = document.getElementById('partnerStatusSection');
+    
+    // ✅ CRITICAL: Check if element exists
+    if (!partnerSection) {
+        console.warn('⚠️ partnerStatusSection element not found');
+        return;
+    }
+    
+    // ✅ Check if there's a partner agency assigned
+    if (!reportData.partnerAgency) {
+        partnerSection.style.display = 'none';
+        return;
+    }
+    
+    // ✅ CHECK PERMISSIONS
+    const userRole = currentUserData.role;
+    const isAssignedAgency = userRole === 'agency' && currentUserData.agencyName === reportData.partnerAgency;
+    const isAdminMonitor = userRole === 'admin' || userRole === 'monitor';
+    
+    if (!isAssignedAgency && !isAdminMonitor) {
+        partnerSection.style.display = 'none';
+        return;
+    }
+    
+    partnerSection.style.display = 'block';
+    const status = reportData.partnerAgencyStatus || 'assigned';
+    
+    const statusMap = {
+        'assigned': { text: 'Assigned - Waiting Response', class: 'info', icon: '🟡' },
+        'dispatched': { text: 'Dispatched - On the Way', class: 'warning', icon: '🚗' },
+        'on_scene': { text: 'On Scene - At Location', class: 'primary', icon: '📍' },
+        'completed': { text: 'Completed - Mission Done', class: 'success', icon: '✅' }
+    };
+    
+    const statusInfo = statusMap[status] || statusMap['assigned'];
+    
+    let controlsHTML = '';
+    
+    // ✅ ONLY ASSIGNED AGENCY CAN UPDATE THEIR STATUS
+    if (isAssignedAgency) {
+        const statusOptions = [
+            { value: 'dispatched', label: 'Mark as Dispatched', class: 'btn-warning' },
+            { value: 'on_scene', label: 'Mark as On Scene', class: 'btn-info' },
+            { value: 'completed', label: 'Mark as Completed', class: 'btn-success' }
+        ];
+        
+        let buttonsHTML = '<div class="btn-group w-100" style="margin-top: 10px;">';
+        statusOptions.forEach(option => {
+            const disabled = status === 'completed' || status === option.value;
+            buttonsHTML += `
+                <button class="btn ${option.class} ${disabled ? 'disabled' : ''}" 
+                        onclick="updatePartnerStatus('${option.value}')"
+                        ${disabled ? 'disabled' : ''}
+                        style="font-size: 12px; padding: 8px 12px;">
+                    ${option.label}
+                </button>
             `;
-            
-            // ✅ ONLY ASSIGNED AGENCY CAN UPDATE THEIR STATUS
-            if (isAssignedAgency) {
-                const statusOptions = [
-                    { value: 'dispatched', label: 'Mark as Dispatched', class: 'btn-warning' },
-                    { value: 'on_scene', label: 'Mark as On Scene', class: 'btn-info' },
-                    { value: 'completed', label: 'Mark as Completed', class: 'btn-success' }
-                ];
-                
-                let html = '<div class="btn-group w-100">';
-                statusOptions.forEach(option => {
-                    const disabled = status === 'completed' || status === option.value;
-                    html += `
-                        <button class="btn ${option.class} ${disabled ? 'disabled' : ''}" 
-                                onclick="updatePartnerStatus('${option.value}')"
-                                ${disabled ? 'disabled' : ''}>
-                            ${option.label}
-                        </button>
-                    `;
-                });
-                html += '</div>';
-                controls.innerHTML = html;
-            } else {
-                controls.innerHTML = '<p class="text-muted">Only assigned agency can update status</p>';
-            }
-        }
+        });
+        buttonsHTML += '</div>';
+        controlsHTML = buttonsHTML;
+    } else {
+        controlsHTML = '<p class="text-muted" style="font-size: 12px; margin-top: 10px;">Only assigned agency can update status</p>';
+    }
+    
+    partnerSection.innerHTML = `
+        <div class="content-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-handshake"></i>
+                    Partner Agency Status
+                </div>
+            </div>
+            <div class="alert alert-${statusInfo.class}">
+                <strong>${reportData.partnerAgency}</strong><br>
+                ${statusInfo.icon} ${statusInfo.text}
+                ${reportData.partnerStatusUpdatedAt ? `
+                    <br><small>Last updated: ${formatTimestamp(reportData.partnerStatusUpdatedAt)}</small>
+                ` : ''}
+            </div>
+            ${controlsHTML}
+        </div>
+    `;
+}
 
         // Update partner agency status
         window.updatePartnerStatus = async function(newStatus) {

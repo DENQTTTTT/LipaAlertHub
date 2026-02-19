@@ -4506,6 +4506,7 @@
         }
 
         // Close Report Modal
+      // Close Report Modal
         function closeReportModal() {
             const modal = document.getElementById('reportModal');
             modal.classList.remove('show');
@@ -4516,6 +4517,9 @@
             destroyModalCharts();
         }
 
+        
+        // Expose to global scope for onclick handlers
+        window.closeReportModal = closeReportModal;
         // Destroy Modal Charts
         function destroyModalCharts() {
             Object.values(modalCharts).forEach(chart => {
